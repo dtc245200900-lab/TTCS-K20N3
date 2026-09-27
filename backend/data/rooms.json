@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "roomNumber": "101",
+    "roomType": "Deluxe",
+    "nightlyRate": 1200000,
+    "status": "available"
+  },
+  {
+    "id": 2,
+    "roomCode": "P102",
+    "shortDescription": "phongdep mien che",
+    "imagePath": "",
+    "roomType": "VIP",
+    "nightlyRate": 15401,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 3,
+    "roomCode": "P103",
+    "shortDescription": "view đpj",
+    "imagePath": "",
+    "roomType": "Đơn",
+    "nightlyRate": 25001,
+    "status": "Phòng trống"
+  }
+]

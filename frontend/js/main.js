@@ -89,6 +89,88 @@ if (logoutButton) {
   });
 }
 
+async function loadRoomList() {
+  const roomList = document.querySelector('#room-list');
+  if (!roomList) return;
+
+  try {
+    const response = await fetch('/api/rooms');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
+
+    if (!result.rooms || result.rooms.length === 0) {
+      roomList.innerHTML = '<p class="muted">Chưa có phòng nào.</p>';
+      return;
+    }
+
+    roomList.innerHTML = result.rooms.map((room) => {
+      const statusClass = String(room.status || 'Phòng trống')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-');
+
+      return `
+        <div class="room-item">
+          <div style="flex:1;">
+            <strong>${room.roomCode}</strong>
+            <small>${room.roomType} • ${room.shortDescription || 'Không có mô tả'}</small>
+            <small>${Number(room.nightlyRate).toLocaleString('vi-VN')}đ / đêm</small>
+          </div>
+          <div class="room-meta">
+            <span class="status-badge status-${statusClass}">${room.status}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    roomList.innerHTML = `<p class="error">${error.message}</p>`;
+  }
+}
+
+const roomForm = document.querySelector('#room-form');
+if (roomForm) {
+  const roomMessage = document.querySelector('#room-message');
+  const roomError = document.querySelector('#room-error');
+  const toggleButton = document.querySelector('#toggle-room-form');
+
+  if (toggleButton) {
+    toggleButton.addEventListener('click', () => {
+      roomForm.classList.toggle('hidden-form');
+      toggleButton.textContent = roomForm.classList.contains('hidden-form') ? 'Thêm mới' : 'Ẩn form';
+    });
+  }
+
+  roomForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    roomMessage.textContent = '';
+    roomError.textContent = '';
+
+    const roomData = Object.fromEntries(new FormData(roomForm));
+
+    try {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roomData)
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Không thể thêm phòng.');
+      }
+
+      roomMessage.textContent = result.message;
+      roomForm.reset();
+      roomForm.classList.add('hidden-form');
+      if (toggleButton) toggleButton.textContent = 'Thêm mới';
+      await loadRoomList();
+    } catch (error) {
+      roomError.textContent = error.message;
+    }
+  });
+}
+
 async function loadSession() {
   if (!document.querySelector('#top-name')) return;
   try {
@@ -102,6 +184,7 @@ async function loadSession() {
     document.querySelector('#full-name').textContent = user.fullName;
     document.querySelector('#top-name').textContent = user.fullName;
     document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
+    await loadRoomList();
   } catch {
     window.location.href = '/login.html';
   }

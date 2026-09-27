@@ -25,12 +25,58 @@
       <h2>Xin chào, <span id="full-name">...</span></h2>
       <p class="muted">Mọi thứ đang sẵn sàng cho một ngày vận hành suôn sẻ.</p>
     </section>
+
     <section class="dashboard-grid">
       <article class="dashboard-card">
-        <span class="workspace-badge">WORKSPACE</span>
-        <h3>Không gian làm việc của bạn</h3>
-        <p class="muted">Bạn có thể sử dụng đầy đủ các chức năng trong hệ thống.</p>
+        <div class="card-header-row">
+          <div>
+            <span class="workspace-badge">QUẢN LÝ PHÒNG</span>
+            <h3>Thêm mới phòng</h3>
+          </div>
+          <button type="button" class="secondary-button dark-button" id="toggle-room-form">Thêm mới</button>
+        </div>
+        <p class="muted">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p>
+
+        <form id="room-form" class="room-form hidden-form">
+          <div class="room-fields">
+            <label>
+              Mã phòng
+              <input type="text" name="roomCode" placeholder="P101" required>
+            </label>
+            <label>
+              Mô tả ngắn
+              <textarea name="shortDescription" rows="3" placeholder="Phòng view thành phố, 2 giường đơn..." required></textarea>
+            </label>
+            <label>
+              Loại phòng
+              <select name="roomType" required>
+                <option value="">-- Chọn loại phòng --</option>
+                <option value="Đơn">Đơn</option>
+                <option value="Đôi">Đôi</option>
+                <option value="VIP">VIP</option>
+              </select>
+            </label>
+            <label>
+              Giá thuê (VNĐ)
+              <input type="number" name="nightlyRate" min="1" step="1000" placeholder="1200000" required>
+            </label>
+            <label>
+              Trạng thái
+              <input type="text" value="Phòng trống" readonly>
+              <input type="hidden" name="status" value="Phòng trống">
+            </label>
+          </div>
+          <button type="submit" class="primary-button small-button">Lưu phòng</button>
+          <p id="room-message" class="success" aria-live="polite"></p>
+          <p id="room-error" class="error" aria-live="polite"></p>
+        </form>
       </article>
+
+      <aside class="dashboard-card">
+        <span class="workspace-badge">ROOMS</span>
+        <h3>Danh sách phòng</h3>
+        <div id="room-list" class="room-list"></div>
+      </aside>
     </section>
   </main>
   <script src="/js/main.js" defer></script>

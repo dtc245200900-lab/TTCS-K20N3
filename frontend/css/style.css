@@ -55,6 +55,28 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .dashboard-card { padding: 1.5rem; background: rgba(255,255,255,.68); border: 1px solid rgba(255,255,255,.8); }
 .dashboard-card h3 { margin: .5rem 0 .3rem; font: 400 1.55rem Georgia, serif; }
 .workspace-badge { display: inline-block; padding: .35rem .55rem; color: var(--forest-light); background: #c4ddc9; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.card-header-row h3 { margin: .5rem 0 0; font: 400 1.55rem Georgia, serif; }
+.dark-button { border-color: rgba(23,63,61,.45); color: var(--forest); background: rgba(23,63,61,.06); }
+.hidden-form { display: none; }
+.room-form { margin-top: 1.5rem; }
+.room-form h4 { margin: 0 0 1rem; color: var(--forest); font-size: 1.1rem; }
+.room-fields { display: grid; gap: .8rem; }
+.room-fields label { display: block; margin: 0; color: var(--forest); font-size: .74rem; font-weight: 700; }
+.room-fields input,
+.room-fields select,
+.room-fields textarea { width: 100%; margin-top: .35rem; padding: .8rem .9rem; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; }
+.room-fields textarea { resize: vertical; min-height: 90px; }
+.small-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; }
+.room-list { display: grid; gap: .8rem; margin-top: 1.2rem; }
+.room-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+.room-item strong { display: block; color: var(--forest); }
+.room-item small { display: block; color: var(--muted); margin-top: .2rem; }
+.room-meta { display: grid; justify-items: end; gap: .35rem; font-size: .8rem; }
+.status-badge { display: inline-block; padding: .25rem .55rem; border-radius: 999px; font-size: .68rem; text-transform: uppercase; }
+.status-phong-trong { background: #dff5e6; color: #216d3c; }
+.status-da-thue { background: #fde4d7; color: #9b4d2a; }
+.status-bao-tri { background: #f2e8d2; color: #8d6931; }
 @media (max-width: 800px) { .auth-layout { grid-template-columns: 1fr; } .brand-panel { min-height: 32rem; } .brand-mark { margin-bottom: 4rem; } .auth-panel { padding: 3rem 1.5rem; } .dashboard-grid { grid-template-columns: 1fr; } }
 
 /* Reference-inspired sign-in composition. */

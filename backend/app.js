@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const sessionMiddleware = require('./config/session');
+const { initializeDatabase } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 
 const app = express();
@@ -10,6 +11,7 @@ const frontendDirectory = path.join(__dirname, '..', 'frontend');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(sessionMiddleware);
 app.use('/api', authRoutes);
 
@@ -22,10 +24,16 @@ app.get('/home', (request, response) => {
 app.use(express.static(frontendDirectory));
 
 const port = process.env.PORT || 3000;
-if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Hotel management app is running at http://localhost:${port}`);
-  });
+
+async function startServer() {
+  await initializeDatabase();
+  if (require.main === module) {
+    app.listen(port, () => {
+      console.log(`Hotel management app is running at http://localhost:${port}`);
+    });
+  }
 }
+
+startServer();
 
 module.exports = app;
