@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Hotel Manager</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">HOTEL MANAGER / DASHBOARD</p>
+      <h1>Tổng quan</h1>
+    </div>
+    <div class="user-chip">
+      <div><strong id="top-name">...</strong><small>Đang hoạt động</small></div>
+      <div class="avatar" id="avatar">H</div>
+      <button id="logout-button" class="secondary-button" type="button">Đăng xuất</button>
+    </div>
+  </header>
+  <p id="logout-error" class="error" role="alert"></p>
+  <main class="dashboard">
+    <section class="welcome-block">
+      <p class="eyebrow">GOOD MORNING / TODAY</p>
+      <h2>Xin chào, <span id="full-name">...</span></h2>
+      <p class="muted">Mọi thứ đang sẵn sàng cho một ngày vận hành suôn sẻ.</p>
+    </section>
+    <section class="dashboard-grid">
+      <article class="dashboard-card">
+        <span class="workspace-badge">WORKSPACE</span>
+        <h3>Không gian làm việc của bạn</h3>
+        <p class="muted">Bạn có thể sử dụng đầy đủ các chức năng trong hệ thống.</p>
+      </article>
+    </section>
+  </main>
+  <script src="/js/main.js" defer></script>
+</body>
+</html>

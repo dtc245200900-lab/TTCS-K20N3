@@ -1,0 +1,76 @@
+CREATE DATABASE IF NOT EXISTS hotel_management
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE hotel_management;
+
+CREATE TABLE IF NOT EXISTS roles (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_roles_name (name)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  role_id BIGINT UNSIGNED NOT NULL,
+  email VARCHAR(254) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(150) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_email (email),
+  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles (id)
+);
+
+CREATE TABLE IF NOT EXISTS guests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  full_name VARCHAR(150) NOT NULL,
+  email VARCHAR(254),
+  phone VARCHAR(30),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_guests_email (email)
+);
+
+CREATE TABLE IF NOT EXISTS rooms (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  room_number VARCHAR(20) NOT NULL,
+  room_type VARCHAR(80) NOT NULL,
+  nightly_rate DECIMAL(12, 2) NOT NULL,
+  status ENUM('available', 'occupied', 'maintenance') NOT NULL DEFAULT 'available',
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_rooms_number (room_number),
+  CONSTRAINT chk_rooms_rate CHECK (nightly_rate >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS reservations (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  guest_id BIGINT UNSIGNED NOT NULL,
+  room_id BIGINT UNSIGNED NOT NULL,
+  check_in DATE NOT NULL,
+  check_out DATE NOT NULL,
+  status ENUM('pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled') NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_reservations_dates (check_in, check_out),
+  CONSTRAINT fk_reservations_guest FOREIGN KEY (guest_id) REFERENCES guests (id),
+  CONSTRAINT fk_reservations_room FOREIGN KEY (room_id) REFERENCES rooms (id),
+  CONSTRAINT chk_reservations_dates CHECK (check_out > check_in)
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  reservation_id BIGINT UNSIGNED NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL,
+  method ENUM('cash', 'card', 'transfer') NOT NULL,
+  status ENUM('pending', 'paid', 'refunded') NOT NULL DEFAULT 'pending',
+  paid_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_payments_reservation (reservation_id),
+  CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations (id),
+  CONSTRAINT chk_payments_amount CHECK (amount >= 0)
+);
+
+INSERT IGNORE INTO roles (name) VALUES ('admin'), ('receptionist');
