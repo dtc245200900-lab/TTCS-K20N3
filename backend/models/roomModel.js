@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { pool, isDatabaseAvailable } = require('../config/database');
+const roomTypeModel = require('./roomTypeModel');
 
 const dataDirectory = path.join(__dirname, '..', 'data');
 const roomsFile = path.join(dataDirectory, 'rooms.json');
@@ -76,7 +77,7 @@ async function createRoom({ roomCode, shortDescription, imagePath, roomType, nig
   if (!normalizedCode) throw new Error('Mã phòng không được để trống.');
   if (!normalizedType) throw new Error('Loại phòng không được để trống.');
   if (!Number.isFinite(normalizedRate) || normalizedRate <= 0) throw new Error('Giá thuê phải lớn hơn 0.');
-  if (!['Đơn', 'Đôi', 'VIP'].includes(normalizedType)) throw new Error('Loại phòng không hợp lệ.');
+  if (!await roomTypeModel.findRoomType(normalizedType)) throw new Error('Loại phòng không hợp lệ.');
   if (!['Phòng trống', 'Đã thuê', 'Bảo trì'].includes(normalizedStatus)) throw new Error('Trạng thái phòng không hợp lệ.');
 
   const duplicate = await findByRoomCode(normalizedCode);

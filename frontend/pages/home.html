@@ -49,11 +49,8 @@
             </label>
             <label>
               Loại phòng
-              <select name="roomType" required>
+              <select id="room-type-select" name="roomType" required>
                 <option value="">-- Chọn loại phòng --</option>
-                <option value="Đơn">Đơn</option>
-                <option value="Đôi">Đôi</option>
-                <option value="VIP">VIP</option>
               </select>
             </label>
             <label>
@@ -78,6 +75,37 @@
         <p id="room-list-message" class="success" role="status" aria-live="polite"></p>
         <div id="room-list" class="room-list"></div>
       </aside>
+    </section>
+
+    <section class="room-types-section">
+      <article class="dashboard-card room-types-card">
+        <div class="card-header-row">
+          <div>
+            <span class="workspace-badge">DANH MỤC</span>
+            <h3>Quản lý thể loại phòng</h3>
+          </div>
+          <button type="button" class="secondary-button dark-button" id="toggle-room-type-form">Thêm mới</button>
+        </div>
+        <form id="room-type-form" class="room-type-form hidden-form">
+          <div class="room-type-fields">
+            <label>
+              Mã thể loại
+              <input id="room-type-code" type="text" value="LP001" readonly>
+            </label>
+            <label>
+              Tên thể loại
+              <input id="room-type-name" type="text" name="name" maxlength="80" placeholder="Ví dụ: Phòng gia đình" required>
+            </label>
+          </div>
+          <div class="room-type-actions">
+            <button type="submit" class="primary-button small-button">Lưu thể loại</button>
+            <button type="button" class="cancel-button" id="cancel-room-type-form">Hủy</button>
+          </div>
+          <p id="room-type-error" class="error" role="alert" aria-live="polite"></p>
+        </form>
+        <p id="room-type-message" class="toast-message" role="status" aria-live="polite"></p>
+        <div id="room-type-list" class="room-type-list"></div>
+      </article>
     </section>
   </main>
   <script src="/js/main.js" defer></script>
