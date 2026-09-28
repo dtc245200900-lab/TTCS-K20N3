@@ -12,5 +12,6 @@ router.post('/logout', authController.logout);
 router.get('/home', requireAuth, authController.getHome);
 router.get('/rooms', requireAuth, roomController.getRooms);
 router.post('/rooms', requireAuth, roomController.addRoom);
+router.delete('/rooms/:id', requireAuth, roomController.deleteRoom);
 
 module.exports = router;

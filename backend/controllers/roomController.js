@@ -43,4 +43,25 @@ async function addRoom(request, response) {
   }
 }
 
-module.exports = { addRoom, getRooms };
+async function deleteRoom(request, response) {
+  try {
+    const result = await roomModel.deleteRoom(request.params.id);
+
+    if (!result.deleted) {
+      if (result.reason === 'rented') {
+        return response.status(409).json({ message: 'Không thể xóa phòng đang được thuê.' });
+      }
+      return response.status(404).json({ message: 'Không tìm thấy phòng cần xóa.' });
+    }
+
+    return response.json({ message: 'Xóa phòng thành công.' });
+  } catch (error) {
+    return response.status(409).json({
+      message: error.code === 'ER_ROW_IS_REFERENCED_2'
+        ? 'Không thể xóa phòng đang có dữ liệu đặt phòng.'
+        : error.message || 'Không thể xóa phòng.'
+    });
+  }
+}
+
+module.exports = { addRoom, deleteRoom, getRooms };

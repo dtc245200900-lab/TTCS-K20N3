@@ -4,7 +4,11 @@
         {
             "label": "hotel: start server",
             "type": "shell",
-            "command": "npm run dev",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "set \"PATH=C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Microsoft\\VisualStudio\\NodeJs;%PATH%\" && npm run dev"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -18,7 +22,7 @@
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": ".*npm run dev.*",
-                    "endsPattern": ".*Hotel management app is running at http://localhost:3000.*"
+                    "endsPattern": ".*Hotel management app is running at http://localhost:3001.*"
                 }
             }
         }

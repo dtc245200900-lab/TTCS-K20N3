@@ -23,7 +23,7 @@ app.get('/home', (request, response) => {
 });
 app.use(express.static(frontendDirectory));
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 async function startServer() {
   await initializeDatabase();

@@ -73,6 +73,9 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .room-item strong { display: block; color: var(--forest); }
 .room-item small { display: block; color: var(--muted); margin-top: .2rem; }
 .room-meta { display: grid; justify-items: end; gap: .35rem; font-size: .8rem; }
+.delete-room-button { padding: .35rem .6rem; border: 1px solid #d9a49a; color: #9b3f32; background: #fff; font-size: .72rem; }
+.delete-room-button:hover:not(:disabled) { color: #fff; background: #b34d3d; }
+.delete-room-button:disabled { cursor: wait; opacity: .6; }
 .status-badge { display: inline-block; padding: .25rem .55rem; border-radius: 999px; font-size: .68rem; text-transform: uppercase; }
 .status-phong-trong { background: #dff5e6; color: #216d3c; }
 .status-da-thue { background: #fde4d7; color: #9b4d2a; }

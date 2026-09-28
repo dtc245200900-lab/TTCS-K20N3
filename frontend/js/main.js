@@ -119,6 +119,7 @@ async function loadRoomList() {
           </div>
           <div class="room-meta">
             <span class="status-badge status-${statusClass}">${room.status}</span>
+            <button type="button" class="delete-room-button" data-room-id="${room.id}">Xóa</button>
           </div>
         </div>
       `;
@@ -126,6 +127,38 @@ async function loadRoomList() {
   } catch (error) {
     roomList.innerHTML = `<p class="error">${error.message}</p>`;
   }
+}
+
+const roomList = document.querySelector('#room-list');
+if (roomList) {
+  roomList.addEventListener('click', async (event) => {
+    const deleteButton = event.target.closest('.delete-room-button');
+    if (!deleteButton) return;
+
+    const roomMessage = document.querySelector('#room-list-message');
+    const roomId = deleteButton.dataset.roomId;
+    const roomCode = deleteButton.closest('.room-item').querySelector('strong').textContent;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa phòng ${roomCode}?`)) return;
+
+    roomMessage.textContent = '';
+    roomMessage.classList.remove('error');
+    roomMessage.classList.add('success');
+    deleteButton.disabled = true;
+
+    try {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể xóa phòng.');
+
+      roomMessage.textContent = result.message || 'Xóa phòng thành công.';
+      await loadRoomList();
+    } catch (error) {
+      roomMessage.textContent = error.message;
+      roomMessage.classList.remove('success');
+      roomMessage.classList.add('error');
+      deleteButton.disabled = false;
+    }
+  });
 }
 
 const roomForm = document.querySelector('#room-form');

@@ -110,4 +110,43 @@ async function createRoom({ roomCode, shortDescription, imagePath, roomType, nig
   return normalizeRoom(room);
 }
 
-module.exports = { createRoom, findByRoomCode, listRooms };
+async function deleteRoom(id) {
+  const roomId = Number(id);
+  if (!Number.isSafeInteger(roomId) || roomId <= 0) {
+    return { deleted: false, reason: 'not-found' };
+  }
+
+  const databaseReady = await isDatabaseAvailable();
+
+  if (databaseReady) {
+    const [rows] = await pool.query('SELECT id, status FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    if (!rows.length) return { deleted: false, reason: 'not-found' };
+    if (['đã thuê', 'đang thuê', 'rented', 'occupied'].includes(String(rows[0].status).toLowerCase())) {
+      return { deleted: false, reason: 'rented' };
+    }
+
+    const [result] = await pool.query(
+      'DELETE FROM rooms WHERE id = ? AND LOWER(status) NOT IN (?, ?, ?, ?)',
+      [roomId, 'đã thuê', 'đang thuê', 'rented', 'occupied']
+    );
+    if (result.affectedRows) return { deleted: true };
+
+    const [remainingRows] = await pool.query('SELECT id, status FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    return remainingRows.length
+      ? { deleted: false, reason: 'rented' }
+      : { deleted: false, reason: 'not-found' };
+  }
+
+  const rooms = readRooms();
+  const roomIndex = rooms.findIndex((room) => Number(room.id) === roomId);
+  if (roomIndex === -1) return { deleted: false, reason: 'not-found' };
+  if (['đã thuê', 'đang thuê', 'rented', 'occupied'].includes(String(rooms[roomIndex].status || '').toLowerCase())) {
+    return { deleted: false, reason: 'rented' };
+  }
+
+  rooms.splice(roomIndex, 1);
+  saveRooms(rooms);
+  return { deleted: true };
+}
+
+module.exports = { createRoom, deleteRoom, findByRoomCode, listRooms };
