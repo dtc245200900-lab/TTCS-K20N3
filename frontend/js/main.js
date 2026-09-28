@@ -1,4 +1,15 @@
 const form = document.querySelector('#login-form');
+let roomTypesCache = [];
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
 
 if (form) {
   const errorMessage = document.querySelector('#error-message');
@@ -129,6 +140,95 @@ async function loadRoomList() {
   }
 }
 
+async function loadRoomTypes() {
+  const roomTypeList = document.querySelector('#room-type-list');
+  if (!roomTypeList) return;
+
+  try {
+    const response = await fetch('/api/room-types');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách thể loại phòng.');
+
+    roomTypesCache = result.roomTypes || [];
+    const select = document.querySelector('#room-type-select');
+    if (select) {
+      const selectedValue = select.value;
+      select.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
+        .map((roomType) => `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomType.name)}</option>`)
+        .join('');
+      select.value = selectedValue;
+    }
+
+    document.querySelector('#room-type-code').value = result.nextCode || 'LP001';
+    roomTypeList.innerHTML = roomTypesCache.length
+      ? roomTypesCache.map((roomType) => `
+        <div class="room-type-item">
+          <span class="room-type-code">${escapeHtml(roomType.code)}</span>
+          <strong>${escapeHtml(roomType.name)}</strong>
+        </div>
+      `).join('')
+      : '<p class="muted">Chưa có thể loại phòng.</p>';
+  } catch (error) {
+    roomTypeList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+const roomTypeForm = document.querySelector('#room-type-form');
+if (roomTypeForm) {
+  const toggleButton = document.querySelector('#toggle-room-type-form');
+  const cancelButton = document.querySelector('#cancel-room-type-form');
+  const codeInput = document.querySelector('#room-type-code');
+  const nameInput = document.querySelector('#room-type-name');
+  const errorMessage = document.querySelector('#room-type-error');
+  const successMessage = document.querySelector('#room-type-message');
+
+  toggleButton.addEventListener('click', () => {
+    roomTypeForm.classList.remove('hidden-form');
+    codeInput.value = roomTypesCache.length
+      ? `LP${String(Math.max(...roomTypesCache.map((item) => Number(String(item.code).replace(/^LP/i, '')) || 0)) + 1).padStart(3, '0')}`
+      : 'LP001';
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    nameInput.focus();
+  });
+
+  cancelButton.addEventListener('click', () => {
+    roomTypeForm.reset();
+    roomTypeForm.classList.add('hidden-form');
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+  });
+
+  roomTypeForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    const name = nameInput.value.trim().replace(/\s+/g, ' ');
+    if (!name) {
+      errorMessage.textContent = 'Tên thể loại không được để trống.';
+      nameInput.focus();
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/room-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể thêm thể loại phòng.');
+
+      roomTypeForm.reset();
+      roomTypeForm.classList.add('hidden-form');
+      successMessage.textContent = `${result.message} (${result.roomType.code})`;
+      await loadRoomTypes();
+    } catch (error) {
+      errorMessage.textContent = error.message;
+    }
+  });
+}
+
 const roomList = document.querySelector('#room-list');
 if (roomList) {
   roomList.addEventListener('click', async (event) => {
@@ -217,7 +317,7 @@ async function loadSession() {
     document.querySelector('#full-name').textContent = user.fullName;
     document.querySelector('#top-name').textContent = user.fullName;
     document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
-    await loadRoomList();
+    await Promise.all([loadRoomList(), loadRoomTypes()]);
   } catch {
     window.location.href = '/login.html';
   }

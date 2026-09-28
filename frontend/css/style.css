@@ -69,6 +69,21 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .room-fields textarea { resize: vertical; min-height: 90px; }
 .small-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; }
 .room-list { display: grid; gap: .8rem; margin-top: 1.2rem; }
+.room-types-section { max-width: 70rem; margin-top: 1rem; }
+.room-types-card { max-width: 100%; }
+.room-type-form { margin: 1.2rem 0 1rem; padding: 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.55); }
+.room-type-fields { display: grid; grid-template-columns: minmax(9rem, .35fr) minmax(14rem, 1fr); gap: .8rem; }
+.room-type-fields label { margin: 0; color: var(--forest); font-size: .74rem; font-weight: 700; }
+.room-type-fields input { margin-top: .35rem; padding: .8rem .9rem; border: 1px solid var(--line); background: #fff; }
+.room-type-fields input[readonly] { color: var(--muted); background: #f2f4f0; }
+.room-type-actions { display: flex; align-items: center; gap: .8rem; }
+.room-type-actions .small-button { margin-top: 1rem; }
+.cancel-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; border: 1px solid var(--line); color: var(--ink); background: #fff; }
+.room-type-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin-top: 1rem; }
+.room-type-item { display: flex; align-items: center; gap: .75rem; min-height: 3.25rem; padding: .65rem .8rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+.room-type-code { min-width: 4.3rem; color: var(--forest-light); font-size: .73rem; font-weight: 700; }
+.room-type-item strong { overflow-wrap: anywhere; color: var(--ink); font-size: .87rem; }
+.toast-message { min-height: 1rem; margin: .8rem 0 0; color: #39704f; font-size: .8rem; }
 .room-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
 .room-item strong { display: block; color: var(--forest); }
 .room-item small { display: block; color: var(--muted); margin-top: .2rem; }
