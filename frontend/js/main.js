@@ -324,3 +324,112 @@ async function loadSession() {
 }
 
 loadSession();
+// =========================================
+// BL-05 - ROOM LIST
+// =========================================
+
+const rooms = [
+  {
+    roomNumber: 'P101',
+    roomType: 'Phòng đơn',
+    status: 'available',
+    checkIn: '-',
+    checkOut: '-'
+  },
+
+  {
+    roomNumber: 'P102',
+    roomType: 'Phòng đôi',
+    status: 'occupied',
+    checkIn: '14:00',
+    checkOut: '12:00'
+  },
+
+  {
+    roomNumber: 'P103',
+    roomType: 'Phòng VIP',
+    status: 'available',
+    checkIn: '-',
+    checkOut: '-'
+  },
+
+  {
+    roomNumber: 'P104',
+    roomType: 'Phòng đơn',
+    status: 'occupied',
+    checkIn: '15:00',
+    checkOut: '11:30'
+  },
+
+  {
+    roomNumber: 'P105',
+    roomType: 'Phòng đôi',
+    status: 'available',
+    checkIn: '-',
+    checkOut: '-'
+  }
+];
+
+function renderRooms() {
+  const roomGrid = document.querySelector('#room-grid');
+
+  // Nếu đang ở trang login thì không làm gì
+  if (!roomGrid) {
+    return;
+  }
+
+  // Nếu không có phòng
+  if (rooms.length === 0) {
+    roomGrid.innerHTML = `
+      <div class="room-empty">
+        Chưa có phòng nào.
+      </div>
+    `;
+
+    return;
+  }
+
+  // Hiển thị danh sách phòng
+  roomGrid.innerHTML = rooms.map((room) => {
+
+    const isAvailable = room.status === 'available';
+
+    const statusText = isAvailable
+      ? 'Phòng trống'
+      : 'Đã có người thuê';
+
+    return `
+      <article class="room-card ${room.status}">
+
+        <h3 class="room-number">
+          ${room.roomNumber}
+        </h3>
+
+        <p class="room-type">
+          ${room.roomType}
+        </p>
+
+        <span class="room-status ${room.status}">
+          ${statusText}
+        </span>
+
+        <div class="room-time">
+
+          <div class="room-time-item">
+            <span>Giờ vào</span>
+            <strong>${room.checkIn}</strong>
+          </div>
+
+          <div class="room-time-item">
+            <span>Giờ ra</span>
+            <strong>${room.checkOut}</strong>
+          </div>
+
+        </div>
+
+      </article>
+    `;
+  }).join('');
+}
+
+renderRooms();
