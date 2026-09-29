@@ -1,0 +1,22 @@
+[
+  {
+    "code": "LP001",
+    "name": "Đơn"
+  },
+  {
+    "code": "LP002",
+    "name": "Đôi"
+  },
+  {
+    "code": "LP003",
+    "name": "VIP"
+  },
+  {
+    "code": "LP004",
+    "name": "Deluxe"
+  },
+  {
+    "code": "LP005",
+    "name": "phòng gia đình"
+  }
+]

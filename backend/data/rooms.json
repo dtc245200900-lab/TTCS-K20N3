@@ -4,24 +4,39 @@
     "roomNumber": "101",
     "roomType": "Deluxe",
     "nightlyRate": 1200000,
-    "status": "available"
+    "status": "Phòng trống",
+    "checkInAt": "2026-09-29T10:06:56.059Z",
+    "checkOutAt": "2026-09-29T10:06:59.758Z"
   },
   {
-    "id": 2,
-    "roomCode": "P102",
-    "shortDescription": "phongdep mien che",
-    "imagePath": "",
-    "roomType": "VIP",
-    "nightlyRate": 15401,
+    "id": 4,
+    "roomCode": "124",
+    "shortDescription": "1333",
+    "imagePath": "/uploads/1790672079025-anh-phong-khach-san-dep-11.jpg",
+    "roomType": "phòng gia đình",
+    "nightlyRate": 66666649,
     "status": "Phòng trống"
   },
   {
-    "id": 3,
-    "roomCode": "P103",
-    "shortDescription": "view đpj",
-    "imagePath": "",
+    "id": 5,
+    "roomCode": "1223",
+    "shortDescription": "view đẹp",
+    "imagePath": "/uploads/1790675187245-anh-phong-khach-san-dep-11.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 20000000,
+    "status": "Phòng trống",
+    "checkInAt": "2026-09-29T10:07:07.691Z",
+    "checkOutAt": "2026-09-29T10:07:22.637Z"
+  },
+  {
+    "id": 6,
+    "roomCode": "p105",
+    "shortDescription": "phòng đẹp",
+    "imagePath": "/uploads/1790675878507-phong-khach-san-tt-studio.jpg",
     "roomType": "Đơn",
-    "nightlyRate": 25001,
-    "status": "Phòng trống"
+    "nightlyRate": 500000,
+    "status": "Phòng trống",
+    "checkInAt": "2026-09-29T10:07:17.525Z",
+    "checkOutAt": "2026-09-29T10:07:20.832Z"
   }
 ]

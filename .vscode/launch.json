@@ -5,7 +5,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Mở Hotel Manager trên Chrome",
-            "preLaunchTask": "hotel: start server",
+            "preLaunchTask": "hotel: ensure server",
             "url": "http://localhost:3001",
             "webRoot": "${workspaceFolder}"
         }

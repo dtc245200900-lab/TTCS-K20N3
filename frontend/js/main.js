@@ -11,6 +11,39 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function roomTypeLabel(name) {
+  return { Đơn: 'Phòng đơn', Đôi: 'Phòng đôi', VIP: 'VIP' }[name] || name;
+}
+
+function roomStatusInfo(status) {
+  const normalized = String(status || '')
+    .trim()
+    .toLocaleLowerCase('vi')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, '-');
+
+  if (['available', 'phong-trong'].includes(normalized)) {
+    return { className: 'available', label: 'PHÒNG TRỐNG' };
+  }
+  if (['occupied', 'da-thue', 'da-co-nguoi-thue'].includes(normalized)) {
+    return { className: 'occupied', label: 'ĐÃ CHO THUÊ' };
+  }
+  return { className: 'maintenance', label: String(status || 'Chưa cập nhật').toLocaleUpperCase('vi') };
+}
+
+function formatRoomTime(value) {
+  if (!value) return '--:--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date);
+}
+
 if (form) {
   const errorMessage = document.querySelector('#error-message');
   const successMessage = document.querySelector('#success-message');
@@ -60,6 +93,7 @@ if (form) {
     try {
       const response = await fetch(mode === 'login' ? '/api/login' : '/api/register', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(Object.fromEntries(formData))
       });
@@ -69,7 +103,7 @@ if (form) {
         return;
       }
       if (mode === 'login') {
-        window.location.href = '/home';
+        window.location.assign('/home');
       } else {
         successMessage.textContent = result.message;
         form.reset();
@@ -101,8 +135,9 @@ if (logoutButton) {
 }
 
 async function loadRoomList() {
-  const roomList = document.querySelector('#room-list');
-  if (!roomList) return;
+  const roomGrid = document.querySelector('#room-grid');
+  if (!roomGrid) return;
+  const roomCount = document.querySelector('#room-count');
 
   try {
     const response = await fetch('/api/rooms');
@@ -110,33 +145,58 @@ async function loadRoomList() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
 
     if (!result.rooms || result.rooms.length === 0) {
-      roomList.innerHTML = '<p class="muted">Chưa có phòng nào.</p>';
+      if (roomCount) roomCount.textContent = '0 phòng';
+      roomGrid.innerHTML = '<div class="room-empty">Chưa có phòng nào.</div>';
       return;
     }
 
-    roomList.innerHTML = result.rooms.map((room) => {
-      const statusClass = String(room.status || 'Phòng trống')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, '-');
+    if (roomCount) roomCount.textContent = `${result.rooms.length} phòng`;
+
+    roomGrid.innerHTML = result.rooms.map((room) => {
+      const status = roomStatusInfo(room.status);
+      const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
+      const roomType = room.roomType || room.room_type || '';
+      const shortDescription = room.shortDescription ?? room.short_description ?? '';
+      const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+      const imagePath = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
+      const checkIn = status.className === 'occupied'
+        ? formatRoomTime(room.checkInAt || room.checked_in_at)
+        : '--:--';
+      const checkOut = status.className === 'occupied'
+        ? formatRoomTime(room.checkOutAt || room.checked_out_at)
+        : '--:--';
+      const priceLabel = Number.isFinite(nightlyRate)
+        ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
+        : '';
+      const statusAction = status.className === 'occupied'
+        ? { nextStatus: 'available', label: 'Trả phòng' }
+        : status.className === 'available'
+          ? { nextStatus: 'occupied', label: 'Cho thuê' }
+          : null;
 
       return `
-        <div class="room-item">
-          <div style="flex:1;">
-            <strong>${room.roomCode}</strong>
-            <small>${room.roomType} • ${room.shortDescription || 'Không có mô tả'}</small>
-            <small>${Number(room.nightlyRate).toLocaleString('vi-VN')}đ / đêm</small>
+        <article class="room-card ${status.className}">
+          <img class="room-card-image" src="${escapeHtml(imagePath)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" onerror="this.onerror=null;this.src='/assets/room-placeholder.svg'">
+          <div class="room-card-content">
+            <h3 class="room-number">${escapeHtml(roomCode)}</h3>
+            <p class="room-type">${escapeHtml(roomTypeLabel(roomType))}</p>
+            <p class="room-description">${escapeHtml(shortDescription)}</p>
+            <p class="room-price">${escapeHtml(priceLabel)}</p>
+            <span class="room-status ${status.className}">${escapeHtml(status.label)}</span>
+            <div class="room-time">
+              <div class="room-time-item"><span>Giờ vào</span><strong>${escapeHtml(checkIn)}</strong></div>
+              <div class="room-time-item"><span>Giờ ra</span><strong>${escapeHtml(checkOut)}</strong></div>
+            </div>
+            <div class="room-meta">
+              ${statusAction ? `<button type="button" class="room-status-toggle ${status.className}" data-room-id="${escapeHtml(room.id)}" data-next-status="${statusAction.nextStatus}">${statusAction.label}</button>` : ''}
+              <button type="button" class="delete-room-button" data-room-id="${escapeHtml(room.id)}">Xóa</button>
+            </div>
           </div>
-          <div class="room-meta">
-            <span class="status-badge status-${statusClass}">${room.status}</span>
-            <button type="button" class="delete-room-button" data-room-id="${room.id}">Xóa</button>
-          </div>
-        </div>
+        </article>
       `;
     }).join('');
   } catch (error) {
-    roomList.innerHTML = `<p class="error">${error.message}</p>`;
+    roomGrid.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -150,13 +210,13 @@ async function loadRoomTypes() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách thể loại phòng.');
 
     roomTypesCache = result.roomTypes || [];
-    const select = document.querySelector('#room-type-select');
-    if (select) {
-      const selectedValue = select.value;
-      select.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
-        .map((roomType) => `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomType.name)}</option>`)
+    const roomTypeSelect = document.querySelector('#room-type-select');
+    if (roomTypeSelect) {
+      const selectedValue = roomTypeSelect.value;
+      roomTypeSelect.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
+        .map((roomType) => `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomTypeLabel(roomType.name))}</option>`)
         .join('');
-      select.value = selectedValue;
+      roomTypeSelect.value = selectedValue;
     }
 
     document.querySelector('#room-type-code').value = result.nextCode || 'LP001';
@@ -164,7 +224,7 @@ async function loadRoomTypes() {
       ? roomTypesCache.map((roomType) => `
         <div class="room-type-item">
           <span class="room-type-code">${escapeHtml(roomType.code)}</span>
-          <strong>${escapeHtml(roomType.name)}</strong>
+          <strong>${escapeHtml(roomTypeLabel(roomType.name))}</strong>
         </div>
       `).join('')
       : '<p class="muted">Chưa có thể loại phòng.</p>';
@@ -229,15 +289,43 @@ if (roomTypeForm) {
   });
 }
 
-const roomList = document.querySelector('#room-list');
-if (roomList) {
-  roomList.addEventListener('click', async (event) => {
+const roomGrid = document.querySelector('#room-grid');
+if (roomGrid) {
+  roomGrid.addEventListener('click', async (event) => {
+    const statusButton = event.target.closest('.room-status-toggle');
+    if (statusButton) {
+      const roomMessage = document.querySelector('#room-list-message');
+      statusButton.disabled = true;
+      roomMessage.textContent = '';
+      roomMessage.classList.remove('error');
+      roomMessage.classList.add('success');
+
+      try {
+        const response = await fetch(`/api/rooms/${encodeURIComponent(statusButton.dataset.roomId)}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: statusButton.dataset.nextStatus })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Không thể cập nhật trạng thái phòng.');
+
+        roomMessage.textContent = result.message;
+        await loadRoomList();
+      } catch (error) {
+        roomMessage.textContent = error.message;
+        roomMessage.classList.remove('success');
+        roomMessage.classList.add('error');
+        statusButton.disabled = false;
+      }
+      return;
+    }
+
     const deleteButton = event.target.closest('.delete-room-button');
     if (!deleteButton) return;
 
     const roomMessage = document.querySelector('#room-list-message');
     const roomId = deleteButton.dataset.roomId;
-    const roomCode = deleteButton.closest('.room-item').querySelector('strong').textContent;
+    const roomCode = deleteButton.closest('.room-card').querySelector('.room-number').textContent;
     if (!window.confirm(`Bạn có chắc chắn muốn xóa phòng ${roomCode}?`)) return;
 
     roomMessage.textContent = '';
@@ -263,29 +351,78 @@ if (roomList) {
 
 const roomForm = document.querySelector('#room-form');
 if (roomForm) {
+  const navigationButtons = document.querySelectorAll('[data-room-view]');
+  const roomViews = {
+    list: document.querySelector('#room-list-view'),
+    add: document.querySelector('#room-add-view'),
+    types: document.querySelector('#room-types-view')
+  };
   const roomMessage = document.querySelector('#room-message');
   const roomError = document.querySelector('#room-error');
-  const toggleButton = document.querySelector('#toggle-room-form');
+  const cancelButton = document.querySelector('#cancel-room-form');
+  const imageInput = document.querySelector('#room-image');
+  const imagePreview = document.querySelector('#image-preview');
+  const descriptionInput = document.querySelector('#room-description');
+  const descriptionCount = document.querySelector('.description-count');
 
-  if (toggleButton) {
-    toggleButton.addEventListener('click', () => {
-      roomForm.classList.toggle('hidden-form');
-      toggleButton.textContent = roomForm.classList.contains('hidden-form') ? 'Thêm mới' : 'Ẩn form';
-    });
-  }
+  const setRoomView = (viewName) => {
+    Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== viewName));
+    navigationButtons.forEach((button) => button.classList.toggle('active', button.dataset.roomView === viewName));
+    if (viewName === 'add') document.querySelector('#room-code').focus();
+  };
+
+  navigationButtons.forEach((button) => {
+    button.addEventListener('click', () => setRoomView(button.dataset.roomView));
+  });
+
+  const clearRoomForm = () => {
+    roomForm.reset();
+    imagePreview.classList.add('hidden');
+    imagePreview.innerHTML = '';
+    descriptionCount.textContent = '0/240 ký tự';
+    roomError.textContent = '';
+  };
+
+  cancelButton.addEventListener('click', () => {
+    clearRoomForm();
+    roomMessage.textContent = '';
+    setRoomView('list');
+  });
+
+  descriptionInput.addEventListener('input', () => {
+    descriptionCount.textContent = `${descriptionInput.value.length}/240 ký tự`;
+  });
+
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files[0];
+    if (!file) {
+      imagePreview.classList.add('hidden');
+      imagePreview.innerHTML = '';
+      return;
+    }
+    imagePreview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Ảnh xem trước"><span>${escapeHtml(file.name)}</span>`;
+    imagePreview.classList.remove('hidden');
+  });
 
   roomForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     roomMessage.textContent = '';
     roomError.textContent = '';
 
-    const roomData = Object.fromEntries(new FormData(roomForm));
+    if (!roomForm.checkValidity()) {
+      roomForm.reportValidity();
+      return;
+    }
+    const imageFile = imageInput.files[0];
+    if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+      roomError.textContent = 'Ảnh phòng không được vượt quá 5MB.';
+      return;
+    }
 
     try {
       const response = await fetch('/api/rooms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(roomData)
+        body: new FormData(roomForm)
       });
       const result = await response.json();
 
@@ -294,10 +431,11 @@ if (roomForm) {
       }
 
       roomMessage.textContent = result.message;
-      roomForm.reset();
-      roomForm.classList.add('hidden-form');
-      if (toggleButton) toggleButton.textContent = 'Thêm mới';
+      clearRoomForm();
       await loadRoomList();
+      const listMessage = document.querySelector('#room-list-message');
+      listMessage.textContent = result.message;
+      setRoomView('list');
     } catch (error) {
       roomError.textContent = error.message;
     }
@@ -314,7 +452,6 @@ async function loadSession() {
       return;
     }
     const { user } = result;
-    document.querySelector('#full-name').textContent = user.fullName;
     document.querySelector('#top-name').textContent = user.fullName;
     document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
     await Promise.all([loadRoomList(), loadRoomTypes()]);
@@ -324,112 +461,3 @@ async function loadSession() {
 }
 
 loadSession();
-// =========================================
-// BL-05 - ROOM LIST
-// =========================================
-
-const rooms = [
-  {
-    roomNumber: 'P101',
-    roomType: 'Phòng đơn',
-    status: 'available',
-    checkIn: '-',
-    checkOut: '-'
-  },
-
-  {
-    roomNumber: 'P102',
-    roomType: 'Phòng đôi',
-    status: 'occupied',
-    checkIn: '14:00',
-    checkOut: '12:00'
-  },
-
-  {
-    roomNumber: 'P103',
-    roomType: 'Phòng VIP',
-    status: 'available',
-    checkIn: '-',
-    checkOut: '-'
-  },
-
-  {
-    roomNumber: 'P104',
-    roomType: 'Phòng đơn',
-    status: 'occupied',
-    checkIn: '15:00',
-    checkOut: '11:30'
-  },
-
-  {
-    roomNumber: 'P105',
-    roomType: 'Phòng đôi',
-    status: 'available',
-    checkIn: '-',
-    checkOut: '-'
-  }
-];
-
-function renderRooms() {
-  const roomGrid = document.querySelector('#room-grid');
-
-  // Nếu đang ở trang login thì không làm gì
-  if (!roomGrid) {
-    return;
-  }
-
-  // Nếu không có phòng
-  if (rooms.length === 0) {
-    roomGrid.innerHTML = `
-      <div class="room-empty">
-        Chưa có phòng nào.
-      </div>
-    `;
-
-    return;
-  }
-
-  // Hiển thị danh sách phòng
-  roomGrid.innerHTML = rooms.map((room) => {
-
-    const isAvailable = room.status === 'available';
-
-    const statusText = isAvailable
-      ? 'Phòng trống'
-      : 'Đã có người thuê';
-
-    return `
-      <article class="room-card ${room.status}">
-
-        <h3 class="room-number">
-          ${room.roomNumber}
-        </h3>
-
-        <p class="room-type">
-          ${room.roomType}
-        </p>
-
-        <span class="room-status ${room.status}">
-          ${statusText}
-        </span>
-
-        <div class="room-time">
-
-          <div class="room-time-item">
-            <span>Giờ vào</span>
-            <strong>${room.checkIn}</strong>
-          </div>
-
-          <div class="room-time-item">
-            <span>Giờ ra</span>
-            <strong>${room.checkOut}</strong>
-          </div>
-
-        </div>
-
-      </article>
-    `;
-  }).join('');
-}
-
-renderRooms();

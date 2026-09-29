@@ -14,11 +14,12 @@ async function addRoom(request, response) {
   const shortDescription = String(request.body.shortDescription || '').trim();
   const roomType = String(request.body.roomType || '').trim();
   const nightlyRate = Number(request.body.nightlyRate);
-  const status = String(request.body.status || 'Phòng trống');
+  const status = 'Phòng trống';
+  const imagePath = request.file ? `/uploads/${request.file.filename}` : '';
 
-  if (!roomCode || !roomType || !shortDescription || !Number.isFinite(nightlyRate) || nightlyRate <= 0) {
+  if (!/^[A-Za-z0-9-]+$/.test(roomCode) || shortDescription.length > 240 || !roomCode || !roomType || !shortDescription || !Number.isFinite(nightlyRate) || nightlyRate <= 0) {
     return response.status(400).json({
-      message: 'Vui lòng nhập đầy đủ thông tin: mã phòng, mô tả, loại phòng và giá thuê > 0.'
+      message: 'Vui lòng nhập đầy đủ mã phòng, mô tả, thể loại và giá thuê > 0.'
     });
   }
 
@@ -26,7 +27,7 @@ async function addRoom(request, response) {
     const room = await roomModel.createRoom({
       roomCode,
       shortDescription,
-      imagePath: '',
+      imagePath,
       roomType,
       nightlyRate,
       status
@@ -40,6 +41,24 @@ async function addRoom(request, response) {
     return response.status(400).json({
       message: error.message || 'Không thể thêm phòng.'
     });
+  }
+}
+
+async function updateStatus(request, response) {
+  try {
+    const result = await roomModel.updateRoomStatus(request.params.id, request.body.status);
+    if (result.reason === 'not-found') {
+      return response.status(404).json({ message: 'Không tìm thấy phòng.' });
+    }
+    if (result.reason === 'invalid-status' || result.reason === 'invalid-transition') {
+      return response.status(409).json({ message: 'Trạng thái phòng không hợp lệ.' });
+    }
+    if (result.unchanged) {
+      return response.json({ message: 'Trạng thái phòng không thay đổi.', room: result.room });
+    }
+    return response.json({ message: 'Cập nhật trạng thái phòng thành công.', room: result.room });
+  } catch (error) {
+    return response.status(500).json({ message: error.message || 'Không thể cập nhật trạng thái phòng.' });
   }
 }
 
@@ -64,4 +83,4 @@ async function deleteRoom(request, response) {
   }
 }
 
-module.exports = { addRoom, deleteRoom, getRooms };
+module.exports = { addRoom, deleteRoom, getRooms, updateStatus };

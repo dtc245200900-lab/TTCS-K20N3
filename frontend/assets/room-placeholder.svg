@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">Ảnh mặc định phòng khách sạn</title>
+  <desc id="desc">Một căn phòng khách sạn sáng thoáng với giường, cửa sổ và bàn cạnh giường.</desc>
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#edf2ed"/>
+      <stop offset="1" stop-color="#d4e1d9"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b98e67"/>
+      <stop offset="1" stop-color="#d5b28a"/>
+    </linearGradient>
+    <linearGradient id="bed" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffdf7"/>
+      <stop offset="1" stop-color="#dbe8df"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#wall)"/>
+  <rect y="330" width="800" height="150" fill="url(#floor)"/>
+  <rect x="82" y="68" width="222" height="176" rx="4" fill="#9ec6cb" stroke="#fffdf7" stroke-width="14"/>
+  <path d="M193 68v176M82 156h222" stroke="#fffdf7" stroke-width="8"/>
+  <path d="M40 72h18v186H40zM328 72h18v186h-18z" fill="#b48c70"/>
+  <path d="M51 68c52 26 80 26 130 0v34c-50 28-78 28-130 0zm294 0c-52 26-80 26-130 0v34c50 28 78 28 130 0z" fill="#e2b779"/>
+  <rect x="146" y="270" width="468" height="128" rx="10" fill="#7b665a"/>
+  <rect x="126" y="250" width="508" height="130" rx="10" fill="url(#bed)"/>
+  <rect x="151" y="236" width="160" height="96" rx="10" fill="#fffdf7"/>
+  <rect x="324" y="236" width="278" height="145" rx="10" fill="url(#bed)"/>
+  <path d="M327 312h272v70H327z" fill="#bfd5ca"/>
+  <path d="M349 328h225" stroke="#f8faf5" stroke-width="6" opacity=".8"/>
+  <rect x="660" y="220" width="75" height="160" rx="5" fill="#8b6d5b"/>
+  <rect x="648" y="204" width="98" height="24" rx="4" fill="#b48b6b"/>
+  <path d="M681 196h33v-42h-33z" fill="#e6c994"/>
+  <circle cx="697" cy="145" r="27" fill="#7ea18b"/>
+  <path d="M697 150v-38M697 128l-20-20M697 132l22-22" stroke="#477263" stroke-width="6" stroke-linecap="round"/>
+  <rect x="52" y="380" width="110" height="14" rx="7" fill="#86624e" opacity=".55"/>
+</svg>

@@ -29,160 +29,92 @@
   </header>
 
   <p id="logout-error" class="error" role="alert"></p>
+  <div class="dashboard-layout">
+    <aside class="room-sidebar" aria-label="Điều hướng quản lý phòng">
+      <div class="sidebar-brand"><span class="sidebar-brand-mark">A</span><div><strong>AURELIA</strong><small>HOTEL MANAGER</small></div></div>
+      <p class="sidebar-label">QUẢN LÝ PHÒNG</p>
+      <nav class="room-navigation">
+        <button type="button" class="room-nav-link active" data-room-view="list"><span class="nav-icon">▦</span>Danh sách phòng</button>
+        <button type="button" class="room-nav-link" data-room-view="types"><span class="nav-icon">▤</span>Quản lý thể loại phòng</button>
+      </nav>
+      <p class="sidebar-note">Quản lý sơ đồ phòng và trạng thái lưu trú trong một không gian.</p>
+    </aside>
 
-  <main class="dashboard">
-    <section class="welcome-block">
-      <p class="eyebrow">GOOD MORNING / TODAY</p>
-
-      <h2>Xin chào, <span id="full-name">...</span></h2>
-
-      <p class="muted">
-        Mọi thứ đang sẵn sàng cho một ngày vận hành suôn sẻ.
-      </p>
-    </section>
-
-    <!-- BL-05: Danh sách phòng dạng lưới -->
-    <section class="rooms-section">
-      <div class="rooms-header">
-        <div>
-          <p class="eyebrow">ROOM MANAGEMENT</p>
-
-          <h2>Danh sách phòng</h2>
-
-          <p class="muted">
-            Theo dõi trạng thái và thời gian sử dụng của các phòng.
-          </p>
-        </div>
-
-        <div class="room-legend">
-          <span class="legend-item">
-            <span class="legend-dot available"></span>
-            Phòng trống
-          </span>
-
-          <span class="legend-item">
-            <span class="legend-dot occupied"></span>
-            Đã có người thuê
-          </span>
-        </div>
-      </div>
-
-      <div id="room-grid" class="room-grid">
-        <!-- JavaScript sẽ hiển thị danh sách phòng ở đây -->
-      </div>
-    </section>
-
-    <!-- Quản lý phòng -->
-    <section class="dashboard-grid">
-      <article class="dashboard-card">
-        <div class="card-header-row">
+    <main class="dashboard">
+      <section id="room-list-view" class="room-view">
+        <div class="view-heading room-view-heading rooms-header">
           <div>
-            <span class="workspace-badge">QUẢN LÝ PHÒNG</span>
-            <h3>Thêm mới phòng</h3>
+            <p class="eyebrow">QUẢN LÝ PHÒNG</p>
+            <h2>Danh sách phòng</h2>
+            <p class="muted">Theo dõi trạng thái và thời gian sử dụng của các phòng.</p>
           </div>
-
-          <button
-            type="button"
-            class="secondary-button dark-button"
-            id="toggle-room-form"
-          >
-            Thêm mới
-          </button>
+          <div class="room-header-actions">
+            <span id="room-count" class="room-count">0 phòng</span>
+            <button type="button" class="primary-button view-action room-view-action" data-room-view="add">Thêm phòng</button>
+          </div>
         </div>
+        <div id="room-grid" class="room-grid"></div>
+        <p id="room-list-message" class="success" role="status" aria-live="polite"></p>
+      </section>
 
-        <p class="muted">
-          Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.
-        </p>
-
-        <form id="room-form" class="room-form hidden-form">
+      <section id="room-add-view" class="room-view hidden-view">
+        <div class="view-heading">
+          <div><p class="eyebrow">QUẢN LÝ PHÒNG / THÊM MỚI</p><h2>Thêm phòng</h2><p class="muted">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p></div>
+          <button type="button" class="secondary-button dark-button" data-room-view="list">Danh sách phòng</button>
+        </div>
+        <article class="dashboard-card room-form-card">
+          <form id="room-form" class="room-form" enctype="multipart/form-data" novalidate>
+          <div class="form-intro">
+            <div><span class="form-kicker">THÔNG TIN CƠ BẢN</span><h4>Thêm phòng vào hệ thống</h4></div>
+            <span class="required-note"><b>*</b> Bắt buộc</span>
+          </div>
           <div class="room-fields">
-            <label>
-              Mã phòng
-              <input
-                type="text"
-                name="roomCode"
-                placeholder="P101"
-                required
-              >
+            <label for="room-code">Mã phòng
+              <input id="room-code" type="text" name="roomCode" maxlength="20" pattern="(?:[A-Za-z0-9]|-)+" placeholder="P101" autocomplete="off" required>
+              <small class="field-hint">Dùng chữ cái, số hoặc dấu gạch ngang.</small>
             </label>
-
-            <label>
-              Mô tả ngắn
-              <textarea
-                name="shortDescription"
-                rows="3"
-                placeholder="Phòng view thành phố, 2 giường đơn..."
-                required
-              ></textarea>
+            <label for="room-description">Mô tả ngắn
+              <textarea id="room-description" name="shortDescription" rows="3" maxlength="240" placeholder="Phòng view thành phố, 2 giường đơn..." required></textarea>
+              <small class="field-hint description-count">0/240 ký tự</small>
             </label>
-
-            <label>
-              Loại phòng
+            <label for="room-type-select">Loại phòng
               <select id="room-type-select" name="roomType" required>
                 <option value="">-- Chọn loại phòng --</option>
               </select>
             </label>
-
-            <label>
-              Giá thuê (VNĐ)
-              <input
-                type="number"
-                name="nightlyRate"
-                min="1"
-                step="1000"
-                placeholder="1200000"
-                required
-              >
+            <label for="nightly-rate">Giá phòng (VNĐ)
+              <div class="currency-input"><input id="nightly-rate" type="number" name="nightlyRate" min="0.01" step="any" placeholder="500000" required><span>VNĐ / đêm</span></div>
             </label>
-
-            <label>
-              Trạng thái
-              <input type="text" value="Phòng trống" readonly>
+            <label for="room-status">Trạng thái
+              <div class="status-default"><span class="status-dot"></span><input id="room-status" type="text" value="Phòng trống" readonly></div>
               <input type="hidden" name="status" value="Phòng trống">
+              <small class="field-hint">Phòng mới luôn bắt đầu ở trạng thái trống.</small>
+            </label>
+            <label class="image-field" for="room-image">Hình ảnh phòng
+              <span class="upload-zone"><span class="upload-icon">↑</span><strong>Chọn ảnh phòng</strong><span>JPG, PNG, WEBP hoặc GIF · tối đa 5MB</span>
+                <input id="room-image" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
+              </span>
+              <span id="image-preview" class="image-preview hidden"></span>
             </label>
           </div>
-
-          <button type="submit" class="primary-button small-button">
-            Lưu phòng
-          </button>
-
-          <p id="room-message" class="success" aria-live="polite"></p>
+          <div class="room-form-actions"><button type="button" class="cancel-button" id="cancel-room-form">Hủy</button><button type="submit" class="primary-button small-button"><span>Thêm phòng</span><span>→</span></button></div>
           <p id="room-error" class="error" aria-live="polite"></p>
-        </form>
-      </article>
+          </form>
+          <p id="room-message" class="success room-message" role="status" aria-live="polite"></p>
+        </article>
+      </section>
 
-      <aside class="dashboard-card">
-        <span class="workspace-badge">ROOMS</span>
-
-        <h3>Danh sách phòng</h3>
-
-        <p
-          id="room-list-message"
-          class="success"
-          role="status"
-          aria-live="polite"
-        ></p>
-
-        <div id="room-list" class="room-list"></div>
-      </aside>
-    </section>
-
-    <!-- Quản lý loại phòng -->
-    <section class="room-types-section">
-      <article class="dashboard-card room-types-card">
+      <section id="room-types-view" class="room-view hidden-view">
+        <div class="view-heading room-view-heading">
+          <div><p class="eyebrow">QUẢN LÝ PHÒNG / DANH MỤC</p><h2>Quản lý thể loại phòng</h2><p class="muted">Danh sách loại phòng đang được sử dụng trong hệ thống.</p></div>
+          <button type="button" class="primary-button view-action room-view-action" id="toggle-room-type-form">Thêm mới</button>
+        </div>
+        <article class="dashboard-card room-types-card">
         <div class="card-header-row">
           <div>
             <span class="workspace-badge">DANH MỤC</span>
-            <h3>Quản lý thể loại phòng</h3>
+            <h3>Danh sách loại phòng</h3>
           </div>
-
-          <button
-            type="button"
-            class="secondary-button dark-button"
-            id="toggle-room-type-form"
-          >
-            Thêm mới
-          </button>
         </div>
 
         <form id="room-type-form" class="room-type-form hidden-form">
@@ -244,9 +176,9 @@
 
         <div id="room-type-list" class="room-type-list"></div>
       </article>
-    </section>
-  </main>
-
+      </section>
+    </main>
+  </div>
   <script src="/js/main.js" defer></script>
 </body>
 </html>

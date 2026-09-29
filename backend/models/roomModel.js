@@ -29,6 +29,14 @@ function readRooms() {
 }
 
 function normalizeRoom(room) {
+  const rawStatus = String(room.status || '').toLowerCase();
+  const status = {
+    available: 'Phòng trống',
+    occupied: 'Đã thuê',
+    'đã cho thuê': 'Đã thuê',
+    maintenance: 'Bảo trì'
+  }[rawStatus] || room.status || 'Phòng trống';
+
   return {
     id: room.id,
     roomCode: room.room_code || room.roomCode || room.roomNumber || '',
@@ -36,9 +44,19 @@ function normalizeRoom(room) {
     imagePath: room.image_path || room.imagePath || '',
     roomType: room.room_type || room.roomType || 'Đơn',
     nightlyRate: Number(room.nightly_rate ?? room.nightlyRate ?? 0),
-    status: room.status || 'Phòng trống',
+    status,
+    checkInAt: room.checked_in_at || room.checkInAt || null,
+    checkOutAt: room.checked_out_at || room.checkOutAt || null,
     createdAt: room.created_at || room.createdAt || null
   };
+}
+
+function normalizedStatus(status) {
+  const value = String(status || '').trim().toLocaleLowerCase('vi');
+  if (['available', 'phòng trống'].includes(value)) return 'Phòng trống';
+  if (['occupied', 'đã thuê', 'đã cho thuê'].includes(value)) return 'Đã thuê';
+  if (['maintenance', 'bảo trì'].includes(value)) return 'Bảo trì';
+  return value;
 }
 
 async function listRooms() {
@@ -111,6 +129,57 @@ async function createRoom({ roomCode, shortDescription, imagePath, roomType, nig
   return normalizeRoom(room);
 }
 
+async function updateRoomStatus(id, nextStatus) {
+  const roomId = Number(id);
+  if (!Number.isSafeInteger(roomId) || roomId <= 0) return { reason: 'not-found' };
+
+  const requestedStatus = normalizedStatus(nextStatus);
+  if (!['Phòng trống', 'Đã thuê'].includes(requestedStatus)) return { reason: 'invalid-status' };
+
+  const databaseReady = await isDatabaseAvailable();
+  if (databaseReady) {
+    const [rows] = await pool.query('SELECT id, status FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    if (!rows.length) return { reason: 'not-found' };
+
+    const currentStatus = normalizedStatus(rows[0].status);
+    if (currentStatus === requestedStatus) return { room: null, unchanged: true };
+    if (!['Phòng trống', 'Đã thuê'].includes(currentStatus)) return { reason: 'invalid-transition' };
+
+    if (requestedStatus === 'Đã thuê') {
+      await pool.query(
+        'UPDATE rooms SET status = ?, checked_in_at = CURRENT_TIMESTAMP, checked_out_at = NULL WHERE id = ?',
+        [requestedStatus, roomId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE rooms SET status = ?, checked_out_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [requestedStatus, roomId]
+      );
+    }
+
+    const [updatedRows] = await pool.query('SELECT * FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    return { room: normalizeRoom(updatedRows[0]) };
+  }
+
+  const rooms = readRooms();
+  const room = rooms.find((item) => Number(item.id) === roomId);
+  if (!room) return { reason: 'not-found' };
+
+  const currentStatus = normalizedStatus(room.status);
+  if (currentStatus === requestedStatus) return { room: normalizeRoom(room), unchanged: true };
+  if (!['Phòng trống', 'Đã thuê'].includes(currentStatus)) return { reason: 'invalid-transition' };
+
+  room.status = requestedStatus;
+  if (requestedStatus === 'Đã thuê') {
+    room.checkInAt = new Date().toISOString();
+    room.checkOutAt = null;
+  } else {
+    room.checkOutAt = new Date().toISOString();
+  }
+  saveRooms(rooms);
+  return { room: normalizeRoom(room) };
+}
+
 async function deleteRoom(id) {
   const roomId = Number(id);
   if (!Number.isSafeInteger(roomId) || roomId <= 0) {
@@ -150,4 +219,4 @@ async function deleteRoom(id) {
   return { deleted: true };
 }
 
-module.exports = { createRoom, deleteRoom, findByRoomCode, listRooms };
+module.exports = { createRoom, deleteRoom, findByRoomCode, listRooms, updateRoomStatus };

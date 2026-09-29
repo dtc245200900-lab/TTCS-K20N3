@@ -35,13 +35,17 @@ CREATE TABLE IF NOT EXISTS guests (
 
 CREATE TABLE IF NOT EXISTS rooms (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  room_number VARCHAR(20) NOT NULL,
+  room_code VARCHAR(30) NOT NULL,
+  short_description TEXT NULL,
+  image_path VARCHAR(255) NULL,
   room_type VARCHAR(80) NOT NULL,
-  nightly_rate DECIMAL(12, 2) NOT NULL,
-  status ENUM('available', 'occupied', 'maintenance') NOT NULL DEFAULT 'available',
+  nightly_rate DECIMAL(12, 2) NOT NULL CHECK (nightly_rate > 0),
+  status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
+  checked_in_at DATETIME NULL,
+  checked_out_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_rooms_number (room_number),
-  CONSTRAINT chk_rooms_rate CHECK (nightly_rate >= 0)
+  UNIQUE KEY uq_rooms_code (room_code)
 );
 
 CREATE TABLE IF NOT EXISTS reservations (
