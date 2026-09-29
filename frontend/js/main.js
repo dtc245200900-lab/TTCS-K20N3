@@ -1,4 +1,15 @@
 const form = document.querySelector('#login-form');
+let roomTypesCache = [];
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
 
 if (form) {
   const errorMessage = document.querySelector('#error-message');
@@ -89,6 +100,210 @@ if (logoutButton) {
   });
 }
 
+async function loadRoomList() {
+  const roomList = document.querySelector('#room-list');
+  if (!roomList) return;
+
+  try {
+    const response = await fetch('/api/rooms');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
+
+    if (!result.rooms || result.rooms.length === 0) {
+      roomList.innerHTML = '<p class="muted">Chưa có phòng nào.</p>';
+      return;
+    }
+
+    roomList.innerHTML = result.rooms.map((room) => {
+      const statusClass = String(room.status || 'Phòng trống')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-');
+
+      return `
+        <div class="room-item">
+          <div style="flex:1;">
+            <strong>${room.roomCode}</strong>
+            <small>${room.roomType} • ${room.shortDescription || 'Không có mô tả'}</small>
+            <small>${Number(room.nightlyRate).toLocaleString('vi-VN')}đ / đêm</small>
+          </div>
+          <div class="room-meta">
+            <span class="status-badge status-${statusClass}">${room.status}</span>
+            <button type="button" class="delete-room-button" data-room-id="${room.id}">Xóa</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    roomList.innerHTML = `<p class="error">${error.message}</p>`;
+  }
+}
+
+async function loadRoomTypes() {
+  const roomTypeList = document.querySelector('#room-type-list');
+  if (!roomTypeList) return;
+
+  try {
+    const response = await fetch('/api/room-types');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách thể loại phòng.');
+
+    roomTypesCache = result.roomTypes || [];
+    const select = document.querySelector('#room-type-select');
+    if (select) {
+      const selectedValue = select.value;
+      select.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
+        .map((roomType) => `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomType.name)}</option>`)
+        .join('');
+      select.value = selectedValue;
+    }
+
+    document.querySelector('#room-type-code').value = result.nextCode || 'LP001';
+    roomTypeList.innerHTML = roomTypesCache.length
+      ? roomTypesCache.map((roomType) => `
+        <div class="room-type-item">
+          <span class="room-type-code">${escapeHtml(roomType.code)}</span>
+          <strong>${escapeHtml(roomType.name)}</strong>
+        </div>
+      `).join('')
+      : '<p class="muted">Chưa có thể loại phòng.</p>';
+  } catch (error) {
+    roomTypeList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+const roomTypeForm = document.querySelector('#room-type-form');
+if (roomTypeForm) {
+  const toggleButton = document.querySelector('#toggle-room-type-form');
+  const cancelButton = document.querySelector('#cancel-room-type-form');
+  const codeInput = document.querySelector('#room-type-code');
+  const nameInput = document.querySelector('#room-type-name');
+  const errorMessage = document.querySelector('#room-type-error');
+  const successMessage = document.querySelector('#room-type-message');
+
+  toggleButton.addEventListener('click', () => {
+    roomTypeForm.classList.remove('hidden-form');
+    codeInput.value = roomTypesCache.length
+      ? `LP${String(Math.max(...roomTypesCache.map((item) => Number(String(item.code).replace(/^LP/i, '')) || 0)) + 1).padStart(3, '0')}`
+      : 'LP001';
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    nameInput.focus();
+  });
+
+  cancelButton.addEventListener('click', () => {
+    roomTypeForm.reset();
+    roomTypeForm.classList.add('hidden-form');
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+  });
+
+  roomTypeForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    const name = nameInput.value.trim().replace(/\s+/g, ' ');
+    if (!name) {
+      errorMessage.textContent = 'Tên thể loại không được để trống.';
+      nameInput.focus();
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/room-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể thêm thể loại phòng.');
+
+      roomTypeForm.reset();
+      roomTypeForm.classList.add('hidden-form');
+      successMessage.textContent = `${result.message} (${result.roomType.code})`;
+      await loadRoomTypes();
+    } catch (error) {
+      errorMessage.textContent = error.message;
+    }
+  });
+}
+
+const roomList = document.querySelector('#room-list');
+if (roomList) {
+  roomList.addEventListener('click', async (event) => {
+    const deleteButton = event.target.closest('.delete-room-button');
+    if (!deleteButton) return;
+
+    const roomMessage = document.querySelector('#room-list-message');
+    const roomId = deleteButton.dataset.roomId;
+    const roomCode = deleteButton.closest('.room-item').querySelector('strong').textContent;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa phòng ${roomCode}?`)) return;
+
+    roomMessage.textContent = '';
+    roomMessage.classList.remove('error');
+    roomMessage.classList.add('success');
+    deleteButton.disabled = true;
+
+    try {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể xóa phòng.');
+
+      roomMessage.textContent = result.message || 'Xóa phòng thành công.';
+      await loadRoomList();
+    } catch (error) {
+      roomMessage.textContent = error.message;
+      roomMessage.classList.remove('success');
+      roomMessage.classList.add('error');
+      deleteButton.disabled = false;
+    }
+  });
+}
+
+const roomForm = document.querySelector('#room-form');
+if (roomForm) {
+  const roomMessage = document.querySelector('#room-message');
+  const roomError = document.querySelector('#room-error');
+  const toggleButton = document.querySelector('#toggle-room-form');
+
+  if (toggleButton) {
+    toggleButton.addEventListener('click', () => {
+      roomForm.classList.toggle('hidden-form');
+      toggleButton.textContent = roomForm.classList.contains('hidden-form') ? 'Thêm mới' : 'Ẩn form';
+    });
+  }
+
+  roomForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    roomMessage.textContent = '';
+    roomError.textContent = '';
+
+    const roomData = Object.fromEntries(new FormData(roomForm));
+
+    try {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roomData)
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Không thể thêm phòng.');
+      }
+
+      roomMessage.textContent = result.message;
+      roomForm.reset();
+      roomForm.classList.add('hidden-form');
+      if (toggleButton) toggleButton.textContent = 'Thêm mới';
+      await loadRoomList();
+    } catch (error) {
+      roomError.textContent = error.message;
+    }
+  });
+}
+
 async function loadSession() {
   if (!document.querySelector('#top-name')) return;
   try {
@@ -102,6 +317,7 @@ async function loadSession() {
     document.querySelector('#full-name').textContent = user.fullName;
     document.querySelector('#top-name').textContent = user.fullName;
     document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
+    await Promise.all([loadRoomList(), loadRoomTypes()]);
   } catch {
     window.location.href = '/login.html';
   }

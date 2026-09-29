@@ -15,7 +15,7 @@ npm install
 npm start
 ```
 
-Chay cac lenh tren tai thu muc goc project, sau do mo `http://localhost:3000`. Khong mo truc tiep file HTML bang `file://` hoac Live Server vi frontend can Express API de dang nhap va luu session. Neu muon chay rieng backend, dung `npm install` va `npm start` trong `backend/`.
+Chay cac lenh tren tai thu muc goc project, sau do mo `http://localhost:3001`. Khong mo truc tiep file HTML bang `file://` hoac Live Server vi frontend can Express API de dang nhap va luu session. Neu muon chay rieng backend, dung `npm install` va `npm start` trong `backend/`.
 
 ### Cach 2: bang mot cu click
 

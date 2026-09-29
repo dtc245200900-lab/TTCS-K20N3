@@ -1,40 +1,106 @@
 <!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hotel Manager | Đăng nhập</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <main class="auth-layout">
-    <section class="brand-panel">
-      <div class="brand-mark"><span>A</span><i></i></div>
-      <p class="eyebrow">THE ART OF HOSPITALITY</p>
-      <h1>Chăm chút từng khoảnh khắc. <em>Nâng <span class="hero-word">tầm</span> trải nghiệm.</em></h1>
-      <p>Một không gian quản lý tinh gọn, để mỗi lần đón khách đều thật trọn vẹn.</p>
-    </section>
-    <section class="auth-panel">
-      <div class="auth-card">
-        <div class="lock-mark" aria-hidden="true"></div>
-        <p class="eyebrow">KHÔNG GIAN QUẢN LÝ</p>
-        <div class="auth-heading"><h2 id="auth-title">Chào mừng trở lại.</h2></div>
-        <p id="auth-subtitle" class="muted">Đăng nhập để bắt đầu một ngày đón tiếp chu đáo.</p>
-        <form id="login-form">
-          <div class="field-group hidden" id="full-name-group"><label for="full-name">Họ và tên</label><input id="full-name" name="fullName" type="text" autocomplete="name" placeholder="Nguyễn Văn An"></div>
-          <label for="email">Tên đăng nhập</label>
-          <div class="input-wrap"><span class="field-icon">✉</span><input id="email" name="email" type="email" autocomplete="email" placeholder="tenban@aurelia.vn" required></div>
-          <label for="password">Mật khẩu</label>
-          <div class="input-wrap"><span class="field-icon">♙</span><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu của bạn" required><button class="password-toggle" id="password-toggle" type="button" aria-label="Hiện mật khẩu">◉</button></div>
-          <div class="field-group hidden" id="confirm-password-group"><label for="confirm-password">Xác nhận mật khẩu</label><div class="input-wrap"><span class="field-icon">♙</span><input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu"></div></div>
-          <p id="error-message" class="error" role="alert"></p>
-          <p id="success-message" class="success" role="status"></p>
-          <button id="submit-button" class="primary-button" type="submit"><span class="button-label">Đăng nhập</span><span class="button-arrow">→</span></button>
-        </form>
-        <div class="auth-tabs" role="tablist"><span id="account-prompt">Bạn chưa có tài khoản?</span><button class="tab-button" type="button" data-mode="register">Tạo tài khoản</button></div>
-      </div>
-    </section>
-  </main>
-  <script src="/js/main.js" defer></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hotel Manager | Đăng nhập</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <main class="auth-layout">
+      <section class="brand-panel">
+        <div class="brand-mark"><span>A</span><i></i></div>
+        <p class="eyebrow">THE ART OF HOSPITALITY</p>
+        <h1>
+          Chăm chút từng khoảnh khắc.
+          <em>Nâng <span class="hero-word">tầm</span> trải nghiệm.</em>
+        </h1>
+        <p>
+          Một không gian quản lý tinh gọn, để mỗi lần đón khách đều thật trọn
+          vẹn.
+        </p>
+      </section>
+      <section class="auth-panel">
+        <div class="auth-card">
+          <div class="lock-mark" aria-hidden="true"></div>
+          <p class="eyebrow">KHÔNG GIAN QUẢN LÝ</p>
+          <div class="auth-heading">
+            <h2 id="auth-title">Chào mừng trở lại.</h2>
+          </div>
+          <p id="auth-subtitle" class="muted">
+            Đăng nhập để bắt đầu một ngày đón tiếp chu đáo.
+          </p>
+          <form id="login-form">
+            <div class="field-group hidden" id="full-name-group">
+              <label for="full-name">Họ và tên</label
+              ><input
+                id="full-name"
+                name="fullName"
+                type="text"
+                autocomplete="name"
+                placeholder="Nguyễn Văn An"
+              />
+            </div>
+            <label for="email">Tên đăng nhập</label>
+            <div class="input-wrap">
+              <span class="field-icon">✉</span
+              ><input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="tenban@aurelia.vn"
+                required
+              />
+            </div>
+            <label for="password">Mật khẩu</label>
+            <div class="input-wrap">
+              <span class="field-icon">♙</span
+              ><input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Nhập mật khẩu của bạn"
+                required
+              /><button
+                class="password-toggle"
+                id="password-toggle"
+                type="button"
+                aria-label="Hiện mật khẩu"
+              >
+                ◉
+              </button>
+            </div>
+            <div class="field-group hidden" id="confirm-password-group">
+              <label for="confirm-password">Xác nhận mật khẩu</label>
+              <div class="input-wrap">
+                <span class="field-icon">♙</span
+                ><input
+                  id="confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Nhập lại mật khẩu"
+                />
+              </div>
+            </div>
+            <p id="error-message" class="error" role="alert"></p>
+            <p id="success-message" class="success" role="status"></p>
+            <button id="submit-button" class="primary-button" type="submit">
+              <span class="button-label">Đăng nhập</span
+              ><span class="button-arrow">→</span>
+            </button>
+          </form>
+          <div class="auth-tabs" role="tablist">
+            <span id="account-prompt">Bạn chưa có tài khoản?</span
+            ><button class="tab-button" type="button" data-mode="register">
+              Tạo tài khoản
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="/js/main.js" defer></script>
+  </body>
 </html>

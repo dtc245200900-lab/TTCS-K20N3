@@ -55,6 +55,46 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .dashboard-card { padding: 1.5rem; background: rgba(255,255,255,.68); border: 1px solid rgba(255,255,255,.8); }
 .dashboard-card h3 { margin: .5rem 0 .3rem; font: 400 1.55rem Georgia, serif; }
 .workspace-badge { display: inline-block; padding: .35rem .55rem; color: var(--forest-light); background: #c4ddc9; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.card-header-row h3 { margin: .5rem 0 0; font: 400 1.55rem Georgia, serif; }
+.dark-button { border-color: rgba(23,63,61,.45); color: var(--forest); background: rgba(23,63,61,.06); }
+.hidden-form { display: none; }
+.room-form { margin-top: 1.5rem; }
+.room-form h4 { margin: 0 0 1rem; color: var(--forest); font-size: 1.1rem; }
+.room-fields { display: grid; gap: .8rem; }
+.room-fields label { display: block; margin: 0; color: var(--forest); font-size: .74rem; font-weight: 700; }
+.room-fields input,
+.room-fields select,
+.room-fields textarea { width: 100%; margin-top: .35rem; padding: .8rem .9rem; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; }
+.room-fields textarea { resize: vertical; min-height: 90px; }
+.small-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; }
+.room-list { display: grid; gap: .8rem; margin-top: 1.2rem; }
+.room-types-section { max-width: 70rem; margin-top: 1rem; }
+.room-types-card { max-width: 100%; }
+.room-type-form { margin: 1.2rem 0 1rem; padding: 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.55); }
+.room-type-fields { display: grid; grid-template-columns: minmax(9rem, .35fr) minmax(14rem, 1fr); gap: .8rem; }
+.room-type-fields label { margin: 0; color: var(--forest); font-size: .74rem; font-weight: 700; }
+.room-type-fields input { margin-top: .35rem; padding: .8rem .9rem; border: 1px solid var(--line); background: #fff; }
+.room-type-fields input[readonly] { color: var(--muted); background: #f2f4f0; }
+.room-type-actions { display: flex; align-items: center; gap: .8rem; }
+.room-type-actions .small-button { margin-top: 1rem; }
+.cancel-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; border: 1px solid var(--line); color: var(--ink); background: #fff; }
+.room-type-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin-top: 1rem; }
+.room-type-item { display: flex; align-items: center; gap: .75rem; min-height: 3.25rem; padding: .65rem .8rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+.room-type-code { min-width: 4.3rem; color: var(--forest-light); font-size: .73rem; font-weight: 700; }
+.room-type-item strong { overflow-wrap: anywhere; color: var(--ink); font-size: .87rem; }
+.toast-message { min-height: 1rem; margin: .8rem 0 0; color: #39704f; font-size: .8rem; }
+.room-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+.room-item strong { display: block; color: var(--forest); }
+.room-item small { display: block; color: var(--muted); margin-top: .2rem; }
+.room-meta { display: grid; justify-items: end; gap: .35rem; font-size: .8rem; }
+.delete-room-button { padding: .35rem .6rem; border: 1px solid #d9a49a; color: #9b3f32; background: #fff; font-size: .72rem; }
+.delete-room-button:hover:not(:disabled) { color: #fff; background: #b34d3d; }
+.delete-room-button:disabled { cursor: wait; opacity: .6; }
+.status-badge { display: inline-block; padding: .25rem .55rem; border-radius: 999px; font-size: .68rem; text-transform: uppercase; }
+.status-phong-trong { background: #dff5e6; color: #216d3c; }
+.status-da-thue { background: #fde4d7; color: #9b4d2a; }
+.status-bao-tri { background: #f2e8d2; color: #8d6931; }
 @media (max-width: 800px) { .auth-layout { grid-template-columns: 1fr; } .brand-panel { min-height: 32rem; } .brand-mark { margin-bottom: 4rem; } .auth-panel { padding: 3rem 1.5rem; } .dashboard-grid { grid-template-columns: 1fr; } }
 
 /* Reference-inspired sign-in composition. */
