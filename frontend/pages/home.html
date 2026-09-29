@@ -25,13 +25,35 @@
       <h2>Xin chào, <span id="full-name">...</span></h2>
       <p class="muted">Mọi thứ đang sẵn sàng cho một ngày vận hành suôn sẻ.</p>
     </section>
-    <section class="dashboard-grid">
-      <article class="dashboard-card">
-        <span class="workspace-badge">WORKSPACE</span>
-        <h3>Không gian làm việc của bạn</h3>
-        <p class="muted">Bạn có thể sử dụng đầy đủ các chức năng trong hệ thống.</p>
-      </article>
-    </section>
+   <section class="rooms-section">
+  <div class="rooms-header">
+    <div>
+      <p class="eyebrow">ROOM MANAGEMENT</p>
+
+      <h2>Danh sách phòng</h2>
+
+      <p class="muted">
+        Theo dõi trạng thái và thời gian sử dụng của các phòng.
+      </p>
+    </div>
+
+    <div class="room-legend">
+      <span class="legend-item">
+        <span class="legend-dot available"></span>
+        Phòng trống
+      </span>
+
+      <span class="legend-item">
+        <span class="legend-dot occupied"></span>
+        Đã có người thuê
+      </span>
+    </div>
+  </div>
+
+  <div id="room-grid" class="room-grid">
+    <!-- JavaScript sẽ hiển thị danh sách phòng ở đây -->
+  </div>
+</section>
   </main>
   <script src="/js/main.js" defer></script>
 </body>

@@ -107,3 +107,180 @@ label { margin: 1.25rem 0 .55rem; color: #1d3034; font-size: .78rem; }
 .primary-button { justify-content: center; gap: 1.25rem; min-height: 4.15rem; margin-top: 1.8rem; border-radius: .5rem; color: #fff; background: #204b50; box-shadow: 0 7px 16px rgba(30,79,86,.2); font-size: 1rem; font-weight: 700; letter-spacing: 0; }
 .button-label { line-height: 1; }
 .button-arrow { font-size: 1.4rem; font-weight: 400; line-height: 1; transform: translateY(-.03rem); }
+/* =========================================
+   BL-05 - ROOM LIST
+   ========================================= */
+
+.rooms-section {
+  max-width: 1200px;
+  margin-top: 3rem;
+}
+
+.rooms-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.rooms-header h2 {
+  margin-top: .6rem;
+  color: var(--forest);
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.room-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.legend-dot {
+  width: .75rem;
+  height: .75rem;
+  border-radius: 50%;
+}
+
+.legend-dot.available {
+  background: #3d9b63;
+}
+
+.legend-dot.occupied {
+  background: #d95c4d;
+}
+
+/* Lưới phòng */
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* Thẻ phòng */
+.room-card {
+  position: relative;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: .6rem;
+  background: rgba(255, 255, 255, .75);
+  box-shadow: 0 6px 18px rgba(24, 43, 44, .06);
+  transition: transform .2s, box-shadow .2s;
+}
+
+.room-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(24, 43, 44, .1);
+}
+
+/* Phòng trống */
+.room-card.available {
+  border-left: 5px solid #3d9b63;
+}
+
+/* Phòng đang thuê */
+.room-card.occupied {
+  border-left: 5px solid #d95c4d;
+}
+
+/* Mã phòng */
+.room-number {
+  margin: 0;
+  color: var(--forest);
+  font: 700 1.8rem Georgia, serif;
+}
+
+/* Loại phòng */
+.room-type {
+  margin-top: .3rem;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+/* Trạng thái */
+.room-status {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: .4rem .7rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.room-status.available {
+  color: #25633d;
+  background: #d8f0df;
+}
+
+.room-status.occupied {
+  color: #963d32;
+  background: #f8d9d4;
+}
+
+/* Giờ vào / giờ ra */
+.room-time {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.room-time-item span {
+  display: block;
+  margin-bottom: .25rem;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.room-time-item strong {
+  color: var(--ink);
+  font-size: .85rem;
+}
+
+/* Khi không có phòng */
+.room-empty {
+  grid-column: 1 / -1;
+  padding: 3rem;
+  text-align: center;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .6);
+  border: 1px dashed var(--line);
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .room-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rooms-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Điện thoại */
+@media (max-width: 600px) {
+  .room-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-time {
+    grid-template-columns: 1fr;
+  }
+}
