@@ -19,5 +19,6 @@ router.patch('/rooms/:id/status', requireAuth, roomController.updateStatus);
 router.delete('/rooms/:id', requireAuth, roomController.deleteRoom);
 router.get('/room-types', requireAuth, roomTypeController.getRoomTypes);
 router.post('/room-types', requireAuth, roomTypeController.addRoomType);
+router.put('/room-types/:code', requireAuth, roomTypeController.updateRoomType);
 
 module.exports = router;

@@ -230,6 +230,7 @@ async function loadRoomTypes() {
         <div class="room-type-item">
           <span class="room-type-code">${escapeHtml(roomType.code)}</span>
           <strong>${escapeHtml(roomTypeLabel(roomType.name))}</strong>
+          <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
         </div>
       `).join('')
       : '<p class="muted">Chưa có thể loại phòng.</p>';
@@ -246,8 +247,19 @@ if (roomTypeForm) {
   const nameInput = document.querySelector('#room-type-name');
   const errorMessage = document.querySelector('#room-type-error');
   const successMessage = document.querySelector('#room-type-message');
+  let editingCode = null;
+
+  function resetRoomTypeForm() {
+    editingCode = null;
+    roomTypeForm.reset();
+    roomTypeForm.classList.add('hidden-form');
+    toggleButton.textContent = 'Thêm mới';
+    roomTypeForm.querySelector('[type="submit"]').textContent = 'Lưu thể loại';
+    errorMessage.textContent = '';
+  }
 
   toggleButton.addEventListener('click', () => {
+    resetRoomTypeForm();
     roomTypeForm.classList.remove('hidden-form');
     codeInput.value = roomTypesCache.length
       ? `LP${String(Math.max(...roomTypesCache.map((item) => Number(String(item.code).replace(/^LP/i, '')) || 0)) + 1).padStart(3, '0')}`
@@ -258,10 +270,25 @@ if (roomTypeForm) {
   });
 
   cancelButton.addEventListener('click', () => {
-    roomTypeForm.reset();
-    roomTypeForm.classList.add('hidden-form');
+    resetRoomTypeForm();
+    successMessage.textContent = '';
+  });
+
+  document.querySelector('#room-type-list').addEventListener('click', (event) => {
+    const button = event.target.closest('.edit-room-type-button');
+    if (!button) return;
+    const roomType = roomTypesCache.find((item) => item.code === button.dataset.roomTypeCode);
+    if (!roomType) return;
+
+    editingCode = roomType.code;
+    codeInput.value = roomType.code;
+    nameInput.value = roomType.name;
+    roomTypeForm.classList.remove('hidden-form');
+    toggleButton.textContent = 'Đang cập nhật';
+    roomTypeForm.querySelector('[type="submit"]').textContent = 'Lưu thay đổi';
     errorMessage.textContent = '';
     successMessage.textContent = '';
+    nameInput.focus();
   });
 
   roomTypeForm.addEventListener('submit', async (event) => {
@@ -276,17 +303,18 @@ if (roomTypeForm) {
     }
 
     try {
-      const response = await fetch('/api/room-types', {
-        method: 'POST',
+      const response = await fetch(editingCode
+        ? `/api/room-types/${encodeURIComponent(editingCode)}`
+        : '/api/room-types', {
+        method: editingCode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Không thể thêm thể loại phòng.');
+      if (!response.ok) throw new Error(result.message || 'Không thể lưu thể loại phòng.');
 
-      roomTypeForm.reset();
-      roomTypeForm.classList.add('hidden-form');
-      successMessage.textContent = `${result.message} (${result.roomType.code})`;
+      resetRoomTypeForm();
+      successMessage.textContent = `${result.message} (${result.roomType.code}: ${result.roomType.name})`;
       await loadRoomTypes();
     } catch (error) {
       errorMessage.textContent = error.message;

@@ -136,7 +136,9 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .room-type-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin-top: 1rem; }
 .room-type-item { display: flex; align-items: center; gap: .75rem; min-height: 3.25rem; padding: .65rem .8rem; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
 .room-type-code { min-width: 4.3rem; color: var(--forest-light); font-size: .73rem; font-weight: 700; }
-.room-type-item strong { overflow-wrap: anywhere; color: var(--ink); font-size: .87rem; }
+.room-type-item strong { flex: 1; overflow-wrap: anywhere; color: var(--ink); font-size: .87rem; }
+.edit-room-type-button { flex: 0 0 auto; padding: .4rem .6rem; border: 1px solid var(--line); color: var(--forest); background: #fff; font-size: .72rem; font-weight: 700; }
+.edit-room-type-button:hover { color: #fff; background: var(--forest-light); }
 .toast-message { min-height: 1rem; margin: .8rem 0 0; color: #39704f; font-size: .8rem; }
 .room-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: .5rem; font-size: .8rem; }
 .edit-room-button { padding: .4rem .6rem; border: 1px solid #9bb5a5; color: var(--forest); background: #fff; font-size: .72rem; font-weight: 700; }

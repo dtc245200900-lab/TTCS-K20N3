@@ -98,6 +98,72 @@ async function createRoomType(name) {
   return { code, name: normalizedName };
 }
 
+async function updateRoomType(code, name) {
+  const normalizedCode = String(code || '').trim();
+  const normalizedName = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!normalizedCode) return null;
+  if (!normalizedName) throw new Error('Tên thể loại không được để trống.');
+  if (normalizedName.length > 80) throw new Error('Tên thể loại không được vượt quá 80 ký tự.');
+
+  const roomTypes = await listRoomTypes();
+  const currentType = roomTypes.find((item) => item.code === normalizedCode);
+  if (!currentType) return null;
+  if (roomTypes.some((item) => item.code !== normalizedCode && normalizeName(item.name) === normalizeName(normalizedName))) {
+    const error = new Error('Tên thể loại đã tồn tại.');
+    error.code = 'ER_DUP_ENTRY';
+    throw error;
+  }
+
+  if (await isDatabaseAvailable()) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.query(
+        'SELECT code FROM room_types WHERE code = ? FOR UPDATE',
+        [normalizedCode]
+      );
+      if (!rows.length) {
+        await connection.rollback();
+        return null;
+      }
+      await connection.query(
+        'UPDATE room_types SET name = ? WHERE code = ?',
+        [normalizedName, normalizedCode]
+      );
+      await connection.query(
+        'UPDATE rooms SET room_type = ? WHERE room_type = ?',
+        [normalizedName, currentType.name]
+      );
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } else {
+    const updatedTypes = roomTypes.map((item) => item.code === normalizedCode
+      ? { ...item, name: normalizedName }
+      : item);
+    const roomsFile = path.join(dataDirectory, 'rooms.json');
+    if (fs.existsSync(roomsFile)) {
+      const rooms = JSON.parse(fs.readFileSync(roomsFile, 'utf8'));
+      if (Array.isArray(rooms)) {
+        for (const room of rooms) {
+          const roomType = room.roomType ?? room.room_type;
+          if (normalizeName(roomType) !== normalizeName(currentType.name)) continue;
+          if ('roomType' in room) room.roomType = normalizedName;
+          if ('room_type' in room) room.room_type = normalizedName;
+        }
+        fs.writeFileSync(roomsFile, JSON.stringify(rooms, null, 2));
+      }
+    }
+    saveRoomTypes(updatedTypes);
+  }
+
+  return { code: normalizedCode, name: normalizedName };
+}
+
 async function findRoomType(name) {
   const normalizedName = normalizeName(name);
   if (!normalizedName) return null;
@@ -105,4 +171,4 @@ async function findRoomType(name) {
   return roomTypes.find((item) => normalizeName(item.name) === normalizedName) || null;
 }
 
-module.exports = { createRoomType, findRoomType, listRoomTypes };
+module.exports = { createRoomType, findRoomType, listRoomTypes, updateRoomType };
