@@ -256,18 +256,38 @@ async function loadRoomTypes() {
 
     document.querySelector('#room-type-code').value = result.nextCode || 'LP001';
     roomTypeList.innerHTML = roomTypesCache.length
-      ? roomTypesCache.map((roomType) => `
-        <div class="room-type-item">
-          <div class="room-type-info">
-            <span class="room-type-code">${escapeHtml(roomType.code)}</span>
-            <strong>${escapeHtml(roomTypeLabel(roomType.name))}</strong>
-          </div>
-          <div class="room-type-item-actions">
-            <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
-            <button type="button" class="delete-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}" aria-label="Xóa thể loại ${escapeHtml(roomTypeLabel(roomType.name))}">Xóa</button>
-          </div>
+      ? `
+        <div class="room-type-table-wrap">
+          <table class="room-type-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Mã loại phòng</th>
+                <th>Tên loại phòng</th>
+                <th>Số lượng phòng</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roomTypesCache.map((roomType, index) => {
+                const count = roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name).length;
+                return `
+                  <tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(roomType.code)}</td>
+                    <td>${escapeHtml(roomTypeLabel(roomType.name))}</td>
+                    <td>${count}</td>
+                    <td class="room-type-actions-cell">
+                      <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
+                      <button type="button" class="delete-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}" aria-label="Xóa thể loại ${escapeHtml(roomTypeLabel(roomType.name))}">Xóa</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
-      `).join('')
+      `
       : '<p class="muted">Chưa có thể loại phòng.</p>';
   } catch (error) {
     roomTypeList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;

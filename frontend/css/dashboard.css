@@ -110,7 +110,127 @@
 .dashboard-page .delete-room-type-button:hover:not(:disabled) { color: #fff; background: #a33636; }
 .dashboard-page .delete-room-type-button:disabled { cursor: wait; opacity: .6; }
 .dashboard-page #room-type-message.error { color: #b34d3d; }
-.dashboard-page .room-type-form { border-radius: 9px; background: #fff8fa; }
+.dashboard-page .room-type-form {
+  position: fixed;
+  top: 86px;
+  right: 20px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 30px));
+  padding: 24px 20px 16px;
+  border: 1px solid #f4d8e5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(89, 38, 57, 0.14);
+}
+.dashboard-page .room-type-form.hidden-form { display: none; }
+.dashboard-page .room-type-form .room-type-fields {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+.dashboard-page .room-type-form label {
+  display: block;
+  margin: 0;
+  color: #7f2d4e;
+  font-size: 13px;
+  font-weight: 700;
+}
+.dashboard-page .room-type-form input {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #ead7df;
+  border-radius: 8px;
+  background: #fff;
+  color: #4d2a38;
+}
+.dashboard-page .room-type-form .room-type-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.dashboard-page .room-type-form .cancel-button,
+.dashboard-page .room-type-form .small-button {
+  margin: 0;
+  min-height: 42px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.dashboard-page .room-type-form .small-button {
+  padding: 10px 18px;
+  background: linear-gradient(180deg, #8b254f, #6b1d3c);
+  color: #fff;
+  border: 0;
+}
+.dashboard-page .room-type-form .cancel-button {
+  background: #fff;
+  color: #6f4256;
+  border: 1px solid #ead7df;
+}
+.dashboard-page .room-type-form #room-type-error,
+.dashboard-page .room-type-form #room-type-message {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.dashboard-page .room-type-list {
+  margin-top: 18px;
+}
+.dashboard-page .room-type-table-wrap {
+  overflow: hidden;
+  border: 1px solid #f2dfe6;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(112, 61, 79, 0.04);
+}
+.dashboard-page .room-type-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.dashboard-page .room-type-table th,
+.dashboard-page .room-type-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f4e6ec;
+  text-align: left;
+}
+.dashboard-page .room-type-table thead th {
+  background: #f8e7ef;
+  color: #5d3146;
+  font-weight: 700;
+}
+.dashboard-page .room-type-table tbody tr:nth-child(even) {
+  background: #fffafc;
+}
+.dashboard-page .room-type-table tbody tr:hover {
+  background: #fff2f7;
+}
+.dashboard-page .room-type-table td {
+  color: #4e2b3a;
+}
+.dashboard-page .room-type-actions-cell {
+  display: table-cell;
+  white-space: nowrap;
+}
+.dashboard-page .room-type-actions-cell .edit-room-type-button,
+.dashboard-page .room-type-actions-cell .delete-room-type-button {
+  min-width: 86px;
+  margin: 0 4px 0 0;
+  padding: 9px 10px;
+  border: 1px solid #e9d3dd;
+  border-radius: 7px;
+  background: #fff;
+  color: #a23f5f;
+  font-size: 12px;
+  font-weight: 700;
+}
+.dashboard-page .room-type-actions-cell .delete-room-type-button {
+  color: #b14d4d;
+  border-color: #f0cbca;
+}
+.dashboard-page .room-type-actions-cell .edit-room-type-button:hover { background: #f9dfe7; }
+.dashboard-page .room-type-actions-cell .delete-room-type-button:hover { background: #fde9e9; }
 .dashboard-page .cancel-button { border-radius: 7px; }
 .dashboard-page .error:empty, .dashboard-page .success:empty, .dashboard-page .toast-message:empty { display: none; }
 .dashboard-page button:focus-visible, .dashboard-page input:focus-visible, .dashboard-page select:focus-visible { outline: 3px solid #cd7c9b; outline-offset: 3px; }
