@@ -44,6 +44,32 @@ async function addRoom(request, response) {
   }
 }
 
+async function updateRoom(request, response) {
+  const roomCode = String(request.body.roomCode || '').trim();
+  const shortDescription = String(request.body.shortDescription || '').trim();
+  const roomType = String(request.body.roomType || '').trim();
+  const nightlyRate = Number(request.body.nightlyRate);
+  const imagePath = request.file ? `/uploads/${request.file.filename}` : '';
+
+  if (!/^[A-Za-z0-9-]{1,20}$/.test(roomCode) || shortDescription.length > 240 || !shortDescription || !roomType || !Number.isFinite(nightlyRate) || nightlyRate <= 0) {
+    return response.status(400).json({ message: 'Vui lòng nhập mã phòng hợp lệ, mô tả (tối đa 240 ký tự), thể loại và giá thuê > 0.' });
+  }
+
+  try {
+    const result = await roomModel.updateRoom(request.params.id, {
+      roomCode,
+      shortDescription,
+      imagePath,
+      roomType,
+      nightlyRate
+    });
+    if (result.reason === 'not-found') return response.status(404).json({ message: 'Không tìm thấy phòng.' });
+    return response.json({ message: 'Cập nhật thông tin phòng thành công.', room: result.room });
+  } catch (error) {
+    return response.status(400).json({ message: error.message || 'Không thể cập nhật thông tin phòng.' });
+  }
+}
+
 async function updateStatus(request, response) {
   try {
     const result = await roomModel.updateRoomStatus(request.params.id, request.body.status);
@@ -83,4 +109,4 @@ async function deleteRoom(request, response) {
   }
 }
 
-module.exports = { addRoom, deleteRoom, getRooms, updateStatus };
+module.exports = { addRoom, deleteRoom, getRooms, updateRoom, updateStatus };

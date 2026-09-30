@@ -138,7 +138,10 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .room-type-code { min-width: 4.3rem; color: var(--forest-light); font-size: .73rem; font-weight: 700; }
 .room-type-item strong { overflow-wrap: anywhere; color: var(--ink); font-size: .87rem; }
 .toast-message { min-height: 1rem; margin: .8rem 0 0; color: #39704f; font-size: .8rem; }
-.room-meta { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; }
+.room-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: .5rem; font-size: .8rem; }
+.edit-room-button { padding: .4rem .6rem; border: 1px solid #9bb5a5; color: var(--forest); background: #fff; font-size: .72rem; font-weight: 700; }
+.edit-room-button:hover:not(:disabled) { color: #fff; background: var(--forest-light); }
+.edit-room-button:disabled { cursor: wait; opacity: .6; }
 .room-status-toggle { padding: .45rem .7rem; border: 1px solid transparent; color: #fff; font-size: .72rem; font-weight: 700; }
 .room-status-toggle.available { background: #39704f; }
 .room-status-toggle.occupied { background: #963d32; }

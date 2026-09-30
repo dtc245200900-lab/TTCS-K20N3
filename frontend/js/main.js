@@ -1,5 +1,7 @@
 const form = document.querySelector('#login-form');
 let roomTypesCache = [];
+let roomCache = [];
+let openRoomForm;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
@@ -145,12 +147,14 @@ async function loadRoomList() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
 
     if (!result.rooms || result.rooms.length === 0) {
+      roomCache = [];
       if (roomCount) roomCount.textContent = '0 phòng';
       roomGrid.innerHTML = '<div class="room-empty">Chưa có phòng nào.</div>';
       return;
     }
 
     if (roomCount) roomCount.textContent = `${result.rooms.length} phòng`;
+    roomCache = result.rooms;
 
     roomGrid.innerHTML = result.rooms.map((room) => {
       const status = roomStatusInfo(room.status);
@@ -188,6 +192,7 @@ async function loadRoomList() {
               <div class="room-time-item"><span>Giờ ra</span><strong>${escapeHtml(checkOut)}</strong></div>
             </div>
             <div class="room-meta">
+              <button type="button" class="edit-room-button" data-room-id="${escapeHtml(room.id)}">Cập nhật thông tin</button>
               ${statusAction ? `<button type="button" class="room-status-toggle ${status.className}" data-room-id="${escapeHtml(room.id)}" data-next-status="${statusAction.nextStatus}">${statusAction.label}</button>` : ''}
               <button type="button" class="delete-room-button" data-room-id="${escapeHtml(room.id)}">Xóa</button>
             </div>
@@ -292,6 +297,13 @@ if (roomTypeForm) {
 const roomGrid = document.querySelector('#room-grid');
 if (roomGrid) {
   roomGrid.addEventListener('click', async (event) => {
+    const editButton = event.target.closest('.edit-room-button');
+    if (editButton) {
+      const room = roomCache.find((item) => String(item.id) === editButton.dataset.roomId);
+      if (room) openRoomForm(room);
+      return;
+    }
+
     const statusButton = event.target.closest('.room-status-toggle');
     if (statusButton) {
       const roomMessage = document.querySelector('#room-list-message');
@@ -364,6 +376,16 @@ if (roomForm) {
   const imagePreview = document.querySelector('#image-preview');
   const descriptionInput = document.querySelector('#room-description');
   const descriptionCount = document.querySelector('.description-count');
+  const roomCodeInput = document.querySelector('#room-code');
+  const roomTypeSelect = document.querySelector('#room-type-select');
+  const nightlyRateInput = document.querySelector('#nightly-rate');
+  const editingStatusInput = document.querySelector('#room-status');
+  const formHeading = document.querySelector('#room-form-heading');
+  const formDescription = document.querySelector('#room-form-description');
+  const formTitle = document.querySelector('#room-form-title');
+  const formKicker = document.querySelector('#room-view-kicker');
+  const submitLabel = document.querySelector('#room-submit-label');
+  let editingRoomId = null;
 
   const setRoomView = (viewName) => {
     Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== viewName));
@@ -372,15 +394,53 @@ if (roomForm) {
   };
 
   navigationButtons.forEach((button) => {
-    button.addEventListener('click', () => setRoomView(button.dataset.roomView));
+    button.addEventListener('click', () => {
+      if (button.dataset.roomView === 'add') {
+        clearRoomForm();
+        roomMessage.textContent = '';
+      }
+      setRoomView(button.dataset.roomView);
+    });
   });
 
   const clearRoomForm = () => {
     roomForm.reset();
+    editingRoomId = null;
+    formHeading.textContent = 'Thêm phòng';
+    formDescription.textContent = 'Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.';
+    formTitle.textContent = 'Thêm phòng vào hệ thống';
+    formKicker.textContent = 'THÊM MỚI';
+    submitLabel.textContent = 'Thêm phòng';
     imagePreview.classList.add('hidden');
     imagePreview.innerHTML = '';
     descriptionCount.textContent = '0/240 ký tự';
     roomError.textContent = '';
+  };
+
+  openRoomForm = (room) => {
+    editingRoomId = String(room.id);
+    roomCodeInput.value = room.roomCode || '';
+    descriptionInput.value = room.shortDescription || '';
+    roomTypeSelect.value = room.roomType || '';
+    nightlyRateInput.value = room.nightlyRate ?? '';
+    editingStatusInput.value = room.status || 'Phòng trống';
+    descriptionCount.textContent = `${descriptionInput.value.length}/240 ký tự`;
+    formHeading.textContent = `Cập nhật phòng ${room.roomCode || ''}`;
+    formDescription.textContent = 'Chỉnh sửa thông tin phòng và lưu thay đổi.';
+    formTitle.textContent = 'Cập nhật thông tin phòng';
+    formKicker.textContent = 'CẬP NHẬT';
+    submitLabel.textContent = 'Lưu thay đổi';
+    roomError.textContent = '';
+    roomMessage.textContent = '';
+    const imagePath = room.imagePath || '';
+    if (imagePath) {
+      imagePreview.innerHTML = `<img src="${escapeHtml(imagePath)}" alt="Ảnh hiện tại của phòng"><span>Ảnh hiện tại · chọn ảnh mới để thay thế</span>`;
+      imagePreview.classList.remove('hidden');
+    } else {
+      imagePreview.classList.add('hidden');
+      imagePreview.innerHTML = '';
+    }
+    setRoomView('add');
   };
 
   cancelButton.addEventListener('click', () => {
@@ -420,8 +480,10 @@ if (roomForm) {
     }
 
     try {
-      const response = await fetch('/api/rooms', {
-        method: 'POST',
+      const response = await fetch(editingRoomId
+        ? `/api/rooms/${encodeURIComponent(editingRoomId)}`
+        : '/api/rooms', {
+        method: editingRoomId ? 'PUT' : 'POST',
         body: new FormData(roomForm)
       });
       const result = await response.json();

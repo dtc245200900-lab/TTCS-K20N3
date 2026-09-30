@@ -129,6 +129,51 @@ async function createRoom({ roomCode, shortDescription, imagePath, roomType, nig
   return normalizeRoom(room);
 }
 
+async function updateRoom(id, { roomCode, shortDescription, imagePath, roomType, nightlyRate }) {
+  const roomId = Number(id);
+  if (!Number.isSafeInteger(roomId) || roomId <= 0) return { reason: 'not-found' };
+
+  const normalizedCode = String(roomCode || '').trim();
+  const normalizedDescription = String(shortDescription || '').trim();
+  const normalizedType = String(roomType || '').trim();
+  const normalizedRate = Number(nightlyRate);
+  if (!/^[A-Za-z0-9-]{1,20}$/.test(normalizedCode)) throw new Error('Mã phòng chỉ gồm chữ cái, số hoặc dấu gạch ngang (tối đa 20 ký tự).');
+  if (!normalizedDescription || normalizedDescription.length > 240) throw new Error('Mô tả phòng là bắt buộc và không quá 240 ký tự.');
+  if (!normalizedType) throw new Error('Loại phòng không được để trống.');
+  if (!Number.isFinite(normalizedRate) || normalizedRate <= 0) throw new Error('Giá thuê phải lớn hơn 0.');
+  if (!await roomTypeModel.findRoomType(normalizedType)) throw new Error('Loại phòng không hợp lệ.');
+
+  const databaseReady = await isDatabaseAvailable();
+  if (databaseReady) {
+    const [rows] = await pool.query('SELECT id, image_path FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    if (!rows.length) return { reason: 'not-found' };
+    const [duplicates] = await pool.query('SELECT id FROM rooms WHERE room_code = ? AND id <> ? LIMIT 1', [normalizedCode, roomId]);
+    if (duplicates.length) throw new Error('Mã phòng đã tồn tại.');
+
+    await pool.query(
+      'UPDATE rooms SET room_code = ?, short_description = ?, image_path = ?, room_type = ?, nightly_rate = ? WHERE id = ?',
+      [normalizedCode, normalizedDescription, imagePath || rows[0].image_path || null, normalizedType, normalizedRate, roomId]
+    );
+    const [updatedRows] = await pool.query('SELECT * FROM rooms WHERE id = ? LIMIT 1', [roomId]);
+    return { room: normalizeRoom(updatedRows[0]) };
+  }
+
+  const rooms = readRooms();
+  const room = rooms.find((item) => Number(item.id) === roomId);
+  if (!room) return { reason: 'not-found' };
+  if (rooms.some((item) => Number(item.id) !== roomId && String(item.roomCode || item.room_code || item.roomNumber || '').toLowerCase() === normalizedCode.toLowerCase())) {
+    throw new Error('Mã phòng đã tồn tại.');
+  }
+
+  room.roomCode = normalizedCode;
+  room.shortDescription = normalizedDescription;
+  room.imagePath = imagePath || room.imagePath || room.image_path || '';
+  room.roomType = normalizedType;
+  room.nightlyRate = normalizedRate;
+  saveRooms(rooms);
+  return { room: normalizeRoom(room) };
+}
+
 async function updateRoomStatus(id, nextStatus) {
   const roomId = Number(id);
   if (!Number.isSafeInteger(roomId) || roomId <= 0) return { reason: 'not-found' };
@@ -219,4 +264,4 @@ async function deleteRoom(id) {
   return { deleted: true };
 }
 
-module.exports = { createRoom, deleteRoom, findByRoomCode, listRooms, updateRoomStatus };
+module.exports = { createRoom, deleteRoom, findByRoomCode, listRooms, updateRoom, updateRoomStatus };

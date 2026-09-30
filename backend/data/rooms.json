@@ -14,7 +14,7 @@
     "shortDescription": "1333",
     "imagePath": "/uploads/1790672079025-anh-phong-khach-san-dep-11.jpg",
     "roomType": "phòng gia đình",
-    "nightlyRate": 66666649,
+    "nightlyRate": 666666,
     "status": "Phòng trống"
   },
   {
@@ -38,5 +38,16 @@
     "status": "Phòng trống",
     "checkInAt": "2026-09-29T10:07:17.525Z",
     "checkOutAt": "2026-09-29T10:07:20.832Z"
+  },
+  {
+    "id": 7,
+    "roomCode": "P106",
+    "shortDescription": "phòng đẹp, đủ tiện nghi",
+    "imagePath": "",
+    "roomType": "Đơn",
+    "nightlyRate": 249959,
+    "status": "Đã thuê",
+    "checkInAt": "2026-09-30T01:20:15.782Z",
+    "checkOutAt": null
   }
 ]

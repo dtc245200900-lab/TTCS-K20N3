@@ -45,7 +45,7 @@
         <div class="view-heading room-view-heading rooms-header">
           <div>
             <p class="eyebrow">QUẢN LÝ PHÒNG</p>
-            <h2>Danh sách phòng</h2>
+            <h2 id="room-view-title">Danh sách phòng</h2>
             <p class="muted">Theo dõi trạng thái và thời gian sử dụng của các phòng.</p>
           </div>
           <div class="room-header-actions">
@@ -59,13 +59,13 @@
 
       <section id="room-add-view" class="room-view hidden-view">
         <div class="view-heading">
-          <div><p class="eyebrow">QUẢN LÝ PHÒNG / THÊM MỚI</p><h2>Thêm phòng</h2><p class="muted">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p></div>
+            <div><p class="eyebrow">QUẢN LÝ PHÒNG / <span id="room-view-kicker">THÊM MỚI</span></p><h2 id="room-form-heading">Thêm phòng</h2><p class="muted" id="room-form-description">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p></div>
           <button type="button" class="secondary-button dark-button" data-room-view="list">Danh sách phòng</button>
         </div>
         <article class="dashboard-card room-form-card">
           <form id="room-form" class="room-form" enctype="multipart/form-data" novalidate>
           <div class="form-intro">
-            <div><span class="form-kicker">THÔNG TIN CƠ BẢN</span><h4>Thêm phòng vào hệ thống</h4></div>
+            <div><span class="form-kicker">THÔNG TIN CƠ BẢN</span><h4 id="room-form-title">Thêm phòng vào hệ thống</h4></div>
             <span class="required-note"><b>*</b> Bắt buộc</span>
           </div>
           <div class="room-fields">
@@ -97,7 +97,7 @@
               <span id="image-preview" class="image-preview hidden"></span>
             </label>
           </div>
-          <div class="room-form-actions"><button type="button" class="cancel-button" id="cancel-room-form">Hủy</button><button type="submit" class="primary-button small-button"><span>Thêm phòng</span><span>→</span></button></div>
+          <div class="room-form-actions"><button type="button" class="cancel-button" id="cancel-room-form">Hủy</button><button type="submit" class="primary-button small-button"><span id="room-submit-label">Thêm phòng</span><span>→</span></button></div>
           <p id="room-error" class="error" aria-live="polite"></p>
           </form>
           <p id="room-message" class="success room-message" role="status" aria-live="polite"></p>
