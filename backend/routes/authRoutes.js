@@ -20,5 +20,6 @@ router.delete('/rooms/:id', requireAuth, roomController.deleteRoom);
 router.get('/room-types', requireAuth, roomTypeController.getRoomTypes);
 router.post('/room-types', requireAuth, roomTypeController.addRoomType);
 router.put('/room-types/:code', requireAuth, roomTypeController.updateRoomType);
+router.delete('/room-types/:code', requireAuth, roomTypeController.deleteRoomType);
 
 module.exports = router;

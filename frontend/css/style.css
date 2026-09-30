@@ -1,4 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+
 :root {
+  --font-body: 'Be Vietnam Pro', 'Segoe UI', sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
   color-scheme: light;
   --ink: #182b2c;
   --muted: #71817e;
@@ -11,21 +15,21 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--paper); font-family: Arial, sans-serif; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--paper); font-family: var(--font-body); }
 button, input { font: inherit; }
 button { cursor: pointer; }
 .auth-layout { min-height: 100vh; display: grid; grid-template-columns: minmax(360px, .9fr) 1.1fr; background: var(--paper); }
 .brand-panel { position: relative; overflow: hidden; padding: clamp(2.5rem, 6vw, 6rem); color: #f7fcf7; background: var(--forest); }
 .brand-panel::before { content: ''; position: absolute; width: 34rem; height: 34rem; right: -13rem; bottom: -14rem; border: 1px solid rgba(220,233,223,.26); border-radius: 50%; box-shadow: 0 0 0 4rem rgba(220,233,223,.04), 0 0 0 8rem rgba(220,233,223,.03); }
-.brand-mark { display: grid; place-items: center; width: 3rem; height: 3rem; margin-bottom: 7rem; color: var(--forest); background: var(--mint); font: 700 1.5rem Georgia, serif; }
+.brand-mark { display: grid; place-items: center; width: 3rem; height: 3rem; margin-bottom: 7rem; color: var(--forest); background: var(--mint); font: 700 1.5rem var(--font-display); }
 .brand-mark span { transform: translateY(-1px); }
-.eyebrow { margin: 0; color: var(--coral); font: 700 .69rem/1.2 Arial, sans-serif; letter-spacing: .16em; }
-.brand-panel h1 { max-width: 34rem; margin: 1.3rem 0 1.2rem; font: 400 clamp(2.7rem, 5vw, 5.7rem)/.96 Georgia, serif; letter-spacing: 0; }
+.eyebrow { margin: 0; color: var(--coral); font: 700 .69rem/1.2 var(--font-body); letter-spacing: .16em; }
+.brand-panel h1 { max-width: 34rem; margin: 1.3rem 0 1.2rem; font: 400 clamp(2.7rem, 5vw, 5.7rem)/.96 var(--font-display); letter-spacing: 0; }
 .brand-panel > p:not(.eyebrow) { max-width: 25rem; color: #cfdfd5; font-size: 1rem; line-height: 1.65; }
 .auth-panel { display: grid; place-items: center; padding: 2rem clamp(1.5rem, 7vw, 8rem); background: var(--paper); }
 .auth-card { width: min(100%, 32rem); }
 .auth-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .85rem; }
-h2 { margin: 0; font: 400 clamp(2.1rem, 4vw, 3.2rem)/1 Georgia, serif; letter-spacing: 0; }
+h2 { margin: 0; font: 400 clamp(2.1rem, 4vw, 3.2rem)/1 var(--font-display); letter-spacing: 0; }
 .muted { margin: .8rem 0 0; color: var(--muted); font-size: .94rem; line-height: 1.6; }
 .auth-tabs { display: flex; gap: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid var(--line); }
 .tab-button { width: auto; margin: 0; padding: 0 0 .8rem; border: 0; color: var(--muted); background: transparent; font-size: .83rem; }
@@ -42,7 +46,7 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .error { color: #b34d3d; }
 .success { color: #39704f; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.5rem 6vw; color: #f7fcf7; background: var(--forest); }
-.topbar h1 { margin: .5rem 0 0; font: 400 2.2rem Georgia, serif; }
+.topbar h1 { margin: .5rem 0 0; font: 400 2.2rem var(--font-display); }
 .user-chip { display: flex; align-items: center; gap: .75rem; }
 .avatar { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; color: var(--forest); background: var(--mint); font-weight: 700; }
 .user-chip small { display: block; color: #a9c1b4; font-size: .7rem; margin-top: .2rem; }
@@ -51,9 +55,9 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .dashboard-layout { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: calc(100vh - 108px); background: var(--mint); }
 .room-sidebar { display: flex; flex-direction: column; gap: 1.5rem; padding: 2rem 1.2rem; color: #dce9df; background: #123638; }
 .sidebar-brand { display: flex; align-items: center; gap: .7rem; padding: .25rem .4rem 1.5rem; border-bottom: 1px solid rgba(220,233,223,.16); }
-.sidebar-brand-mark { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; color: var(--forest); background: #d9bd7b; font: 400 1.35rem Georgia, serif; }
+.sidebar-brand-mark { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; color: var(--forest); background: #d9bd7b; font: 400 1.35rem var(--font-display); }
 .sidebar-brand strong, .sidebar-brand small { display: block; }
-.sidebar-brand strong { color: #fffdf7; font: 400 1rem Georgia, serif; letter-spacing: .08em; }
+.sidebar-brand strong { color: #fffdf7; font: 400 1rem var(--font-display); letter-spacing: .08em; }
 .sidebar-brand small { margin-top: .25rem; color: #91aca3; font-size: .57rem; letter-spacing: .12em; }
 .sidebar-label { margin: 0 .45rem -.65rem; color: #8eaaa0; font-size: .6rem; font-weight: 700; letter-spacing: .1em; }
 .room-navigation { display: grid; gap: .25rem; }
@@ -76,10 +80,10 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .welcome-block h2 { margin-top: .8rem; font-size: clamp(2.3rem, 5vw, 4.5rem); }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 1.25rem; max-width: 74rem; margin-top: 3rem; }
 .dashboard-card { padding: 1.5rem; background: rgba(255,255,255,.68); border: 1px solid rgba(255,255,255,.8); }
-.dashboard-card h3 { margin: .5rem 0 .3rem; font: 400 1.55rem Georgia, serif; }
+.dashboard-card h3 { margin: .5rem 0 .3rem; font: 400 1.55rem var(--font-display); }
 .workspace-badge { display: inline-block; padding: .35rem .55rem; color: var(--forest-light); background: #c4ddc9; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.card-header-row h3 { margin: .5rem 0 0; font: 400 1.55rem Georgia, serif; }
+.card-header-row h3 { margin: .5rem 0 0; font: 400 1.55rem var(--font-display); }
 .dark-button { border-color: rgba(23,63,61,.45); color: var(--forest); background: rgba(23,63,61,.06); }
 .hidden-form { display: none; }
 .room-form { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid rgba(23,63,61,.12); background: rgba(255,255,255,.58); }
@@ -87,7 +91,7 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .room-form h4 { margin: 0 0 1rem; color: var(--forest); font-size: 1.1rem; }
 .form-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .form-kicker { color: var(--coral); font-size: .64rem; font-weight: 700; letter-spacing: .12em; }
-.form-intro h4 { margin: .35rem 0 0; font: 400 1.35rem Georgia, serif; }
+.form-intro h4 { margin: .35rem 0 0; font: 400 1.35rem var(--font-display); }
 .required-note { color: var(--muted); font-size: .7rem; }
 .required-note b, .room-type-choice legend span, .label-required { color: var(--coral); }
 .room-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
@@ -160,15 +164,15 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .brand-panel { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: clamp(3rem, 7vw, 7rem) clamp(2.5rem, 6vw, 6rem); background: #102d34; }
 .brand-panel::before { inset: -20% -20% -20% -10%; width: auto; height: auto; border: 0; border-radius: 0; opacity: .55; background: repeating-radial-gradient(circle at 45% 46%, transparent 0 118px, rgba(200,164,103,.22) 119px 120px, transparent 121px 150px); box-shadow: none; }
 .brand-panel::after { content: ''; position: absolute; left: 3.8rem; bottom: 3.7rem; width: calc(100% - 7.6rem); height: 1px; background: rgba(234,207,153,.28); }
-.brand-mark { position: relative; z-index: 1; display: block; width: 4.5rem; height: 5.7rem; margin: 0 0 4.5rem; color: #d5ad67; background: transparent; font: 400 5rem/.8 Georgia, serif; text-align: center; }
+.brand-mark { position: relative; z-index: 1; display: block; width: 4.5rem; height: 5.7rem; margin: 0 0 4.5rem; color: #d5ad67; background: transparent; font: 400 5rem/.8 var(--font-display); text-align: center; }
 .brand-mark::before, .brand-mark::after { content: ''; position: absolute; left: 50%; bottom: .15rem; width: 3.4rem; height: 1px; background: #d5ad67; transform: translateX(-50%); }
 .brand-mark::after { bottom: -.3rem; width: 4.8rem; }
 .brand-mark i { position: absolute; left: 50%; bottom: .35rem; width: 3.7rem; height: 1px; background: #d5ad67; transform: translateX(-50%); }
 .brand-panel .eyebrow { position: relative; z-index: 1; color: #d5ad67; }
 .brand-panel .eyebrow::before { content: ''; display: inline-block; width: 2rem; height: 1px; margin: 0 .9rem .25rem 0; background: #d5ad67; }
-.brand-panel h1 { position: relative; z-index: 1; max-width: 35rem; margin: 2rem 0 2.2rem; color: #fffdf7; font: 400 clamp(3.2rem, 5.3vw, 5.7rem)/.98 Georgia, serif; }
+.brand-panel h1 { position: relative; z-index: 1; max-width: 35rem; margin: 2rem 0 2.2rem; color: #fffdf7; font: 400 clamp(3.2rem, 5.3vw, 5.7rem)/.98 var(--font-display); }
 .brand-panel h1 em { color: #e0bd78; font-style: italic; }
-.hero-word { display: inline-block; white-space: nowrap; letter-spacing: -.07em; word-spacing: 0; font-family: 'Times New Roman', Georgia, serif; font-kerning: none; }
+.hero-word { display: inline-block; white-space: nowrap; letter-spacing: 0; word-spacing: 0; font-family: var(--font-display); font-kerning: normal; }
 .brand-panel > p:not(.eyebrow) { position: relative; z-index: 1; max-width: 24rem; color: #c0d0d0; font-size: 1rem; line-height: 1.65; }
 .auth-panel { place-items: center start; padding: 3rem clamp(2rem, 10vw, 10rem); background: #fbfaf8; }
 .auth-card { width: min(100%, 31rem); }
@@ -308,7 +312,7 @@ label { margin: 1.25rem 0 .55rem; color: #1d3034; font-size: .78rem; }
 .room-number {
   margin: 0;
   color: var(--forest);
-  font: 700 1.8rem Georgia, serif;
+  font: 700 1.8rem var(--font-display);
 }
 
 /* Loại phòng */

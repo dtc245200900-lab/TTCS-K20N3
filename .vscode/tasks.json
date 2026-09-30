@@ -4,20 +4,18 @@
         {
             "label": "hotel: ensure server",
             "type": "process",
-            "command": "powershell.exe",
+            "command": "cmd.exe",
             "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                "$health = $null; try { $health = Invoke-RestMethod -Uri 'http://localhost:3001/health' -TimeoutSec 2 } catch {}; if ($health.status -eq 'ok') { Write-Output 'Hotel management app is running at http://localhost:3001'; exit 0 }; $env:PATH = 'C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Microsoft\\VisualStudio\\NodeJs;' + $env:PATH; npm run dev"
+                "/c",
+                "start-server.cmd"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "isBackground": true,
             "runOptions": {
-                "instanceLimit": 1
+                "instanceLimit": 1,
+                "runOn": "folderOpen"
             },
             "problemMatcher": {
                 "owner": "custom",
@@ -27,8 +25,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": ".*npm run dev.*",
-                    "endsPattern": ".*Hotel management app is running at http://localhost:3001.*"
+                    "beginsPattern": ".*(Starting server at|already running at) http://localhost:3001.*",
+                    "endsPattern": ".*Hotel management app (is running|is already running) at http://localhost:3001.*"
                 }
             }
         }

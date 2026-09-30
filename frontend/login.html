@@ -5,78 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hotel Manager | Đăng nhập</title>
     <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/login.css?v=20260930-sakura" />
   </head>
-  <body>
+  <body class="login-page">
     <main class="auth-layout">
       <section class="brand-panel">
-        <div class="brand-mark"><span>A</span><i></i></div>
-        <p class="eyebrow">THE ART OF HOSPITALITY</p>
-        <h1>
-          Chăm chút từng khoảnh khắc.
-          <em>Nâng <span class="hero-word">tầm</span> trải nghiệm.</em>
-        </h1>
-        <p>
-          Một không gian quản lý tinh gọn, để mỗi lần đón khách đều thật trọn
-          vẹn.
-        </p>
+        <div class="brand-topline"><img src="/assets/sakura-mark.svg" alt="" /><span>Quản lý<br />khách sạn</span></div>
+        <div class="brand-copy">
+          <h1>Chào mừng trở lại</h1>
+          <p>Khởi đầu một ngày phục vụ tận tâm.</p>
+        </div>
       </section>
       <section class="auth-panel">
         <div class="auth-card">
-          <div class="lock-mark" aria-hidden="true"></div>
-          <p class="eyebrow">KHÔNG GIAN QUẢN LÝ</p>
+          <div class="auth-mark" aria-hidden="true"><img src="/assets/sakura-mark.svg" alt="" /></div>
           <div class="auth-heading">
-            <h2 id="auth-title">Chào mừng trở lại.</h2>
+            <h2 id="auth-title">Đăng nhập</h2>
           </div>
-          <p id="auth-subtitle" class="muted">
-            Đăng nhập để bắt đầu một ngày đón tiếp chu đáo.
+          <p id="auth-subtitle" class="auth-subtitle">
+            Chào mừng bạn đến với hệ thống quản lý khách sạn
           </p>
+
           <form id="login-form">
             <div class="field-group hidden" id="full-name-group">
-              <label for="full-name">Họ và tên</label
-              ><input
-                id="full-name"
-                name="fullName"
-                type="text"
-                autocomplete="name"
-                placeholder="Nguyễn Văn An"
-              />
+              <label for="full-name">Họ và tên</label>
+              <div class="input-wrap">
+                <span class="field-icon" aria-hidden="true">👤</span>
+                <input
+                  id="full-name"
+                  name="fullName"
+                  type="text"
+                  autocomplete="name"
+                  placeholder="Nguyễn Văn An"
+                />
+              </div>
             </div>
-            <label for="email">Tên đăng nhập</label>
-            <div class="input-wrap">
-              <span class="field-icon">✉</span
-              ><input
-                id="email"
-                name="email"
-                type="email"
-                autocomplete="email"
-                placeholder="tenban@aurelia.vn"
-                required
-              />
+
+            <div class="field-group">
+              <label for="email">Email</label>
+              <div class="input-wrap">
+                <span class="field-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m3 6 9 7 9-7"/></svg></span>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  placeholder="Nhập địa chỉ email"
+                  required
+                />
+              </div>
             </div>
-            <label for="password">Mật khẩu</label>
-            <div class="input-wrap">
-              <span class="field-icon">♙</span
-              ><input
-                id="password"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                placeholder="Nhập mật khẩu của bạn"
-                required
-              /><button
-                class="password-toggle"
-                id="password-toggle"
-                type="button"
-                aria-label="Hiện mật khẩu"
-              >
-                ◉
-              </button>
+
+            <div class="field-group">
+              <label for="password">Mật khẩu</label>
+              <div class="input-wrap">
+                <span class="field-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/></svg></span>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  class="password-toggle"
+                  id="password-toggle"
+                  type="button"
+                  aria-label="Hiện mật khẩu" aria-pressed="false"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg>
+                </button>
+              </div>
             </div>
+
             <div class="field-group hidden" id="confirm-password-group">
               <label for="confirm-password">Xác nhận mật khẩu</label>
               <div class="input-wrap">
-                <span class="field-icon">♙</span
-                ><input
+                <span class="field-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/></svg></span>
+                <input
                   id="confirm-password"
                   name="confirmPassword"
                   type="password"
@@ -85,22 +92,33 @@
                 />
               </div>
             </div>
+
+            <div class="field-row">
+              <label class="remember-me" for="remember-me">
+                <input id="remember-me" name="rememberMe" type="checkbox" value="true" />
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
+              <button type="button" class="helper-link" id="forgot-password">Quên mật khẩu?</button>
+            </div>
+
             <p id="error-message" class="error" role="alert"></p>
             <p id="success-message" class="success" role="status"></p>
+
             <button id="submit-button" class="primary-button" type="submit">
-              <span class="button-label">Đăng nhập</span
-              ><span class="button-arrow">→</span>
+              <span class="button-label">Đăng nhập</span>
+
             </button>
           </form>
-          <div class="auth-tabs" role="tablist">
-            <span id="account-prompt">Bạn chưa có tài khoản?</span
-            ><button class="tab-button" type="button" data-mode="register">
-              Tạo tài khoản
+
+          <div class="auth-tabs">
+            <span>Cần hỗ trợ?</span>
+            <button class="support-button" type="button" id="contact-admin">
+              Liên hệ quản trị viên
             </button>
           </div>
         </div>
       </section>
     </main>
-    <script src="/js/main.js?v=20260929" defer></script>
+    <script src="/js/main.js?v=20260930-sakura" defer></script>
   </body>
 </html>

@@ -48,4 +48,17 @@ async function updateRoomType(request, response) {
   }
 }
 
-module.exports = { addRoomType, getRoomTypes, updateRoomType };
+async function deleteRoomType(request, response) {
+  try {
+    const roomType = await roomTypeModel.deleteRoomType(request.params.code);
+    if (!roomType) return response.status(404).json({ message: 'Không tìm thấy thể loại phòng.' });
+    return response.json({ message: 'Xóa thể loại phòng thành công.', roomType });
+  } catch (error) {
+    const isConflict = error.code === 'ROOM_TYPE_IN_USE' || error.code === 'LAST_ROOM_TYPE';
+    return response.status(isConflict ? 409 : 500).json({
+      message: error.message || 'Không thể xóa thể loại phòng.'
+    });
+  }
+}
+
+module.exports = { addRoomType, deleteRoomType, getRoomTypes, updateRoomType };

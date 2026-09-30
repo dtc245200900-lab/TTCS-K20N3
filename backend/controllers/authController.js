@@ -24,6 +24,8 @@ function login(request, response) {
   request.session.regenerate((error) => {
     if (error) return response.status(500).json({ message: 'Không thể tạo phiên đăng nhập.' });
     request.session.user = publicUser(user);
+    // An unchecked box uses a browser-session cookie; checked keeps the existing 8-hour lifetime.
+    request.session.cookie.maxAge = request.body.rememberMe === true ? 1000 * 60 * 60 * 8 : null;
     request.session.save((saveError) => {
       if (saveError) return response.status(500).json({ message: 'Không thể lưu phiên đăng nhập.' });
       response.json({ message: 'Đăng nhập thành công.', user: request.session.user });

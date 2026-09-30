@@ -19,7 +19,7 @@ Chay cac lenh tren tai thu muc goc project, sau do mo `http://localhost:3001`. K
 
 ### Cach 2: bang mot cu click
 
-Mo file `start-server.cmd` trong thu muc project. Cua so den phai duoc giu mo trong luc su dung app; dong cua so nay se dung server. Khi mo lai may hoac mo lai VS Code, chi can chay lai file nay.
+Mo file `start-server.cmd` trong thu muc project, hoac mo workspace trong VS Code va cho phep automatic task chay lan dau. Launcher tu kiem tra server, cai dependencies neu chua co, roi khoi dong app. Giu cua so server mo trong luc su dung; dong cua so nay se dung server. Can cai Node.js LTS tren may truoc khi chay.
 
 Ung dung doc `backend/.env`. Ban local co the dung secret mac dinh chi danh cho development; khi deploy, dat `NODE_ENV=production` va cau hinh `SESSION_SECRET` trong Environment Variables cua hosting. Khong dua file `.env` len Git. Health check: `GET /health`.
 

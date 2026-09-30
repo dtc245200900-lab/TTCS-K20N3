@@ -9,15 +9,6 @@
     "checkOutAt": "2026-09-29T10:06:59.758Z"
   },
   {
-    "id": 4,
-    "roomCode": "124",
-    "shortDescription": "1333",
-    "imagePath": "/uploads/1790672079025-anh-phong-khach-san-dep-11.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 666666,
-    "status": "Phòng trống"
-  },
-  {
     "id": 5,
     "roomCode": "1223",
     "shortDescription": "view đẹp",

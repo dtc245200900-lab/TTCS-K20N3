@@ -38,7 +38,7 @@ async function seedDatabaseTypes() {
   const [roomRows] = await pool.query('SELECT DISTINCT room_type FROM rooms');
   const [typeRows] = await pool.query('SELECT code, name FROM room_types ORDER BY code');
   const roomTypes = typeRows.map((row) => ({ code: row.code, name: row.name }));
-  const names = [...defaultNames, ...roomRows.map((row) => row.room_type)];
+  const names = [...(roomTypes.length ? [] : defaultNames), ...roomRows.map((row) => row.room_type)];
 
   for (const name of names) {
     if (!String(name || '').trim() || roomTypes.some((item) => normalizeName(item.name) === normalizeName(name))) continue;
@@ -69,7 +69,7 @@ async function listRoomTypes() {
     if (Array.isArray(rooms)) roomNames = rooms.map((room) => room.roomType || room.room_type);
   }
 
-  for (const name of [...defaultNames, ...roomNames]) {
+  for (const name of [...(roomTypes.length ? [] : defaultNames), ...roomNames]) {
     if (!String(name || '').trim() || roomTypes.some((item) => normalizeName(item.name) === normalizeName(name))) continue;
     roomTypes.push({ code: nextCode(roomTypes), name: String(name).trim() });
   }
@@ -164,6 +164,48 @@ async function updateRoomType(code, name) {
   return { code: normalizedCode, name: normalizedName };
 }
 
+async function deleteRoomType(code) {
+  const normalizedCode = String(code || '').trim();
+  if (!normalizedCode) return null;
+
+  const roomTypes = await listRoomTypes();
+  const currentType = roomTypes.find((item) => item.code === normalizedCode);
+  if (!currentType) return null;
+  if (roomTypes.length <= 1) {
+    const error = new Error('Không thể xóa thể loại phòng cuối cùng.');
+    error.code = 'LAST_ROOM_TYPE';
+    throw error;
+  }
+
+  if (await isDatabaseAvailable()) {
+    const [roomRows] = await pool.query('SELECT COUNT(*) AS total FROM rooms WHERE room_type = ?', [currentType.name]);
+    if (Number(roomRows[0].total) > 0) {
+      const error = new Error('Không thể xóa thể loại đang được sử dụng bởi phòng.');
+      error.code = 'ROOM_TYPE_IN_USE';
+      throw error;
+    }
+
+    const [result] = await pool.query('DELETE FROM room_types WHERE code = ?', [normalizedCode]);
+    return result.affectedRows ? currentType : null;
+  }
+
+  const roomsFile = path.join(dataDirectory, 'rooms.json');
+  if (fs.existsSync(roomsFile)) {
+    const rooms = JSON.parse(fs.readFileSync(roomsFile, 'utf8'));
+    const isInUse = Array.isArray(rooms) && rooms.some((room) =>
+      normalizeName(room.roomType) === normalizeName(currentType.name)
+      || normalizeName(room.room_type) === normalizeName(currentType.name));
+    if (isInUse) {
+      const error = new Error('Không thể xóa thể loại đang được sử dụng bởi phòng.');
+      error.code = 'ROOM_TYPE_IN_USE';
+      throw error;
+    }
+  }
+
+  saveRoomTypes(roomTypes.filter((item) => item.code !== normalizedCode));
+  return currentType;
+}
+
 async function findRoomType(name) {
   const normalizedName = normalizeName(name);
   if (!normalizedName) return null;
@@ -171,4 +213,4 @@ async function findRoomType(name) {
   return roomTypes.find((item) => normalizeName(item.name) === normalizedName) || null;
 }
 
-module.exports = { createRoomType, findRoomType, listRoomTypes, updateRoomType };
+module.exports = { createRoomType, deleteRoomType, findRoomType, listRoomTypes, updateRoomType };

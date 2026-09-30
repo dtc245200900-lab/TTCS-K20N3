@@ -49,70 +49,53 @@ function formatRoomTime(value) {
 if (form) {
   const errorMessage = document.querySelector('#error-message');
   const successMessage = document.querySelector('#success-message');
-  const fullNameGroup = document.querySelector('#full-name-group');
-  const confirmPasswordGroup = document.querySelector('#confirm-password-group');
-  const confirmPasswordInput = document.querySelector('#confirm-password');
-  const authTitle = document.querySelector('#auth-title');
-  const authSubtitle = document.querySelector('#auth-subtitle');
   const submitButton = document.querySelector('#submit-button');
   const passwordToggle = document.querySelector('#password-toggle');
   const passwordInput = document.querySelector('#password');
-  let mode = 'login';
+
+  const showSupport = () => {
+    errorMessage.textContent = '';
+    successMessage.textContent = 'Vui lòng liên hệ quản trị viên khách sạn để được hỗ trợ tài khoản và đặt lại mật khẩu.';
+  };
+  document.querySelector('#forgot-password').addEventListener('click', showSupport);
+  document.querySelector('#contact-admin').addEventListener('click', showSupport);
 
   passwordToggle.addEventListener('click', () => {
     const showing = passwordInput.type === 'text';
     passwordInput.type = showing ? 'password' : 'text';
     passwordToggle.setAttribute('aria-label', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
-    passwordToggle.textContent = showing ? '◉' : '⊙';
-  });
-
-  document.querySelectorAll('.tab-button').forEach((button) => {
-    button.addEventListener('click', () => {
-      mode = button.dataset.mode;
-      button.dataset.mode = mode === 'login' ? 'register' : 'login';
-      document.querySelectorAll('.tab-button').forEach((item) => item.classList.toggle('active', item === button));
-      fullNameGroup.classList.toggle('hidden', mode === 'login');
-      confirmPasswordGroup.classList.toggle('hidden', mode === 'login');
-      document.querySelector('#full-name').required = mode === 'register';
-      confirmPasswordInput.required = mode === 'register';
-      authTitle.textContent = mode === 'login' ? 'Chào mừng trở lại.' : 'Tạo tài khoản mới.';
-      authSubtitle.textContent = mode === 'login' ? 'Đăng nhập để tiếp tục vào không gian làm việc.' : 'Tạo tài khoản mới để bắt đầu sử dụng hệ thống.';
-      submitButton.innerHTML = mode === 'login'
-        ? '<span class="button-label">Đăng nhập</span><span class="button-arrow">→</span>'
-        : '<span class="button-label">Tạo tài khoản</span><span class="button-arrow">→</span>';
-      document.querySelector('#account-prompt').textContent = mode === 'login' ? 'Bạn chưa có tài khoản?' : 'Bạn đã có tài khoản?';
-      button.textContent = mode === 'login' ? 'Tạo tài khoản' : 'Đăng nhập';
-      errorMessage.textContent = '';
-      successMessage.textContent = '';
-    });
+    passwordToggle.setAttribute('aria-pressed', String(!showing));
   });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (submitButton.disabled || !form.reportValidity()) return;
     errorMessage.textContent = '';
     successMessage.textContent = '';
-    const formData = new FormData(form);
+    submitButton.disabled = true;
+    form.setAttribute('aria-busy', 'true');
     try {
-      const response = await fetch(mode === 'login' ? '/api/login' : '/api/register', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(formData))
+        body: JSON.stringify({
+          email: document.querySelector('#email').value.trim(),
+          password: passwordInput.value,
+          rememberMe: document.querySelector('#remember-me').checked
+        })
       });
       const result = await response.json();
       if (!response.ok) {
         errorMessage.textContent = result.message || 'Không thể xử lý yêu cầu.';
         return;
       }
-      if (mode === 'login') {
-        window.location.assign('/home');
-      } else {
-        successMessage.textContent = result.message;
-        form.reset();
-        document.querySelector('[data-mode="login"]').click();
-      }
+      window.location.assign('/home');
     } catch {
       errorMessage.textContent = 'Không thể kết nối đến máy chủ.';
+    } finally {
+      submitButton.disabled = false;
+      form.removeAttribute('aria-busy');
     }
   });
 }
@@ -139,24 +122,70 @@ if (logoutButton) {
 async function loadRoomList() {
   const roomGrid = document.querySelector('#room-grid');
   if (!roomGrid) return;
-  const roomCount = document.querySelector('#room-count');
 
   try {
     const response = await fetch('/api/rooms');
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
 
-    if (!result.rooms || result.rooms.length === 0) {
-      roomCache = [];
-      if (roomCount) roomCount.textContent = '0 phòng';
-      roomGrid.innerHTML = '<div class="room-empty">Chưa có phòng nào.</div>';
-      return;
-    }
+    roomCache = result.rooms || [];
+    document.dispatchEvent(new Event('rooms-updated'));
+    renderRoomList();
+  } catch (error) {
+    roomGrid.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    document.dispatchEvent(new CustomEvent('rooms-error', { detail: error.message }));
+  }
+}
 
-    if (roomCount) roomCount.textContent = `${result.rooms.length} phòng`;
-    roomCache = result.rooms;
+function renderRoomList() {
+  const roomGrid = document.querySelector('#room-grid');
+  if (!roomGrid) return;
+  const search = document.querySelector('#rooms-search');
+  const typeFilter = document.querySelector('#rooms-type-filter');
+  const statusFilter = document.querySelector('#rooms-status-filter');
+  const normalized = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+  const roomTypeNames = [...new Set([
+    ...roomTypesCache.map(type => type.name),
+    ...roomCache.map(room => room.roomType || room.room_type || '')
+  ].filter(Boolean))];
+  if (typeFilter) {
+    const selectedType = typeFilter.value;
+    typeFilter.innerHTML = '<option value="">Tất cả loại phòng</option>' + roomTypeNames
+      .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(roomTypeLabel(name))}</option>`).join('');
+    typeFilter.value = selectedType;
+  }
 
-    roomGrid.innerHTML = result.rooms.map((room) => {
+  const occupied = roomCache.filter(room => roomStatusInfo(room.status).className === 'occupied').length;
+  const available = roomCache.filter(room => roomStatusInfo(room.status).className === 'available').length;
+  const usedRoomTypes = new Set(roomCache.map(room => room.roomType || room.room_type || '').filter(Boolean));
+  for (const [key, value] of Object.entries({
+    total: roomCache.length,
+    occupied,
+    available,
+    types: usedRoomTypes.size
+  })) {
+    const target = document.querySelector(`#list-stat-${key}`);
+    if (target) target.textContent = value;
+  }
+
+  const query = normalized(search?.value.trim() || '');
+  const rooms = roomCache.filter(room => {
+    const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
+    const roomType = room.roomType || room.room_type || '';
+    const description = room.shortDescription ?? room.short_description ?? '';
+    const matchesQuery = normalized(`${roomCode} ${roomType} ${description}`).includes(query);
+    const matchesType = !typeFilter?.value || roomType === typeFilter.value;
+    const matchesStatus = !statusFilter?.value || roomStatusInfo(room.status).className === statusFilter.value;
+    return matchesQuery && matchesType && matchesStatus;
+  });
+  const count = document.querySelector('#room-count');
+  if (count) count.textContent = `${rooms.length} / ${roomCache.length} phòng`;
+  if (!rooms.length) {
+    roomGrid.innerHTML = `<div class="room-empty">${roomCache.length ? 'Không tìm thấy phòng phù hợp.' : 'Chưa có phòng nào.'}</div>`;
+    return;
+  }
+
+  roomGrid.innerHTML = rooms.map((room) => {
       const status = roomStatusInfo(room.status);
       const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
       const roomType = room.roomType || room.room_type || '';
@@ -177,32 +206,31 @@ async function loadRoomList() {
         : status.className === 'available'
           ? { nextStatus: 'occupied', label: 'Cho thuê' }
           : null;
+      const readableStatus = status.className === 'occupied' ? 'Đang cho thuê' : status.className === 'available' ? 'Phòng trống' : status.label;
 
       return `
         <article class="room-card ${status.className}">
-          <img class="room-card-image" src="${escapeHtml(imagePath)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" onerror="this.onerror=null;this.src='/assets/room-placeholder.svg'">
+          <div class="room-card-media">
+            <img class="room-card-image" src="${escapeHtml(imagePath)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" onerror="this.onerror=null;this.src='/assets/room-placeholder.svg'">
+            <span class="room-status ${status.className}"><i></i>${escapeHtml(readableStatus)}</span>
+            <button type="button" class="room-favorite" data-favorite-room="${escapeHtml(room.id)}" aria-label="Đánh dấu phòng ${escapeHtml(roomCode)} yêu thích" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></button>
+          </div>
           <div class="room-card-content">
-            <h3 class="room-number">${escapeHtml(roomCode)}</h3>
-            <p class="room-type">${escapeHtml(roomTypeLabel(roomType))}</p>
+            <div class="room-card-heading"><div><h3 class="room-number">${escapeHtml(roomCode)}</h3><p class="room-type">${escapeHtml(roomTypeLabel(roomType))}</p></div><p class="room-price">${escapeHtml(priceLabel)}</p></div>
             <p class="room-description">${escapeHtml(shortDescription)}</p>
-            <p class="room-price">${escapeHtml(priceLabel)}</p>
-            <span class="room-status ${status.className}">${escapeHtml(status.label)}</span>
             <div class="room-time">
               <div class="room-time-item"><span>Giờ vào</span><strong>${escapeHtml(checkIn)}</strong></div>
               <div class="room-time-item"><span>Giờ ra</span><strong>${escapeHtml(checkOut)}</strong></div>
             </div>
             <div class="room-meta">
-              <button type="button" class="edit-room-button" data-room-id="${escapeHtml(room.id)}">Cập nhật thông tin</button>
+              <button type="button" class="edit-room-button" data-room-id="${escapeHtml(room.id)}" aria-label="Cập nhật phòng ${escapeHtml(roomCode)}"><span aria-hidden="true">ⓘ</span> Cập nhật</button>
               ${statusAction ? `<button type="button" class="room-status-toggle ${status.className}" data-room-id="${escapeHtml(room.id)}" data-next-status="${statusAction.nextStatus}">${statusAction.label}</button>` : ''}
-              <button type="button" class="delete-room-button" data-room-id="${escapeHtml(room.id)}">Xóa</button>
+              <button type="button" class="delete-room-button" data-room-id="${escapeHtml(room.id)}" aria-label="Xóa phòng ${escapeHtml(roomCode)}"><span aria-hidden="true">▤</span> Xóa</button>
             </div>
           </div>
         </article>
       `;
     }).join('');
-  } catch (error) {
-    roomGrid.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
-  }
 }
 
 async function loadRoomTypes() {
@@ -215,6 +243,8 @@ async function loadRoomTypes() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách thể loại phòng.');
 
     roomTypesCache = result.roomTypes || [];
+    document.dispatchEvent(new Event('room-types-updated'));
+    renderRoomList();
     const roomTypeSelect = document.querySelector('#room-type-select');
     if (roomTypeSelect) {
       const selectedValue = roomTypeSelect.value;
@@ -228,9 +258,14 @@ async function loadRoomTypes() {
     roomTypeList.innerHTML = roomTypesCache.length
       ? roomTypesCache.map((roomType) => `
         <div class="room-type-item">
-          <span class="room-type-code">${escapeHtml(roomType.code)}</span>
-          <strong>${escapeHtml(roomTypeLabel(roomType.name))}</strong>
-          <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
+          <div class="room-type-info">
+            <span class="room-type-code">${escapeHtml(roomType.code)}</span>
+            <strong>${escapeHtml(roomTypeLabel(roomType.name))}</strong>
+          </div>
+          <div class="room-type-item-actions">
+            <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
+            <button type="button" class="delete-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}" aria-label="Xóa thể loại ${escapeHtml(roomTypeLabel(roomType.name))}">Xóa</button>
+          </div>
         </div>
       `).join('')
       : '<p class="muted">Chưa có thể loại phòng.</p>';
@@ -266,15 +301,42 @@ if (roomTypeForm) {
       : 'LP001';
     errorMessage.textContent = '';
     successMessage.textContent = '';
+    successMessage.classList.remove('error');
     nameInput.focus();
   });
 
   cancelButton.addEventListener('click', () => {
     resetRoomTypeForm();
     successMessage.textContent = '';
+    successMessage.classList.remove('error');
   });
 
   document.querySelector('#room-type-list').addEventListener('click', (event) => {
+    const deleteButton = event.target.closest('.delete-room-type-button');
+    if (deleteButton) {
+      const roomType = roomTypesCache.find((item) => item.code === deleteButton.dataset.roomTypeCode);
+      if (!roomType || !window.confirm(`Xóa thể loại "${roomTypeLabel(roomType.name)}"? Thể loại đang được phòng sử dụng sẽ không thể xóa.`)) return;
+
+      deleteButton.disabled = true;
+      errorMessage.textContent = '';
+      successMessage.textContent = '';
+      successMessage.classList.remove('error');
+      fetch(`/api/room-types/${encodeURIComponent(roomType.code)}`, { method: 'DELETE' })
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message || 'Không thể xóa thể loại phòng.');
+          if (editingCode === roomType.code) resetRoomTypeForm();
+          successMessage.textContent = result.message;
+          await loadRoomTypes();
+        })
+        .catch((error) => {
+          successMessage.textContent = error.message;
+          successMessage.classList.add('error');
+          deleteButton.disabled = false;
+        });
+      return;
+    }
+
     const button = event.target.closest('.edit-room-type-button');
     if (!button) return;
     const roomType = roomTypesCache.find((item) => item.code === button.dataset.roomTypeCode);
@@ -288,6 +350,7 @@ if (roomTypeForm) {
     roomTypeForm.querySelector('[type="submit"]').textContent = 'Lưu thay đổi';
     errorMessage.textContent = '';
     successMessage.textContent = '';
+    successMessage.classList.remove('error');
     nameInput.focus();
   });
 
@@ -295,6 +358,7 @@ if (roomTypeForm) {
     event.preventDefault();
     errorMessage.textContent = '';
     successMessage.textContent = '';
+    successMessage.classList.remove('error');
     const name = nameInput.value.trim().replace(/\s+/g, ' ');
     if (!name) {
       errorMessage.textContent = 'Tên thể loại không được để trống.';
@@ -325,6 +389,14 @@ if (roomTypeForm) {
 const roomGrid = document.querySelector('#room-grid');
 if (roomGrid) {
   roomGrid.addEventListener('click', async (event) => {
+    const favoriteButton = event.target.closest('.room-favorite');
+    if (favoriteButton) {
+      const isFavorite = favoriteButton.getAttribute('aria-pressed') === 'true';
+      favoriteButton.setAttribute('aria-pressed', String(!isFavorite));
+      favoriteButton.setAttribute('aria-label', `${isFavorite ? 'Đánh dấu' : 'Bỏ đánh dấu'} phòng yêu thích`);
+      return;
+    }
+
     const editButton = event.target.closest('.edit-room-button');
     if (editButton) {
       const room = roomCache.find((item) => String(item.id) === editButton.dataset.roomId);
@@ -389,10 +461,26 @@ if (roomGrid) {
   });
 }
 
+document.querySelector('#rooms-search')?.addEventListener('input', renderRoomList);
+document.querySelector('#rooms-type-filter')?.addEventListener('change', renderRoomList);
+document.querySelector('#rooms-status-filter')?.addEventListener('change', renderRoomList);
+document.querySelectorAll('[data-room-layout]').forEach(button => {
+  button.addEventListener('click', () => {
+    const isList = button.dataset.roomLayout === 'list';
+    roomGrid?.classList.toggle('list-layout', isList);
+    document.querySelectorAll('[data-room-layout]').forEach(toggle => {
+      const active = toggle === button;
+      toggle.classList.toggle('active', active);
+      toggle.setAttribute('aria-pressed', String(active));
+    });
+  });
+});
+
 const roomForm = document.querySelector('#room-form');
 if (roomForm) {
   const navigationButtons = document.querySelectorAll('[data-room-view]');
   const roomViews = {
+    overview: document.querySelector('#overview-view'),
     list: document.querySelector('#room-list-view'),
     add: document.querySelector('#room-add-view'),
     types: document.querySelector('#room-types-view')
@@ -418,7 +506,18 @@ if (roomForm) {
   const setRoomView = (viewName) => {
     Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== viewName));
     navigationButtons.forEach((button) => button.classList.toggle('active', button.dataset.roomView === viewName));
+    document.querySelectorAll('.room-navigation [data-room-view]').forEach((button) => {
+      if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
     if (viewName === 'add') document.querySelector('#room-code').focus();
+  };
+
+  const resetImagePreview = () => {
+    if (!imagePreview) return;
+    imagePreview.classList.add('hidden');
+    imagePreview.innerHTML = '';
   };
 
   navigationButtons.forEach((button) => {
@@ -439,8 +538,7 @@ if (roomForm) {
     formTitle.textContent = 'Thêm phòng vào hệ thống';
     formKicker.textContent = 'THÊM MỚI';
     submitLabel.textContent = 'Thêm phòng';
-    imagePreview.classList.add('hidden');
-    imagePreview.innerHTML = '';
+    resetImagePreview();
     descriptionCount.textContent = '0/240 ký tự';
     roomError.textContent = '';
   };
@@ -461,10 +559,10 @@ if (roomForm) {
     roomError.textContent = '';
     roomMessage.textContent = '';
     const imagePath = room.imagePath || '';
-    if (imagePath) {
+    if (imagePreview && imagePath) {
       imagePreview.innerHTML = `<img src="${escapeHtml(imagePath)}" alt="Ảnh hiện tại của phòng"><span>Ảnh hiện tại · chọn ảnh mới để thay thế</span>`;
       imagePreview.classList.remove('hidden');
-    } else {
+    } else if (imagePreview) {
       imagePreview.classList.add('hidden');
       imagePreview.innerHTML = '';
     }
@@ -481,16 +579,19 @@ if (roomForm) {
     descriptionCount.textContent = `${descriptionInput.value.length}/240 ký tự`;
   });
 
-  imageInput.addEventListener('change', () => {
-    const file = imageInput.files[0];
-    if (!file) {
-      imagePreview.classList.add('hidden');
-      imagePreview.innerHTML = '';
-      return;
-    }
-    imagePreview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Ảnh xem trước"><span>${escapeHtml(file.name)}</span>`;
-    imagePreview.classList.remove('hidden');
-  });
+  if (imageInput) {
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      if (!imagePreview) return;
+      if (!file) {
+        imagePreview.classList.add('hidden');
+        imagePreview.innerHTML = '';
+        return;
+      }
+      imagePreview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Ảnh xem trước"><span>${escapeHtml(file.name)}</span>`;
+      imagePreview.classList.remove('hidden');
+    });
+  }
 
   roomForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -501,7 +602,7 @@ if (roomForm) {
       roomForm.reportValidity();
       return;
     }
-    const imageFile = imageInput.files[0];
+    const imageFile = imageInput ? imageInput.files[0] : null;
     if (imageFile && imageFile.size > 5 * 1024 * 1024) {
       roomError.textContent = 'Ảnh phòng không được vượt quá 5MB.';
       return;
