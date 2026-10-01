@@ -115,7 +115,8 @@
   top: 86px;
   right: 20px;
   z-index: 40;
-  width: min(360px, calc(100vw - 30px));
+  width: min(520px, calc(100vw - 30px));
+  margin: 0;
   padding: 24px 20px 16px;
   border: 1px solid #f4d8e5;
   border-radius: 16px;
@@ -125,11 +126,13 @@
 .dashboard-page .room-type-form.hidden-form { display: none; }
 .dashboard-page .room-type-form .room-type-fields {
   display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1fr);
   gap: 14px;
   margin: 0;
 }
 .dashboard-page .room-type-form label {
   display: block;
+  min-width: 0;
   margin: 0;
   color: #7f2d4e;
   font-size: 13px;
@@ -137,11 +140,13 @@
 }
 .dashboard-page .room-type-form input {
   width: 100%;
+  min-width: 0;
   min-height: 42px;
   margin-top: 8px;
   padding: 10px 12px;
   border: 1px solid #ead7df;
   border-radius: 8px;
+  box-sizing: border-box;
   background: #fff;
   color: #4d2a38;
 }
@@ -159,6 +164,7 @@
   font-weight: 700;
 }
 .dashboard-page .room-type-form .small-button {
+  flex: 1;
   padding: 10px 18px;
   background: linear-gradient(180deg, #8b254f, #6b1d3c);
   color: #fff;
@@ -257,7 +263,7 @@
  .dashboard-page .occupancy-chart { width: 135px; height: 135px; flex-basis: 135px; }
  .dashboard-page .occupancy-chart > div { width: 99px; height: 99px; }
  .dashboard-page .occupancy-legend { font-size: 12px; }
- .dashboard-page .room-type-fields { grid-template-columns: 1fr; }
+ .dashboard-page .room-type-fields, .dashboard-page .room-type-form .room-type-fields { grid-template-columns: 1fr; }
  .dashboard-page .form-intro { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .dashboard-page * { transition: none !important; } }
