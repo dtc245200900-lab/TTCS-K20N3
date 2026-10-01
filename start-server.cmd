@@ -7,38 +7,45 @@ echo     HOTEL MANAGER SERVER
 echo ========================================
 echo.
 
-powershell.exe -NoProfile -Command "$health = $null; try { $health = Invoke-RestMethod -Uri 'http://localhost:3001/health' -TimeoutSec 2 } catch {}; if ($health.status -eq 'ok') { exit 0 } else { exit 1 }"
+powershell.exe -NoProfile -Command "$health = $null; try { $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3001/health' -TimeoutSec 2 } catch {}; if ($health.status -eq 'ok' -and $health.runtime -eq 'python') { exit 0 } elseif ($health.status -eq 'ok') { exit 2 } else { exit 1 }"
 if not errorlevel 1 (
 	echo Hotel management app is already running at http://localhost:3001
 	exit /b 0
 )
+if errorlevel 2 (
+	echo A server using the previous backend is already running on port 3001.
+	echo Stop that server, then run this launcher again to start the Python backend.
+	if not defined HOTEL_NO_PAUSE pause
+	exit /b 1
+)
 
-where node >nul 2>nul
+where py >nul 2>nul
 if errorlevel 1 (
-	echo Node.js is required. Install the current LTS version from https://nodejs.org/ and try again.
+	echo Python 3 is required. Install Python 3 from https://www.python.org/downloads/ and try again.
 	pause
 	exit /b 1
 )
 
-where npm >nul 2>nul
-if errorlevel 1 (
-	echo npm was not found. Reinstall Node.js with the npm option enabled, then try again.
-	pause
-	exit /b 1
-)
-
-if not exist "backend\node_modules\express" (
-	echo Installing project dependencies...
-	call npm install
+if not exist "backend\.venv\Scripts\python.exe" (
+	echo Creating Python virtual environment...
+	py -3 -m venv backend\.venv
 	if errorlevel 1 (
-		echo Dependency installation failed.
-		pause
+		echo Could not create the Python virtual environment.
+		if not defined HOTEL_NO_PAUSE pause
 		exit /b 1
 	)
 )
 
+echo Checking Python dependencies...
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+	if errorlevel 1 (
+		echo Python dependency installation failed.
+		if not defined HOTEL_NO_PAUSE pause
+		exit /b 1
+	)
+
 echo Starting server at http://localhost:3001
 echo.
-call npm run dev
+backend\.venv\Scripts\python.exe backend\app.py
 
-pause
+if not defined HOTEL_NO_PAUSE pause

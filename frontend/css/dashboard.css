@@ -86,11 +86,11 @@
 .dashboard-page .rooms-header { margin-top: 0; }
 .dashboard-page .room-count { border-radius: 20px; background: #fbe6ee; }
 .dashboard-page .room-card { border: 1px solid #eedfe5; background: #fff; box-shadow: 0 4px 15px #68274508; }
-.dashboard-page .room-card.available, .dashboard-page .room-card.occupied { background: #fff; border-left: 4px solid #e48ba9; }
-.dashboard-page .room-card.occupied { border-left-color: #58996a; }
+.dashboard-page .room-card.available { background: #eaf5ed; border-left: 4px solid #58996a; }
+.dashboard-page .room-card.occupied { background: #fbe9e8; border-left: 4px solid #c74a45; }
 .dashboard-page .room-card-image { height: 170px; }
-.dashboard-page .room-status.available { background: #fff0f4; color: #b63261; }
-.dashboard-page .room-status.occupied { background: #eaf5ed; color: #2e7948; }
+.dashboard-page .room-status.available { background: #d9eddf; color: #246b3d; }
+.dashboard-page .room-status.occupied { background: #f6d4d2; color: #a93232; }
 .dashboard-page .room-meta button { border-radius: 5px; }
 .dashboard-page .dashboard-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .dashboard-page .room-form-card { max-width: none; }
@@ -314,7 +314,7 @@
 .dashboard-page .room-list-stat.types strong { color: #69319b; }
 .dashboard-page .room-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .dashboard-page .room-card { min-width: 0; border: 1px solid #f0e4e9; border-radius: 8px; }
-.dashboard-page .room-card.available, .dashboard-page .room-card.occupied, .dashboard-page .room-card.maintenance { border-left: 1px solid #f0e4e9; background: #fff; }
+.dashboard-page .room-card.maintenance { border-left: 1px solid #f0e4e9; background: #fff; }
 .dashboard-page .room-card-media { position: relative; height: 145px; overflow: hidden; background: #f5ebee; }
 .dashboard-page .room-card-image { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
 .dashboard-page .room-card:hover .room-card-image { transform: scale(1.035); }

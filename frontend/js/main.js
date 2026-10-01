@@ -294,12 +294,22 @@ async function loadRoomTypes() {
   }
 }
 
+document.addEventListener('rooms-updated', () => {
+  document.querySelectorAll('#room-type-list tbody tr').forEach((row, index) => {
+    const roomType = roomTypesCache[index];
+    if (!roomType) return;
+    row.cells[3].textContent = roomCache
+      .filter((room) => (room.roomType || room.room_type || '') === roomType.name).length;
+  });
+});
+
 const roomTypeForm = document.querySelector('#room-type-form');
 if (roomTypeForm) {
   const toggleButton = document.querySelector('#toggle-room-type-form');
   const cancelButton = document.querySelector('#cancel-room-type-form');
   const codeInput = document.querySelector('#room-type-code');
   const nameInput = document.querySelector('#room-type-name');
+  const quantityInput = document.querySelector('#room-type-quantity');
   const errorMessage = document.querySelector('#room-type-error');
   const successMessage = document.querySelector('#room-type-message');
   let editingCode = null;
@@ -313,12 +323,24 @@ if (roomTypeForm) {
     errorMessage.textContent = '';
   }
 
+  function updateRoomTypeQuantity() {
+    const roomType = roomTypesCache.find((item) => item.code === editingCode);
+    quantityInput.value = roomType
+      ? roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name).length
+      : 0;
+  }
+
+  document.addEventListener('rooms-updated', () => {
+    if (!roomTypeForm.classList.contains('hidden-form')) updateRoomTypeQuantity();
+  });
+
   toggleButton.addEventListener('click', () => {
     resetRoomTypeForm();
     roomTypeForm.classList.remove('hidden-form');
     codeInput.value = roomTypesCache.length
       ? `LP${String(Math.max(...roomTypesCache.map((item) => Number(String(item.code).replace(/^LP/i, '')) || 0)) + 1).padStart(3, '0')}`
       : 'LP001';
+    quantityInput.value = 0;
     errorMessage.textContent = '';
     successMessage.textContent = '';
     successMessage.classList.remove('error');
@@ -365,6 +387,7 @@ if (roomTypeForm) {
     editingCode = roomType.code;
     codeInput.value = roomType.code;
     nameInput.value = roomType.name;
+    updateRoomTypeQuantity();
     roomTypeForm.classList.remove('hidden-form');
     toggleButton.textContent = 'Đang cập nhật';
     roomTypeForm.querySelector('[type="submit"]').textContent = 'Lưu thay đổi';
@@ -385,7 +408,6 @@ if (roomTypeForm) {
       nameInput.focus();
       return;
     }
-
     try {
       const response = await fetch(editingCode
         ? `/api/room-types/${encodeURIComponent(editingCode)}`

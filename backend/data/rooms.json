@@ -40,5 +40,14 @@
     "status": "Đã thuê",
     "checkInAt": "2026-09-30T01:20:15.782Z",
     "checkOutAt": null
+  },
+  {
+    "id": 8,
+    "roomCode": "P103",
+    "shortDescription": "phong mới",
+    "imagePath": "",
+    "roomType": "mới",
+    "nightlyRate": 1000,
+    "status": "Phòng trống"
   }
 ]

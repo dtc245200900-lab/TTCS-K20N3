@@ -2,33 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "hotel: ensure server",
+            "label": "hotel: ensure Python server",
             "type": "process",
-            "command": "cmd.exe",
+            "command": "powershell.exe",
             "args": [
-                "/c",
-                "start-server.cmd"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\.vscode\\ensure-server.ps1"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "isBackground": true,
             "runOptions": {
                 "instanceLimit": 1,
                 "runOn": "folderOpen"
             },
-            "problemMatcher": {
-                "owner": "custom",
-                "pattern": {
-                    "regexp": "^(?:npm ERR!|Error:)(.*)$",
-                    "message": 1
-                },
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": ".*(Starting server at|already running at) http://localhost:3001.*",
-                    "endsPattern": ".*Hotel management app (is running|is already running) at http://localhost:3001.*"
-                }
-            }
+            "problemMatcher": []
         }
     ]
 }
