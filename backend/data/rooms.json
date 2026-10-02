@@ -48,6 +48,100 @@
     "imagePath": "",
     "roomType": "mới",
     "nightlyRate": 1000,
+    "status": "Phòng trống",
+    "checkInAt": "2026-10-02T13:40:14.895461+07:00",
+    "checkOutAt": "2026-10-02T13:40:26.092725+07:00"
+  },
+  {
+    "id": 9,
+    "roomCode": "P108",
+    "shortDescription": "Phòng đầy đủ tiện nghi",
+    "imagePath": "/uploads/1790924473707-OIP.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 500000.0,
+    "status": "Phòng trống",
+    "checkInAt": "2026-10-02T14:14:43.543672+07:00",
+    "checkOutAt": "2026-10-02T14:15:08.464342+07:00"
+  },
+  {
+    "id": 10,
+    "roomCode": "P109",
+    "shortDescription": "Sạch, đẹp",
+    "imagePath": "/uploads/1790924589466-OIP_1.jpg",
+    "roomType": "Đơn",
+    "nightlyRate": 250000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 11,
+    "roomCode": "P104",
+    "shortDescription": "Phòng Rộng",
+    "imagePath": "/uploads/1790924774952-OIP_2.jpg",
+    "roomType": "phòng gia đình",
+    "nightlyRate": 1000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 12,
+    "roomCode": "P201",
+    "shortDescription": "Đẹp",
+    "imagePath": "/uploads/1790924948713-OIP.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 550000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 13,
+    "roomCode": "P202",
+    "shortDescription": "Xịn bá cháy",
+    "imagePath": "/uploads/1790925029935-OIP_3.jpg",
+    "roomType": "VIP",
+    "nightlyRate": 2000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 14,
+    "roomCode": "P203",
+    "shortDescription": "View đẹp",
+    "imagePath": "/uploads/1790925103944-OIP_2.jpg",
+    "roomType": "phòng gia đình",
+    "nightlyRate": 1500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 15,
+    "roomCode": "P204",
+    "shortDescription": "đẹp",
+    "imagePath": "/uploads/1790925159155-OIP_1.jpg",
+    "roomType": "Đơn",
+    "nightlyRate": 850000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 16,
+    "roomCode": "P204",
+    "shortDescription": "đẹp",
+    "imagePath": "/uploads/1790925162281-OIP_1.jpg",
+    "roomType": "Đơn",
+    "nightlyRate": 850000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 19,
+    "roomCode": "P205",
+    "shortDescription": "view đẹp",
+    "imagePath": "/uploads/1790925238592-OIP.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 1000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 20,
+    "roomCode": "P206",
+    "shortDescription": "xịn",
+    "imagePath": "/uploads/1790925360788-download.jpg",
+    "roomType": "Deluxe",
+    "nightlyRate": 2500000.0,
     "status": "Phòng trống"
   }
 ]
