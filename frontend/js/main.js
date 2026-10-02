@@ -264,19 +264,23 @@ async function loadRoomTypes() {
                 <th>STT</th>
                 <th>Mã loại phòng</th>
                 <th>Tên loại phòng</th>
+                <th>Mô tả</th>
                 <th>Số lượng phòng</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               ${roomTypesCache.map((roomType, index) => {
-                const count = roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name).length;
+                const relatedRooms = roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name);
+                const count = relatedRooms.length;
+                const description = roomType.description || '—';
                 return `
-                  <tr>
+                  <tr data-room-type-name="${escapeHtml(roomType.name)}">
                     <td>${index + 1}</td>
                     <td>${escapeHtml(roomType.code)}</td>
-                    <td>${escapeHtml(roomTypeLabel(roomType.name))}</td>
-                    <td>${count}</td>
+                    <td><span class="room-type-pill">${escapeHtml(roomTypeLabel(roomType.name))}</span></td>
+                    <td>${escapeHtml(description)}</td>
+                    <td class="room-type-count">${count}</td>
                     <td class="room-type-actions-cell">
                       <button type="button" class="edit-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}">Cập nhật</button>
                       <button type="button" class="delete-room-type-button" data-room-type-code="${escapeHtml(roomType.code)}" aria-label="Xóa thể loại ${escapeHtml(roomTypeLabel(roomType.name))}">Xóa</button>
@@ -298,7 +302,7 @@ document.addEventListener('rooms-updated', () => {
   document.querySelectorAll('#room-type-list tbody tr').forEach((row, index) => {
     const roomType = roomTypesCache[index];
     if (!roomType) return;
-    row.cells[3].textContent = roomCache
+    row.querySelector('.room-type-count').textContent = roomCache
       .filter((room) => (room.roomType || room.room_type || '') === roomType.name).length;
   });
 });
@@ -309,7 +313,7 @@ if (roomTypeForm) {
   const cancelButton = document.querySelector('#cancel-room-type-form');
   const codeInput = document.querySelector('#room-type-code');
   const nameInput = document.querySelector('#room-type-name');
-  const quantityInput = document.querySelector('#room-type-quantity');
+  const descriptionInput = document.querySelector('#room-type-description');
   const errorMessage = document.querySelector('#room-type-error');
   const successMessage = document.querySelector('#room-type-message');
   let editingCode = null;
@@ -323,24 +327,12 @@ if (roomTypeForm) {
     errorMessage.textContent = '';
   }
 
-  function updateRoomTypeQuantity() {
-    const roomType = roomTypesCache.find((item) => item.code === editingCode);
-    quantityInput.value = roomType
-      ? roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name).length
-      : 0;
-  }
-
-  document.addEventListener('rooms-updated', () => {
-    if (!roomTypeForm.classList.contains('hidden-form')) updateRoomTypeQuantity();
-  });
-
   toggleButton.addEventListener('click', () => {
     resetRoomTypeForm();
     roomTypeForm.classList.remove('hidden-form');
     codeInput.value = roomTypesCache.length
       ? `LP${String(Math.max(...roomTypesCache.map((item) => Number(String(item.code).replace(/^LP/i, '')) || 0)) + 1).padStart(3, '0')}`
       : 'LP001';
-    quantityInput.value = 0;
     errorMessage.textContent = '';
     successMessage.textContent = '';
     successMessage.classList.remove('error');
@@ -387,7 +379,7 @@ if (roomTypeForm) {
     editingCode = roomType.code;
     codeInput.value = roomType.code;
     nameInput.value = roomType.name;
-    updateRoomTypeQuantity();
+    descriptionInput.value = roomType.description || '';
     roomTypeForm.classList.remove('hidden-form');
     toggleButton.textContent = 'Đang cập nhật';
     roomTypeForm.querySelector('[type="submit"]').textContent = 'Lưu thay đổi';
@@ -403,6 +395,7 @@ if (roomTypeForm) {
     successMessage.textContent = '';
     successMessage.classList.remove('error');
     const name = nameInput.value.trim().replace(/\s+/g, ' ');
+    const description = descriptionInput.value.trim();
     if (!name) {
       errorMessage.textContent = 'Tên thể loại không được để trống.';
       nameInput.focus();
@@ -414,7 +407,7 @@ if (roomTypeForm) {
         : '/api/room-types', {
         method: editingCode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, description })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể lưu thể loại phòng.');
@@ -506,6 +499,13 @@ if (roomGrid) {
 document.querySelector('#rooms-search')?.addEventListener('input', renderRoomList);
 document.querySelector('#rooms-type-filter')?.addEventListener('change', renderRoomList);
 document.querySelector('#rooms-status-filter')?.addEventListener('change', renderRoomList);
+document.querySelector('#room-type-search')?.addEventListener('input', (event) => {
+  const term = (event.target.value || '').trim().toLowerCase();
+  document.querySelectorAll('#room-type-list tbody tr').forEach((row) => {
+    const text = (row.dataset.roomTypeName || row.textContent || '').toLowerCase();
+    row.style.display = text.includes(term) ? '' : 'none';
+  });
+});
 document.querySelectorAll('[data-room-layout]').forEach(button => {
   button.addEventListener('click', () => {
     const isList = button.dataset.roomLayout === 'list';

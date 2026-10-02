@@ -6,7 +6,8 @@
   dateLabel.dateTime = date.toISOString();
   dateLabel.textContent = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
   const hour = date.getHours();
-  document.querySelector('#greeting').textContent = hour < 12 ? 'Chào buổi sáng!' : hour < 18 ? 'Chào buổi chiều!' : 'Chào buổi tối!';
+  const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  document.querySelector('#greeting').textContent = `${greeting}, chào mừng bạn trở lại với hệ thống quản lý khách sạn.`;
   const search = document.querySelector('#overview-search');
   const statusFilter = document.querySelector('#overview-status');
   const text = (id, value) => { document.getElementById(id).textContent = value; };
@@ -20,7 +21,13 @@
     document.querySelector('#overview-room-map').innerHTML = rooms.length ? rooms.map(room => {
       const status = statusOf(room);
       const label = status === 'occupied' ? 'Có khách' : status === 'available' ? 'Trống' : (room.status || 'Chưa cập nhật');
-      return '<button type="button" class="map-room ' + status + '" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(room.roomCode) + ' — ' + escapeHtml(label) + '"><strong>' + escapeHtml(room.roomCode) + '</strong><span><i></i>' + escapeHtml(label) + '</span></button>';
+      const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
+      const imagePath = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
+      const roomType = roomTypeLabel(room.roomType || room.room_type || '');
+      const description = room.shortDescription || room.short_description || '';
+      const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+      const price = Number.isFinite(nightlyRate) ? nightlyRate.toLocaleString('vi-VN') + 'đ / đêm' : '';
+      return '<button type="button" class="map-room ' + status + '" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(roomCode) + ' — ' + escapeHtml(label) + '"><span class="map-room-media"><img src="' + escapeHtml(imagePath) + '" alt="Ảnh phòng ' + escapeHtml(roomCode) + '" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="map-room-status"><i></i>' + escapeHtml(label) + '</span></span><span class="map-room-details"><strong>' + escapeHtml(roomCode) + '</strong><span class="map-room-type">' + escapeHtml(roomType) + '</span><span class="map-room-description">' + escapeHtml(description) + '</span><span class="map-room-price">' + escapeHtml(price) + '</span></span></button>';
     }).join('') : '<p class="map-empty">Không có phòng phù hợp.</p>';
   }
 

@@ -128,11 +128,16 @@ def initialize_database():
             CREATE TABLE IF NOT EXISTS room_types (
                 code VARCHAR(16) NOT NULL,
                 name VARCHAR(80) NOT NULL,
+                description TEXT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (code),
                 UNIQUE KEY uq_room_types_name (name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+        cursor.execute("SHOW COLUMNS FROM room_types")
+        room_type_columns = {row[0] for row in cursor.fetchall()}
+        if "description" not in room_type_columns:
+            cursor.execute("ALTER TABLE room_types ADD COLUMN description TEXT NULL AFTER name")
         connection.commit()
     except mysql.connector.Error as error:
         print(f"MySQL chưa sẵn sàng, sẽ dùng lưu trữ dự phòng JSON: {error}")
@@ -231,20 +236,20 @@ def next_type_code(room_types):
 def list_room_types():
     if db_available():
         room_rows = query("SELECT DISTINCT room_type FROM rooms", fetch=True)["rows"]
-        type_rows = query("SELECT code, name FROM room_types ORDER BY code", fetch=True)["rows"]
-        types = [{"code": row["code"], "name": row["name"]} for row in type_rows]
+        type_rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
+        types = [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in type_rows]
         names = ([] if types else ["Đơn", "Đôi", "VIP"]) + [row["room_type"] for row in room_rows]
         for name in names:
             if not str(name or "").strip() or any(norm_name(item["name"]) == norm_name(name) for item in types):
                 continue
             code = next_type_code(types)
             try:
-                query("INSERT INTO room_types (code, name) VALUES (%s, %s)", (code, str(name).strip()))
-                types.append({"code": code, "name": str(name).strip()})
+                query("INSERT INTO room_types (code, name, description) VALUES (%s, %s, %s)", (code, str(name).strip(), ""))
+                types.append({"code": code, "name": str(name).strip(), "description": ""})
             except mysql.connector.IntegrityError:
                 pass
-        rows = query("SELECT code, name FROM room_types ORDER BY code", fetch=True)["rows"]
-        return [{"code": row["code"], "name": row["name"]} for row in rows]
+        rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
+        return [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in rows]
 
     types = read_json(ROOM_TYPES_FILE, [])
     rooms = read_json(ROOMS_FILE, [])
@@ -253,7 +258,7 @@ def list_room_types():
     for name in names:
         if not str(name or "").strip() or any(norm_name(item.get("name")) == norm_name(name) for item in types):
             continue
-        types.append({"code": next_type_code(types), "name": str(name).strip()})
+            types.append({"code": next_type_code(types), "name": str(name).strip(), "description": ""})
     write_json(ROOM_TYPES_FILE, types)
     return types
 
@@ -563,19 +568,22 @@ def add_room_type():
     if denied:
         return denied
     name = " ".join(str(request_data().get("name", "")).split())
+    description = str(request_data().get("description", "")).strip()
     if not name:
         return jsonify(message="Tên thể loại không được để trống."), 400
+    if len(description) > 500:
+        return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
     try:
         types = list_room_types()
         if any(norm_name(item["name"]) == norm_name(name) for item in types):
             return jsonify(message="Tên thể loại đã tồn tại."), 409
         code = next_type_code(types)
         if db_available():
-            query("INSERT INTO room_types (code, name) VALUES (%s, %s)", (code, name))
+            query("INSERT INTO room_types (code, name, description) VALUES (%s, %s, %s)", (code, name, description))
         else:
-            types.append({"code": code, "name": name})
+            types.append({"code": code, "name": name, "description": description})
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name}), 201
+        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description}), 201
     except mysql.connector.Error as error:
         status = 409 if error.errno == 1062 else 400
         return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status
@@ -586,7 +594,8 @@ def update_room_type(code):
     denied = require_auth()
     if denied:
         return denied
-    name = " ".join(str(request_data().get("name", "")).split())
+    payload = request_data()
+    name = " ".join(str(payload.get("name", "")).split())
     if not name:
         return jsonify(message="Tên thể loại không được để trống."), 400
     if len(name) > 80:
@@ -596,6 +605,9 @@ def update_room_type(code):
         current = next((item for item in types if item["code"] == code), None)
         if not current:
             return jsonify(message="Không tìm thấy thể loại phòng."), 404
+        description = str(payload.get("description", current.get("description", "")) or "").strip()
+        if len(description) > 500:
+            return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
         if any(item["code"] != code and norm_name(item["name"]) == norm_name(name) for item in types):
             return jsonify(message="Tên thể loại đã tồn tại."), 409
         if db_available():
@@ -607,7 +619,7 @@ def update_room_type(code):
                 if not cursor.fetchone():
                     connection.rollback()
                     return jsonify(message="Không tìm thấy thể loại phòng."), 404
-                cursor.execute("UPDATE room_types SET name = %s WHERE code = %s", (name, code))
+                cursor.execute("UPDATE room_types SET name = %s, description = %s WHERE code = %s", (name, description, code))
                 cursor.execute("UPDATE rooms SET room_type = %s WHERE room_type = %s", (name, current["name"]))
                 connection.commit()
             except Exception:
@@ -620,6 +632,7 @@ def update_room_type(code):
             for item in types:
                 if item["code"] == code:
                     item["name"] = name
+                    item["description"] = description
             rooms = read_json(ROOMS_FILE, [])
             for room in rooms:
                 old_name = room.get("roomType", room.get("room_type", ""))
@@ -630,7 +643,7 @@ def update_room_type(code):
                         room["room_type"] = name
             write_json(ROOMS_FILE, rooms)
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name})
+        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description})
     except mysql.connector.Error as error:
         status = 409 if error.errno == 1062 else 400
         return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status

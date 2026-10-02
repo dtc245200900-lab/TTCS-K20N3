@@ -15,9 +15,9 @@
     "imagePath": "/uploads/1790675187245-anh-phong-khach-san-dep-11.jpg",
     "roomType": "Đôi",
     "nightlyRate": 20000000,
-    "status": "Phòng trống",
-    "checkInAt": "2026-09-29T10:07:07.691Z",
-    "checkOutAt": "2026-09-29T10:07:22.637Z"
+    "status": "Đã thuê",
+    "checkInAt": "2026-10-02T05:14:42.009989+07:00",
+    "checkOutAt": null
   },
   {
     "id": 6,
@@ -37,9 +37,9 @@
     "imagePath": "",
     "roomType": "Đơn",
     "nightlyRate": 249959,
-    "status": "Đã thuê",
+    "status": "Phòng trống",
     "checkInAt": "2026-09-30T01:20:15.782Z",
-    "checkOutAt": null
+    "checkOutAt": "2026-10-02T05:14:46.015267+07:00"
   },
   {
     "id": 8,

@@ -1,7 +1,8 @@
 [
   {
     "code": "LP001",
-    "name": "Đơn"
+    "name": "Đơn",
+    "description": "Phong 1 giường phù hợp vơi 1 người"
   },
   {
     "code": "LP002",
@@ -18,10 +19,6 @@
   {
     "code": "LP005",
     "name": "phòng gia đình"
-  },
-  {
-    "code": "LP006",
-    "name": "phong tổng thống"
   },
   {
     "code": "LP007",
