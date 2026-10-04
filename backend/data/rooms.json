@@ -1,232 +1,231 @@
 [
   {
-    "id": 5,
-    "roomCode": "1223",
-    "shortDescription": "view đẹp",
-    "imagePath": "/uploads/1790675187245-anh-phong-khach-san-dep-11.jpg",
-    "roomType": "Đôi",
-    "nightlyRate": 20000001.0,
-    "status": "Đã thuê",
-<<<<<<< HEAD
-    "checkInAt": "2026-10-04T19:55:00",
-    "checkOutAt": "2026-10-05T12:59:00",
-    "rentalDurationSeconds": 61440,
-    "rentalDurationMinutes": 1024,
+    "id": 20,
+    "roomCode": "P302",
+    "shortDescription": "Giá cắt cổ",
+    "imagePath": "/uploads/1791127329901-OIP_4.jpg",
+    "roomType": "Deluxe",
+    "nightlyRate": 9999999.0,
+    "status": "Phòng trống",
+    "checkInAt": null,
+    "checkOutAt": null,
+    "rentalDurationSeconds": null,
+    "rentalDurationMinutes": null,
     "rentalDays": null,
-    "rentalTotal": 14222222.22,
-    "checked_in_at": "2026-10-04T19:55:00",
-    "checked_out_at": "2026-10-05T12:59:00",
-    "rental_duration_seconds": 61440,
-    "rental_duration_minutes": 1024,
+    "rentalTotal": null,
+    "checked_in_at": null,
+    "checked_out_at": null,
+    "rental_duration_seconds": null,
+    "rental_duration_minutes": null,
     "rental_days": null,
-    "rental_total": 14222222.22
-=======
-    "checkInAt": "2026-10-02T14:29:51.413698+07:00",
-    "checkOutAt": null
+    "rental_total": null,
+    "rentalHistory": [
+      {
+        "checkedInAt": "2026-10-04T22:22",
+        "scheduledCheckOutAt": "2026-10-04T23:22",
+        "returnedAt": "2026-10-04T22:23",
+        "durationMinutes": 1,
+        "rentalTotal": 6944.44
+      },
+      {
+        "checkedInAt": "2026-10-04T22:23",
+        "scheduledCheckOutAt": "2026-10-05T12:24",
+        "returnedAt": "2026-10-04T22:23",
+        "durationMinutes": 0,
+        "rentalTotal": 0.0
+      }
+    ]
   },
   {
-    "id": 6,
-    "roomCode": "p105",
-    "shortDescription": "phòng thay đổi phù hợp với gia đình",
-    "imagePath": "/uploads/1790675878507-phong-khach-san-tt-studio.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 500005.0,
-    "status": "Phòng trống",
-    "checkInAt": "2026-09-29T10:07:17.525Z",
-    "checkOutAt": "2026-09-29T10:07:20.832Z"
->>>>>>> 6813630 (Cập nhật code)
-  },
-  {
-    "id": 7,
-    "roomCode": "P106",
-    "shortDescription": "phòng đẹp, đủ tiện nghi",
-    "imagePath": "",
-    "roomType": "đơn",
-    "nightlyRate": 249959,
-    "status": "Phòng trống",
-    "checkInAt": "2026-10-04T11:39:07.474099+07:00",
-    "checkOutAt": "2026-10-04T11:48:21.265639+07:00"
-  },
-  {
-    "id": 8,
-    "roomCode": "P103",
-    "shortDescription": "phong mới",
-    "imagePath": "",
+    "id": 19,
+    "roomCode": "P301",
+    "shortDescription": "ngầu bá khí",
+    "imagePath": "/uploads/1791127277593-OIP_3.jpg",
     "roomType": "mới",
-    "nightlyRate": 1000,
-    "status": "Phòng trống",
-    "checkInAt": "2026-10-04T11:29:28.690844+07:00",
-    "checkOutAt": "2026-10-04T11:29:53.135023+07:00"
-  },
-  {
-    "id": 9,
-    "roomCode": "P108",
-    "shortDescription": "Phòng đầy đủ tiện nghi",
-    "imagePath": "/uploads/1790924473707-OIP.jpg",
-    "roomType": "Đôi",
-    "nightlyRate": 500000.0,
-    "status": "Phòng trống",
-    "checkInAt": null,
-    "checkOutAt": null,
-    "rentalDurationSeconds": null,
-    "rentalDurationMinutes": null,
-    "rentalDays": null,
-    "rentalTotal": null,
-    "checked_in_at": null,
-    "checked_out_at": null,
-    "rental_duration_seconds": null,
-    "rental_duration_minutes": null,
-    "rental_days": null,
-    "rental_total": null,
-    "rentalHistory": [
-      {
-        "checkedInAt": "2026-10-04T19:52",
-        "scheduledCheckOutAt": "2026-10-05T19:52",
-        "returnedAt": "2026-10-04T19:54",
-        "durationMinutes": 2,
-        "rentalTotal": 694.44
-      }
-    ]
-  },
-  {
-    "id": 10,
-    "roomCode": "P109",
-    "shortDescription": "Sạch, đẹp",
-    "imagePath": "/uploads/1790924589466-OIP_1.jpg",
-    "roomType": "đơn",
-    "nightlyRate": 250000.0,
-    "status": "Phòng trống",
-    "checkInAt": "2026-10-04T11:50:20.740322+07:00",
-    "checkOutAt": "2026-10-04T11:57:32.636402+07:00"
-  },
-  {
-    "id": 11,
-    "roomCode": "P104",
-    "shortDescription": "Phòng Rộng",
-    "imagePath": "/uploads/1790924774952-OIP_2.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 1000000.0,
-    "status": "Phòng trống",
-    "checkInAt": "2026-10-04T12:07:46.484252+07:00",
-    "checkOutAt": "2026-10-04T12:27:45.960270+07:00"
-  },
-  {
-    "id": 12,
-    "roomCode": "P201",
-    "shortDescription": "Đẹp",
-    "imagePath": "/uploads/1790924948713-OIP.jpg",
-    "roomType": "Đôi",
-    "nightlyRate": 550000.0,
-    "status": "Phòng trống",
-    "checkInAt": null,
-    "checkOutAt": null,
-    "rentalDurationSeconds": null,
-    "rentalDurationMinutes": null,
-    "rentalDays": null,
-    "rentalTotal": null,
-    "checked_in_at": null,
-    "checked_out_at": null,
-    "rental_duration_seconds": null,
-    "rental_duration_minutes": null,
-    "rental_days": null,
-    "rental_total": null,
-    "rentalHistory": [
-      {
-        "checkedInAt": "2026-10-04T19:52",
-        "scheduledCheckOutAt": "2026-10-04T23:55",
-        "returnedAt": "2026-10-04T19:54",
-        "durationMinutes": 2,
-        "rentalTotal": 763.89
-      }
-    ]
-  },
-  {
-    "id": 13,
-    "roomCode": "P202",
-    "shortDescription": "Xịn bá cháy",
-    "imagePath": "/uploads/1790925029935-OIP_3.jpg",
-    "roomType": "VIP",
-    "nightlyRate": 2000000.0,
+    "nightlyRate": 2310000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 14,
-    "roomCode": "P203",
-    "shortDescription": "View đẹp",
-    "imagePath": "/uploads/1790925103944-OIP_2.jpg",
+    "id": 18,
+    "roomCode": "P209",
+    "shortDescription": "đầm ấm",
+    "imagePath": "/uploads/1791127207242-OIP.jpg",
     "roomType": "phòng gia đình",
-    "nightlyRate": 1500000.0,
+    "nightlyRate": 2300000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 15,
-    "roomCode": "P204",
-    "shortDescription": "đẹp",
-    "imagePath": "/uploads/1790925159155-OIP_1.jpg",
-    "roomType": "đơn",
-    "nightlyRate": 850000.0,
+    "id": 17,
+    "roomCode": "P208",
+    "shortDescription": "wowww",
+    "imagePath": "/uploads/1791127139756-OIP_2.jpg",
+    "roomType": "Deluxe",
+    "nightlyRate": 3500099.0,
     "status": "Phòng trống"
   },
   {
     "id": 16,
-    "roomCode": "P204",
-    "shortDescription": "đẹp",
-    "imagePath": "/uploads/1790925162281-OIP_1.jpg",
-    "roomType": "đơn",
-    "nightlyRate": 850000.0,
+    "roomCode": "P207",
+    "shortDescription": "Phòng dubai",
+    "imagePath": "/uploads/1791127084663-OIP_4.jpg",
+    "roomType": "VIP",
+    "nightlyRate": 4500000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 19,
+    "id": 15,
     "roomCode": "P205",
-    "shortDescription": "view đẹp",
-    "imagePath": "/uploads/1790925238592-OIP.jpg",
-    "roomType": "Đôi",
+    "shortDescription": "1 mạng",
+    "imagePath": "/uploads/1791127023835-OIP_1.jpg",
+    "roomType": "đơn",
     "nightlyRate": 1000000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 20,
-    "roomCode": "P206",
-    "shortDescription": "xịn",
-    "imagePath": "/uploads/1790925360788-download.jpg",
-    "roomType": "Deluxe",
+    "id": 14,
+    "roomCode": "p206",
+    "shortDescription": "ấm",
+    "imagePath": "/uploads/1791126977957-OIP_3.jpg",
+    "roomType": "phòng gia đình",
     "nightlyRate": 2500000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 21,
-<<<<<<< HEAD
-    "roomCode": "207",
-    "shortDescription": "fcc",
-    "imagePath": "/uploads/1790928343000-OIP.jpg",
-    "roomType": "mới",
-    "nightlyRate": 344444.0,
+    "id": 13,
+    "roomCode": "P204",
+    "shortDescription": "xịn xò",
+    "imagePath": "/uploads/1791126906507-OIP.jpg",
+    "roomType": "VIP",
+    "nightlyRate": 3500000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 22,
-    "roomCode": "392",
-    "shortDescription": "rr",
-    "imagePath": "/uploads/1790928548273-OIP_2.jpg",
+    "id": 12,
+    "roomCode": "P203",
+    "shortDescription": "phòng bá khí",
+    "imagePath": "/uploads/1791126858660-OIP_4.jpg",
     "roomType": "mới",
-    "nightlyRate": 333316.0,
+    "nightlyRate": 2100000.0,
     "status": "Phòng trống"
   },
   {
-    "id": 23,
-    "roomCode": "jj",
-    "shortDescription": "ii",
-    "imagePath": "/uploads/1790931024413-OIP_2.jpg",
-    "roomType": "Đơn",
-    "nightlyRate": 777777.0,
-=======
-    "roomCode": "P309",
-    "shortDescription": "phong đối diện với biển",
-    "imagePath": "/uploads/1790926695201-Genshin_Impact_Screenshot_2026.09.16_-_09.51.06.63.png",
+    "id": 11,
+    "roomCode": "P202",
+    "shortDescription": "bá cháy",
+    "imagePath": "/uploads/1791126670511-OIP.jpg",
     "roomType": "Đôi",
-    "nightlyRate": 999998.0,
->>>>>>> 6813630 (Cập nhật code)
+    "nightlyRate": 2000000.0,
     "status": "Phòng trống"
+  },
+  {
+    "id": 10,
+    "roomCode": "P201",
+    "shortDescription": "wow xịn kìa",
+    "imagePath": "/uploads/1791126610008-OIP_4.jpg",
+    "roomType": "đơn",
+    "nightlyRate": 1500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 9,
+    "roomCode": "P109",
+    "shortDescription": "wow",
+    "imagePath": "/uploads/1791126558818-OIP_3.jpg",
+    "roomType": "mới",
+    "nightlyRate": 2700000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 8,
+    "roomCode": "P108",
+    "shortDescription": "bá cháy",
+    "imagePath": "/uploads/1791126473295-OIP_1.jpg",
+    "roomType": "Deluxe",
+    "nightlyRate": 3000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 7,
+    "roomCode": "P107",
+    "shortDescription": "đẳng cấp",
+    "imagePath": "/uploads/1791126428318-OIP_3.jpg",
+    "roomType": "VIP",
+    "nightlyRate": 3500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 6,
+    "roomCode": "P106",
+    "shortDescription": "xịn xò",
+    "imagePath": "/uploads/1791126380571-OIP_4.jpg",
+    "roomType": "mới",
+    "nightlyRate": 2100999.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 5,
+    "roomCode": "P105",
+    "shortDescription": "Giá rẻ",
+    "imagePath": "/uploads/1791126335398-OIP.jpg",
+    "roomType": "đơn",
+    "nightlyRate": 1000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 4,
+    "roomCode": "P104",
+    "shortDescription": "xịn",
+    "imagePath": "/uploads/1791126270526-OIP_3.jpg",
+    "roomType": "phòng gia đình",
+    "nightlyRate": 2500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 3,
+    "roomCode": "P103",
+    "shortDescription": "đẹp",
+    "imagePath": "/uploads/1791126220302-OIP_2.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 2000000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 2,
+    "roomCode": "P102",
+    "shortDescription": "đẹp",
+    "imagePath": "/uploads/1791123939359-OIP_1.jpg",
+    "roomType": "đơn",
+    "nightlyRate": 1500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 1,
+    "roomCode": "P101",
+    "shortDescription": "view đẹp",
+    "imagePath": "/uploads/1791123866686-OIP.jpg",
+    "roomType": "Đôi",
+    "nightlyRate": 2500000.0,
+    "status": "Đã thuê",
+    "checkInAt": "2026-10-04T22:13:00",
+    "checkOutAt": "2026-10-04T23:13:00",
+    "rentalDurationSeconds": 3600,
+    "rentalDurationMinutes": 60,
+    "rentalDays": null,
+    "rentalTotal": 104166.67,
+    "checked_in_at": "2026-10-04T22:13:00",
+    "checked_out_at": "2026-10-04T23:13:00",
+    "rental_duration_seconds": 3600,
+    "rental_duration_minutes": 60,
+    "rental_days": null,
+    "rental_total": 104166.67,
+    "rentalHistory": [
+      {
+        "checkedInAt": "2026-10-04T21:24",
+        "scheduledCheckOutAt": "2026-10-04T23:25",
+        "returnedAt": "2026-10-04T22:12",
+        "durationMinutes": 48,
+        "rentalTotal": 83333.33
+      }
+    ]
   }
 ]
