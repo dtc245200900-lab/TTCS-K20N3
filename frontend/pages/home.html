@@ -1,301 +1,882 @@
 <!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | Hotel Manager</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/dashboard.css">
-</head>
-<body class="dashboard-page">
-  <header class="topbar">
-    <div class="topbar-search-wrap">
-      <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></span>
-      <input type="search" aria-label="Tìm kiếm" placeholder="Tìm kiếm phòng, khách hàng, đặt phòng...">
-    </div>
-    <time id="dashboard-date" class="topbar-date"></time>
-    <div class="user-chip">
-      <div>
-        <strong id="top-name">...</strong>
-        <small>Đang hoạt động</small>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | Hotel Manager</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/dashboard.css" />
+  </head>
+  <body class="dashboard-page">
+    <header class="topbar">
+      <div class="topbar-search-wrap">
+        <span class="search-icon" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 5 5" /></svg
+        ></span>
+        <input
+          type="search"
+          aria-label="Tìm kiếm"
+          placeholder="Tìm kiếm phòng, khách hàng, đặt phòng..."
+        />
       </div>
-      <div class="avatar" id="avatar">H</div>
-      <button id="logout-button" class="secondary-button" type="button">
-        Đăng xuất
-      </button>
-    </div>
-  </header>
-  <p id="logout-error" class="error" role="alert"></p>
-  <div class="dashboard-layout">
-    <aside class="room-sidebar" aria-label="Điều hướng quản lý phòng">
-      <div class="sidebar-brand"><img src="/assets/sakura-mark.svg" alt=""><strong>Quản lý<br>khách sạn</strong></div>
-      <nav class="room-navigation">
-        <button type="button" class="room-nav-link active" data-room-view="overview" aria-current="page"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></svg></span>Tổng quan</button>
-        <button type="button" class="room-nav-link" data-room-view="list"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"/></svg></span>Danh sách phòng</button>
-        <button type="button" class="room-nav-link" data-room-view="types"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>Thể loại phòng</button>
-      </nav>
-      <div class="sidebar-scenery" aria-hidden="true"></div>
-    </aside>
-    <main class="dashboard">
-      <h1 id="page-title">Tổng quan</h1>
-      <div id="room-feedback" class="room-feedback" role="status" aria-live="polite" hidden>
-        <span class="room-feedback-icon" aria-hidden="true"></span>
-        <span id="room-feedback-text"></span>
+      <time id="dashboard-date" class="topbar-date"></time>
+      <div class="user-chip">
+        <div>
+          <strong id="top-name">...</strong>
+          <small>Đang hoạt động</small>
+        </div>
+        <div class="avatar" id="avatar">H</div>
+        <button id="logout-button" class="secondary-button" type="button">
+          Đăng xuất
+        </button>
       </div>
-      <section id="overview-view" class="room-view" aria-label="Tổng quan khách sạn">
-        <div class="welcome-banner">
-          <div><h2>Tổng quan</h2><p id="greeting">Chào mừng bạn trở lại với hệ thống quản lý khách sạn.</p></div>
-          <button type="button" class="primary-button" data-room-view="add">Thêm phòng</button>
+    </header>
+    <p id="logout-error" class="error" role="alert"></p>
+    <div class="dashboard-layout">
+      <aside class="room-sidebar" aria-label="Điều hướng quản lý phòng">
+        <div class="sidebar-brand">
+          <img src="/assets/sakura-mark.svg" alt="" /><strong
+            >Quản lý<br />khách sạn</strong
+          >
         </div>
-        <p id="overview-error" class="error" role="alert"></p>
-        <div class="stats-grid" aria-label="Thống kê phòng">
-          <article class="stat-card"><span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"/></svg></span><div><h3>Tổng số phòng</h3><strong id="stat-total">—</strong></div></article>
-          <article class="stat-card"><span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 20v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4v3"/></svg></span><div><h3>Đang có khách</h3><strong id="stat-occupied">—</strong></div></article>
-          <article class="stat-card"><span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></svg></span><div><h3>Phòng trống</h3><strong id="stat-available">—</strong></div></article>
-          <article class="stat-card"><span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6 4 4 3-3a7 7 0 0 1-8 9l-6 6-4-4 6-6a7 7 0 0 1 9-8Z"/></svg></span><div><h3>Trạng thái khác</h3><strong id="stat-other">—</strong></div></article>
-        </div>
-        <div class="overview-panels">
-          <article class="overview-card occupancy-card">
-            <div class="overview-heading"><h3><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3a9 9 0 1 0 11 11H10Z"/><path d="M14 2v8h8a9 9 0 0 0-8-8Z"/></svg></span> Công suất phòng</h3><span>Hiện tại</span></div>
-            <div class="occupancy-content"><div id="occupancy-chart" class="occupancy-chart" role="img" aria-label="Đang tải công suất phòng"><div><strong id="occupancy-percent">—</strong><span>Đang sử dụng</span></div></div>
-              <dl class="occupancy-legend"><div><dt><i class="legend-dot occupied"></i>Đang có khách</dt><dd id="legend-occupied">—</dd></div><div><dt><i class="legend-dot available"></i>Phòng trống</dt><dd id="legend-available">—</dd></div><div><dt><i class="legend-dot other"></i>Trạng thái khác</dt><dd id="legend-other">—</dd></div><div><dt>Tổng số phòng</dt><dd id="legend-total">—</dd></div></dl>
-            </div>
-          </article>
-          <article class="overview-card">
-            <div class="overview-heading"><h3><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> Phòng theo thể loại</h3><button type="button" class="text-button" data-room-view="types">Quản lý</button></div>
-            <div class="table-scroll"><table class="type-summary"><thead><tr><th>Thể loại</th><th>Tổng phòng</th><th>Phòng trống</th></tr></thead><tbody id="overview-types"><tr><td colspan="3">Đang tải dữ liệu…</td></tr></tbody></table></div>
-          </article>
-          <article class="overview-card room-map-card">
-            <div class="overview-heading"><h3><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"/></svg></span> Tình trạng phòng</h3><button type="button" class="text-button" data-room-view="list">Xem tất cả</button></div>
-            <div class="room-map-toolbar"><label class="search-field" for="overview-search"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg></span><input id="overview-search" aria-label="Tìm mã phòng hoặc thể loại" type="search" placeholder="Tìm mã phòng, thể loại…" autocomplete="off"></label><label class="status-filter" for="overview-status">Trạng thái<select id="overview-status"><option value="">Tất cả</option><option value="available">Phòng trống</option><option value="occupied">Đang có khách</option><option value="maintenance">Trạng thái khác</option></select></label></div>
-            <div id="overview-room-map" class="overview-room-map" aria-live="polite"><p class="muted">Đang tải danh sách phòng…</p></div>
-          </article>
-        </div>
-      </section>
-      <section id="room-list-view" class="room-view hidden-view">
-        <div class="view-heading room-view-heading rooms-header">
-          <div>
-            <p class="eyebrow">QUẢN LÝ PHÒNG</p>
-            <h2 id="room-view-title">Danh sách phòng</h2>
-            <p class="muted">Theo dõi trạng thái và thời gian sử dụng của các phòng.</p>
-          </div>
-          <div class="room-header-actions">
-            <button type="button" class="primary-button view-action room-view-action" data-room-view="add">Thêm phòng mới</button>
-          </div>
-        </div>
-        <div class="room-list-toolbar">
-          <label class="room-list-search" for="rooms-search"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16 16 5 5"/></svg></span><input id="rooms-search" type="search" placeholder="Tìm theo mã phòng, mô tả..." autocomplete="off"></label>
-          <label class="room-filter" for="rooms-type-filter"><span class="visually-hidden">Lọc theo loại phòng</span><select id="rooms-type-filter"><option value="">Tất cả loại phòng</option></select></label>
-          <label class="room-filter" for="rooms-status-filter"><span class="visually-hidden">Lọc theo trạng thái</span><select id="rooms-status-filter"><option value="">Tất cả trạng thái</option><option value="available">Phòng trống</option><option value="occupied">Đang cho thuê</option><option value="maintenance">Bảo trì / khác</option></select></label>
-          <div class="room-display-toggle" role="group" aria-label="Kiểu hiển thị">
-            <span>Hiển thị:</span>
-            <button type="button" class="active" data-room-layout="grid" aria-label="Hiển thị dạng lưới" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
-            <button type="button" data-room-layout="list" aria-label="Hiển thị dạng danh sách" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5h12M9 12h12M9 19h12"/><circle cx="4" cy="5" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="19" r="1"/></svg></button>
-          </div>
-        </div>
-        <div class="room-list-stats" aria-label="Thống kê phòng">
-          <article class="room-list-stat total"><span class="room-list-stat-icon" aria-hidden="true">▤</span><div><strong id="list-stat-total">—</strong><span>Tổng số phòng</span></div></article>
-          <article class="room-list-stat occupied"><span class="room-list-stat-icon" aria-hidden="true">▤</span><div><strong id="list-stat-occupied">—</strong><span>Đang cho thuê</span></div></article>
-          <article class="room-list-stat available"><span class="room-list-stat-icon" aria-hidden="true">▤</span><div><strong id="list-stat-available">—</strong><span>Phòng trống</span></div></article>
-          <article class="room-list-stat types"><span class="room-list-stat-icon" aria-hidden="true">◇</span><div><strong id="list-stat-types">—</strong><span>Loại phòng</span></div></article>
-        </div>
-        <div id="room-grid" class="room-grid"></div>
-        <p id="room-list-message" class="success" role="status" aria-live="polite"></p>
-      </section>
-      <dialog id="rent-room-dialog" class="rent-room-dialog" aria-labelledby="rent-room-title">
-        <form id="rent-room-form" class="rent-room-form" novalidate>
-          <div class="rent-room-heading">
-            <div>
-              <p class="eyebrow">QUẢN LÝ PHÒNG / CHO THUÊ</p>
-              <h2 id="rent-room-title">Cho thuê phòng</h2>
-            </div>
-            <button type="button" class="rent-room-close" data-close-rent aria-label="Đóng">×</button>
-          </div>
-          <div class="rent-room-info">
-            <img id="rent-room-image" class="rent-room-image hidden" alt="">
-            <div class="rent-room-details">
-              <strong id="rent-room-code"></strong>
-              <span id="rent-room-type"></span>
-              <span id="rent-room-description"></span>
-              <span id="rent-room-status"></span>
-            </div>
-          </div>
-          <div class="rent-room-fields">
-            <label for="rent-check-in">Giờ vào
-              <input id="rent-check-in" type="text" readonly required>
-            </label>
-            <label for="rent-check-out">Thời gian trả phòng
-              <input id="rent-check-out" type="datetime-local" step="60" required>
-            </label>
-          </div>
-          <dl class="rent-room-summary">
-            <div><dt>Thời gian thuê</dt><dd id="rent-duration">—</dd></div>
-            <div><dt>Giá phòng</dt><dd id="rent-room-rate">—</dd></div>
-            <div><dt>Tổng tiền phải trả</dt><dd id="rent-total">—</dd></div>
-          </dl>
-          <p id="rent-room-error" class="error" role="alert" aria-live="polite"></p>
-          <div class="room-form-actions">
-            <button type="button" class="cancel-button" data-close-rent>Hủy</button>
-            <button type="submit" class="primary-button">Lưu</button>
-          </div>
-        </form>
-      </dialog>
-      <section id="room-add-view" class="room-view hidden-view">
-        <div class="view-heading">
-          <div><p class="eyebrow">QUẢN LÝ PHÒNG / <span id="room-view-kicker">THÊM MỚI</span></p><h2 id="room-form-heading">Thêm phòng</h2><p class="muted" id="room-form-description">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p></div>
-          <button type="button" class="secondary-button dark-button" data-room-view="list">Danh sách phòng</button>
-        </div>
-        <article class="dashboard-card room-form-card">
-          <form id="room-form" class="room-form" enctype="multipart/form-data" novalidate>
-            <div class="form-intro">
-              <div><span class="form-kicker">THÔNG TIN CƠ BẢN</span><h4 id="room-form-title">Thêm phòng vào hệ thống</h4></div>
-              <span class="required-note"><b>*</b> Bắt buộc</span>
-            </div>
-            <div class="room-fields">
-              <label id="room-code-field" for="room-code">Mã phòng <span class="required-mark">*</span>
-                <span class="input-with-icon">
-                  <span class="field-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5V6.8A1.8 1.8 0 0 1 4.8 5h14.4A1.8 1.8 0 0 1 21 6.8v3.7"/><path d="M4 10.5h16v7.7A1.8 1.8 0 0 1 18.2 20H5.8A1.8 1.8 0 0 1 4 18.2z"/><path d="M8.5 14h7"/></svg>
-                  </span>
-                  <input id="room-code" type="text" name="roomCode" maxlength="20" pattern="(?:[A-Za-z0-9]|-)+" placeholder="P101" autocomplete="off" required>
-                </span>
-                <small class="field-hint">Dùng chữ cái, số hoặc dấu gạch ngang.</small>
-              </label>
-              <label id="room-type-field" for="room-type-select">Loại phòng <span class="required-mark">*</span>
-                <span class="input-with-icon select-wrap">
-                  <span class="field-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v10H4z"/><path d="M8 10h8M8 13h5"/></svg>
-                  </span>
-                  <select id="room-type-select" name="roomType" required>
-                    <option value="">-- Chọn loại phòng --</option>
-                  </select>
-                </span>
-              </label>
-              <label class="description-field" for="room-description">Mô tả ngắn <span class="required-mark">*</span>
-                <span class="input-with-icon textarea-wrap">
-                  <span class="field-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-                  </span>
-                  <textarea id="room-description" name="shortDescription" rows="3" maxlength="240" placeholder="Phòng view thành phố, 2 giường đơn..." required></textarea>
-                </span>
-                <small class="field-hint description-count">0/240 ký tự</small>
-              </label>
-              <label id="room-rate-field" for="nightly-rate">Giá phòng (VNĐ) <span class="required-mark">*</span>
-                <span class="input-with-icon currency-wrap">
-                  <span class="field-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M16.5 7.5c0-1.9-1.8-3.5-4.5-3.5S7.5 5.6 7.5 7.5 9.3 11 12 11s4.5 1.6 4.5 3.5S14.7 18 12 18s-4.5-1.6-4.5-3.5"/></svg>
-                  </span>
-                  <input id="nightly-rate" type="number" name="nightlyRate" min="0.01" step="any" placeholder="500000" required>
-                  <span class="currency-suffix">VNĐ / đêm</span>
-                </span>
-              </label>
-              <label id="room-status-field" for="room-status">Trạng thái
-                <span class="status-default">
-                  <span class="status-dot"></span>
-                  <input id="room-status" type="text" value="Phòng trống" readonly>
-                </span>
-                <input type="hidden" name="status" value="Phòng trống">
-                <small class="field-hint">Phòng mới luôn bắt đầu ở trạng thái trống.</small>
-              </label>
-              <label class="image-field" for="room-image">Ảnh phòng
-                <small class="field-hint">Không bắt buộc · JPG, PNG, WEBP hoặc GIF · tối đa 5 MB</small>
-                <span class="upload-zone">
-                  <span class="upload-icon" aria-hidden="true">+</span>
-                  <strong>Chọn ảnh phòng</strong>
-                  <span>Nhấn vào đây để chọn ảnh từ thiết bị</span>
-                  <input id="room-image" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
-                </span>
-                <span id="image-preview" class="image-preview hidden"></span>
-              </label>
-            </div>
-            <div class="room-form-actions"><button type="button" class="cancel-button" id="cancel-room-form">Hủy</button><button type="submit" class="primary-button small-button"><span id="room-submit-label">Thêm phòng</span></button></div>
-            <p id="room-error" class="error" aria-live="polite"></p>
-          </form>
-        </article>
-      </section>
-      <section id="room-types-view" class="room-view hidden-view">
-        <div class="view-heading room-view-heading">
-          <div><p class="eyebrow">QUẢN LÝ PHÒNG / DANH MỤC</p><h2>Quản lý thể loại phòng</h2><p class="muted">Danh sách loại phòng đang được sử dụng trong hệ thống.</p></div>
-          <button type="button" class="primary-button view-action room-view-action" id="toggle-room-type-form">Thêm mới</button>
-        </div>
-        <article class="dashboard-card room-types-card">
-        <div class="card-header-row">
-          <div>
-            <span class="workspace-badge">DANH MỤC</span>
-            <h3>Danh sách loại phòng</h3>
-          </div>
-          <label class="room-type-search" for="room-type-search">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="room-type-search" type="search" placeholder="Tìm kiếm loại phòng..." autocomplete="off">
-          </label>
-        </div>
-        <form id="room-type-form" class="room-type-form hidden-form">
-          <div class="room-type-fields">
-            <label>
-              Mã thể loại
-              <input
-                id="room-type-code"
-                type="text"
-                value="LP001"
-                readonly
+        <nav class="room-navigation">
+          <button
+            type="button"
+            class="room-nav-link active"
+            data-room-view="overview"
+            aria-current="page"
+          >
+            <span class="nav-icon" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
               >
-            </label>
-            <label>
-              Tên thể loại
-              <input
-                id="room-type-name"
-                type="text"
-                name="name"
-                maxlength="80"
-                placeholder="Ví dụ: Phòng gia đình"
-                required
+                <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z" /></svg></span
+            >Tổng quan
+          </button>
+          <button type="button" class="room-nav-link" data-room-view="list">
+            <span class="nav-icon" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
               >
-            </label>
-            <label>
-              Mô tả
-              <textarea
-                id="room-type-description"
-                name="description"
-                rows="3"
-                maxlength="500"
-                placeholder="Mô tả đặc điểm của thể loại phòng"
-              ></textarea>
-            </label>
-          </div>
-          <div class="room-type-actions">
-            <button
-              type="submit"
-              class="primary-button small-button"
-            >
-              Lưu thể loại
-            </button>
-            <button
-              type="button"
-              class="cancel-button"
-              id="cancel-room-type-form"
-            >
-              Hủy
-            </button>
-          </div>
-          <p
-            id="room-type-error"
-            class="error"
-            role="alert"
-            aria-live="polite"
-          ></p>
-        </form>
-        <p
-          id="room-type-message"
-          class="toast-message"
+                <path
+                  d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"
+                /></svg></span
+            >Danh sách phòng
+          </button>
+          <button type="button" class="room-nav-link" data-room-view="types">
+            <span class="nav-icon" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="4" y="3" width="16" height="18" rx="2" />
+                <path d="M8 8h8M8 12h8M8 16h5" /></svg></span
+            >Thể loại phòng
+          </button>
+        </nav>
+        <div class="sidebar-scenery" aria-hidden="true"></div>
+      </aside>
+      <main class="dashboard">
+        <h1 id="page-title">Tổng quan</h1>
+        <div
+          id="room-feedback"
+          class="room-feedback"
           role="status"
           aria-live="polite"
-        ></p>
-        <div id="room-type-list" class="room-type-list"></div>
-      </article>
-      </section>
-    </main>
-  </div>
-  <script src="/js/main.js?v=20260930-dashboard" defer></script>
-  <script src="/js/dashboard.js" defer></script>
-</body>
+          hidden
+        >
+          <span class="room-feedback-icon" aria-hidden="true"></span>
+          <span id="room-feedback-text"></span>
+        </div>
+        <section
+          id="overview-view"
+          class="room-view"
+          aria-label="Tổng quan khách sạn"
+        >
+          <div class="welcome-banner">
+            <div>
+              <h2>Tổng quan</h2>
+              <p id="greeting">
+                Chào mừng bạn trở lại với hệ thống quản lý khách sạn.
+              </p>
+            </div>
+            <button type="button" class="primary-button" data-room-view="add">
+              Thêm phòng
+            </button>
+          </div>
+          <p id="overview-error" class="error" role="alert"></p>
+          <div class="stats-grid" aria-label="Thống kê phòng">
+            <article class="stat-card">
+              <span class="stat-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"
+                  /></svg
+              ></span>
+              <div>
+                <h3>Tổng số phòng</h3>
+                <strong id="stat-total">—</strong>
+              </div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="9" cy="7" r="3" />
+                  <path
+                    d="M3 20v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4v3"
+                  /></svg
+              ></span>
+              <div>
+                <h3>Đang có khách</h3>
+                <strong id="stat-occupied">—</strong>
+              </div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z" /></svg
+              ></span>
+              <div>
+                <h3>Phòng trống</h3>
+                <strong id="stat-available">—</strong>
+              </div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="m14 6 4 4 3-3a7 7 0 0 1-8 9l-6 6-4-4 6-6a7 7 0 0 1 9-8Z"
+                  /></svg
+              ></span>
+              <div>
+                <h3>Trạng thái khác</h3>
+                <strong id="stat-other">—</strong>
+              </div>
+            </article>
+          </div>
+          <div class="overview-panels">
+            <article class="overview-card occupancy-card">
+              <div class="overview-heading">
+                <h3>
+                  <span aria-hidden="true"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M10 3a9 9 0 1 0 11 11H10Z" />
+                      <path d="M14 2v8h8a9 9 0 0 0-8-8Z" /></svg
+                  ></span>
+                  Công suất phòng
+                </h3>
+                <span>Hiện tại</span>
+              </div>
+              <div class="occupancy-content">
+                <div
+                  id="occupancy-chart"
+                  class="occupancy-chart"
+                  role="img"
+                  aria-label="Đang tải công suất phòng"
+                >
+                  <div>
+                    <strong id="occupancy-percent">—</strong
+                    ><span>Đang sử dụng</span>
+                  </div>
+                </div>
+                <dl class="occupancy-legend">
+                  <div>
+                    <dt><i class="legend-dot occupied"></i>Đang có khách</dt>
+                    <dd id="legend-occupied">—</dd>
+                  </div>
+                  <div>
+                    <dt><i class="legend-dot available"></i>Phòng trống</dt>
+                    <dd id="legend-available">—</dd>
+                  </div>
+                  <div>
+                    <dt><i class="legend-dot other"></i>Trạng thái khác</dt>
+                    <dd id="legend-other">—</dd>
+                  </div>
+                  <div>
+                    <dt>Tổng số phòng</dt>
+                    <dd id="legend-total">—</dd>
+                  </div>
+                </dl>
+              </div>
+            </article>
+            <article class="overview-card">
+              <div class="overview-heading">
+                <h3>
+                  <span aria-hidden="true"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="4" y="3" width="16" height="18" rx="2" />
+                      <path d="M8 8h8M8 12h8M8 16h5" /></svg
+                  ></span>
+                  Phòng theo thể loại
+                </h3>
+                <button
+                  type="button"
+                  class="text-button"
+                  data-room-view="types"
+                >
+                  Quản lý
+                </button>
+              </div>
+              <div class="table-scroll">
+                <table class="type-summary">
+                  <thead>
+                    <tr>
+                      <th>Thể loại</th>
+                      <th>Tổng phòng</th>
+                      <th>Phòng trống</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-types">
+                    <tr>
+                      <td colspan="3">Đang tải dữ liệu…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+            <article class="overview-card room-map-card">
+              <div class="overview-heading">
+                <h3>
+                  <span aria-hidden="true"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"
+                      /></svg
+                  ></span>
+                  Tình trạng phòng
+                </h3>
+                <button type="button" class="text-button" data-room-view="list">
+                  Xem tất cả
+                </button>
+              </div>
+              <div class="room-map-toolbar">
+                <label class="search-field" for="overview-search"
+                  ><span aria-hidden="true"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="10" cy="10" r="7" />
+                      <path d="m15 15 6 6" /></svg></span
+                  ><input
+                    id="overview-search"
+                    aria-label="Tìm mã phòng hoặc thể loại"
+                    type="search"
+                    placeholder="Tìm mã phòng, thể loại…"
+                    autocomplete="off" /></label
+                ><label class="status-filter" for="overview-status"
+                  >Trạng thái<select id="overview-status">
+                    <option value="">Tất cả</option>
+                    <option value="available">Phòng trống</option>
+                    <option value="occupied">Đang có khách</option>
+                    <option value="maintenance">Trạng thái khác</option>
+                  </select></label
+                >
+              </div>
+              <div
+                id="overview-room-map"
+                class="overview-room-map"
+                aria-live="polite"
+              >
+                <p class="muted">Đang tải danh sách phòng…</p>
+              </div>
+            </article>
+          </div>
+        </section>
+        <section id="room-list-view" class="room-view hidden-view">
+          <div class="view-heading room-view-heading rooms-header">
+            <div>
+              <p class="eyebrow">QUẢN LÝ PHÒNG</p>
+              <h2 id="room-view-title">Danh sách phòng</h2>
+              <p class="muted">
+                Theo dõi trạng thái và thời gian sử dụng của các phòng.
+              </p>
+            </div>
+            <div class="room-header-actions">
+              <button
+                type="button"
+                class="primary-button view-action room-view-action"
+                data-room-view="add"
+              >
+                Thêm phòng mới
+              </button>
+            </div>
+          </div>
+          <div class="room-list-toolbar">
+            <label class="room-list-search" for="rooms-search"
+              ><span aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                >
+                  <circle cx="10.8" cy="10.8" r="7.2" />
+                  <path d="m16 16 5 5" /></svg></span
+              ><input
+                id="rooms-search"
+                type="search"
+                placeholder="Tìm theo mã phòng, mô tả..."
+                autocomplete="off"
+            /></label>
+            <label class="room-filter" for="rooms-type-filter"
+              ><span class="visually-hidden">Lọc theo loại phòng</span
+              ><select id="rooms-type-filter">
+                <option value="">Tất cả loại phòng</option>
+              </select></label
+            >
+            <label class="room-filter" for="rooms-status-filter"
+              ><span class="visually-hidden">Lọc theo trạng thái</span
+              ><select id="rooms-status-filter">
+                <option value="">Tất cả trạng thái</option>
+                <option value="available">Phòng trống</option>
+                <option value="occupied">Đang cho thuê</option>
+                <option value="maintenance">Bảo trì / khác</option>
+              </select></label
+            >
+            <div
+              class="room-display-toggle"
+              role="group"
+              aria-label="Kiểu hiển thị"
+            >
+              <span>Hiển thị:</span>
+              <button
+                type="button"
+                class="active"
+                data-room-layout="grid"
+                aria-label="Hiển thị dạng lưới"
+                aria-pressed="true"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                data-room-layout="list"
+                aria-label="Hiển thị dạng danh sách"
+                aria-pressed="false"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                >
+                  <path d="M9 5h12M9 12h12M9 19h12" />
+                  <circle cx="4" cy="5" r="1" />
+                  <circle cx="4" cy="12" r="1" />
+                  <circle cx="4" cy="19" r="1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="room-list-stats" aria-label="Thống kê phòng">
+            <article class="room-list-stat total">
+              <span class="room-list-stat-icon" aria-hidden="true">▤</span>
+              <div>
+                <strong id="list-stat-total">—</strong
+                ><span>Tổng số phòng</span>
+              </div>
+            </article>
+            <article class="room-list-stat occupied">
+              <span class="room-list-stat-icon" aria-hidden="true">▤</span>
+              <div>
+                <strong id="list-stat-occupied">—</strong
+                ><span>Đang cho thuê</span>
+              </div>
+            </article>
+            <article class="room-list-stat available">
+              <span class="room-list-stat-icon" aria-hidden="true">▤</span>
+              <div>
+                <strong id="list-stat-available">—</strong
+                ><span>Phòng trống</span>
+              </div>
+            </article>
+            <article class="room-list-stat types">
+              <span class="room-list-stat-icon" aria-hidden="true">◇</span>
+              <div>
+                <strong id="list-stat-types">—</strong><span>Loại phòng</span>
+              </div>
+            </article>
+          </div>
+          <div id="room-grid" class="room-grid"></div>
+          <p
+            id="room-list-message"
+            class="success"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </section>
+        <dialog
+          id="rent-room-dialog"
+          class="rent-room-dialog"
+          aria-labelledby="rent-room-title"
+        >
+          <form id="rent-room-form" class="rent-room-form" novalidate>
+            <div class="rent-room-heading">
+              <div>
+                <p class="eyebrow">QUẢN LÝ PHÒNG / CHO THUÊ</p>
+                <h2 id="rent-room-title">Cho thuê phòng</h2>
+              </div>
+              <button
+                type="button"
+                class="rent-room-close"
+                data-close-rent
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
+            <div class="rent-room-info">
+              <img id="rent-room-image" class="rent-room-image hidden" alt="" />
+              <div class="rent-room-details">
+                <strong id="rent-room-code"></strong>
+                <span id="rent-room-type"></span>
+                <span id="rent-room-description"></span>
+                <span id="rent-room-status"></span>
+              </div>
+            </div>
+            <div class="rent-room-fields">
+              <label for="rent-check-in"
+                >Giờ vào
+                <input id="rent-check-in" type="text" readonly required />
+              </label>
+              <label for="rent-check-out"
+                >Thời gian trả phòng
+                <input
+                  id="rent-check-out"
+                  type="datetime-local"
+                  step="60"
+                  required
+                />
+              </label>
+            </div>
+            <dl class="rent-room-summary">
+              <div>
+                <dt>Thời gian thuê</dt>
+                <dd id="rent-duration">—</dd>
+              </div>
+              <div>
+                <dt>Giá phòng</dt>
+                <dd id="rent-room-rate">—</dd>
+              </div>
+              <div>
+                <dt>Tổng tiền phải trả</dt>
+                <dd id="rent-total">—</dd>
+              </div>
+            </dl>
+            <p
+              id="rent-room-error"
+              class="error"
+              role="alert"
+              aria-live="polite"
+            ></p>
+            <div class="room-form-actions">
+              <button type="button" class="cancel-button" data-close-rent>
+                Hủy
+              </button>
+              <button type="submit" class="primary-button">Lưu</button>
+            </div>
+          </form>
+        </dialog>
+        <section id="room-add-view" class="room-view hidden-view">
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow">
+                QUẢN LÝ PHÒNG / <span id="room-view-kicker">THÊM MỚI</span>
+              </p>
+              <h2 id="room-form-heading">Thêm phòng</h2>
+              <p class="muted" id="room-form-description">
+                Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="secondary-button dark-button"
+              data-room-view="list"
+            >
+              Danh sách phòng
+            </button>
+          </div>
+          <article class="dashboard-card room-form-card">
+            <form
+              id="room-form"
+              class="room-form"
+              enctype="multipart/form-data"
+              novalidate
+            >
+              <div class="form-intro">
+                <div>
+                  <span class="form-kicker">THÔNG TIN CƠ BẢN</span>
+                  <h4 id="room-form-title">Thêm phòng vào hệ thống</h4>
+                </div>
+                <span class="required-note"><b>*</b> Bắt buộc</span>
+              </div>
+              <div class="room-fields">
+                <label id="room-code-field" for="room-code"
+                  >Mã phòng <span class="required-mark">*</span>
+                  <span class="input-with-icon">
+                    <span class="field-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M3 10.5V6.8A1.8 1.8 0 0 1 4.8 5h14.4A1.8 1.8 0 0 1 21 6.8v3.7"
+                        />
+                        <path
+                          d="M4 10.5h16v7.7A1.8 1.8 0 0 1 18.2 20H5.8A1.8 1.8 0 0 1 4 18.2z"
+                        />
+                        <path d="M8.5 14h7" />
+                      </svg>
+                    </span>
+                    <input
+                      id="room-code"
+                      type="text"
+                      name="roomCode"
+                      maxlength="20"
+                      pattern="(?:[A-Za-z0-9]|-)+"
+                      placeholder="P101"
+                      autocomplete="off"
+                      required
+                    />
+                  </span>
+                  <small class="field-hint"
+                    >Dùng chữ cái, số hoặc dấu gạch ngang.</small
+                  >
+                </label>
+                <label id="room-type-field" for="room-type-select"
+                  >Loại phòng <span class="required-mark">*</span>
+                  <span class="input-with-icon select-wrap">
+                    <span class="field-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M4 7h16v10H4z" />
+                        <path d="M8 10h8M8 13h5" />
+                      </svg>
+                    </span>
+                    <select id="room-type-select" name="roomType" required>
+                      <option value="">-- Chọn loại phòng --</option>
+                    </select>
+                  </span>
+                </label>
+                <label class="description-field" for="room-description"
+                  >Mô tả ngắn <span class="required-mark">*</span>
+                  <span class="input-with-icon textarea-wrap">
+                    <span class="field-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"
+                        />
+                        <path d="M8 8h8M8 12h8M8 16h5" />
+                      </svg>
+                    </span>
+                    <textarea
+                      id="room-description"
+                      name="shortDescription"
+                      rows="3"
+                      maxlength="240"
+                      placeholder="Phòng view thành phố, 2 giường đơn..."
+                      required
+                    ></textarea>
+                  </span>
+                  <small class="field-hint description-count"
+                    >0/240 ký tự</small
+                  >
+                </label>
+                <label id="room-rate-field" for="nightly-rate"
+                  >Giá phòng (VNĐ) <span class="required-mark">*</span>
+                  <span class="input-with-icon currency-wrap">
+                    <span class="field-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M12 3v18" />
+                        <path
+                          d="M16.5 7.5c0-1.9-1.8-3.5-4.5-3.5S7.5 5.6 7.5 7.5 9.3 11 12 11s4.5 1.6 4.5 3.5S14.7 18 12 18s-4.5-1.6-4.5-3.5"
+                        />
+                      </svg>
+                    </span>
+                    <input
+                      id="nightly-rate"
+                      type="number"
+                      name="nightlyRate"
+                      min="0.01"
+                      step="any"
+                      placeholder="500000"
+                      required
+                    />
+                    <span class="currency-suffix">VNĐ / đêm</span>
+                  </span>
+                </label>
+                <label id="room-status-field" for="room-status"
+                  >Trạng thái
+                  <span class="status-default">
+                    <span class="status-dot"></span>
+                    <input
+                      id="room-status"
+                      type="text"
+                      value="Phòng trống"
+                      readonly
+                    />
+                  </span>
+                  <input type="hidden" name="status" value="Phòng trống" />
+                  <small class="field-hint"
+                    >Phòng mới luôn bắt đầu ở trạng thái trống.</small
+                  >
+                </label>
+                <label class="image-field" for="room-image"
+                  >Ảnh phòng
+                  <small class="field-hint"
+                    >Không bắt buộc · JPG, PNG, WEBP hoặc GIF · tối đa 5
+                    MB</small
+                  >
+                  <span class="upload-zone">
+                    <span class="upload-icon" aria-hidden="true">+</span>
+                    <strong>Chọn ảnh phòng</strong>
+                    <span>Nhấn vào đây để chọn ảnh từ thiết bị</span>
+                    <input
+                      id="room-image"
+                      type="file"
+                      name="image"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                    />
+                  </span>
+                  <span id="image-preview" class="image-preview hidden"></span>
+                </label>
+              </div>
+              <div class="room-form-actions">
+                <button
+                  type="button"
+                  class="cancel-button"
+                  id="cancel-room-form"
+                >
+                  Hủy</button
+                ><button type="submit" class="primary-button small-button">
+                  <span id="room-submit-label">Thêm phòng</span>
+                </button>
+              </div>
+              <p id="room-error" class="error" aria-live="polite"></p>
+            </form>
+          </article>
+        </section>
+        <section id="room-types-view" class="room-view hidden-view">
+          <div class="view-heading room-view-heading">
+            <div>
+              <p class="eyebrow">QUẢN LÝ PHÒNG / DANH MỤC</p>
+              <h2>Quản lý thể loại phòng</h2>
+              <p class="muted">
+                Danh sách loại phòng đang được sử dụng trong hệ thống.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="primary-button view-action room-view-action"
+              id="toggle-room-type-form"
+            >
+              Thêm mới
+            </button>
+          </div>
+          <article class="dashboard-card room-types-card">
+            <div class="card-header-row">
+              <div>
+                <span class="workspace-badge">DANH MỤC</span>
+                <h3>Danh sách loại phòng</h3>
+              </div>
+              <label class="room-type-search" for="room-type-search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input
+                  id="room-type-search"
+                  type="search"
+                  placeholder="Tìm kiếm loại phòng..."
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+            <form id="room-type-form" class="room-type-form hidden-form">
+              <div class="room-type-fields">
+                <label>
+                  Mã thể loại
+                  <input
+                    id="room-type-code"
+                    type="text"
+                    value="LP001"
+                    readonly
+                  />
+                </label>
+                <label>
+                  Tên thể loại
+                  <input
+                    id="room-type-name"
+                    type="text"
+                    name="name"
+                    maxlength="80"
+                    placeholder="Ví dụ: Phòng gia đình"
+                    required
+                  />
+                </label>
+                <label>
+                  Mô tả
+                  <textarea
+                    id="room-type-description"
+                    name="description"
+                    rows="3"
+                    maxlength="500"
+                    placeholder="Mô tả đặc điểm của thể loại phòng"
+                  ></textarea>
+                </label>
+              </div>
+              <div class="room-type-actions">
+                <button type="submit" class="primary-button small-button">
+                  Lưu thể loại
+                </button>
+                <button
+                  type="button"
+                  class="cancel-button"
+                  id="cancel-room-type-form"
+                >
+                  Hủy
+                </button>
+              </div>
+              <p
+                id="room-type-error"
+                class="error"
+                role="alert"
+                aria-live="polite"
+              ></p>
+            </form>
+            <p
+              id="room-type-message"
+              class="toast-message"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div id="room-type-list" class="room-type-list"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <script src="/js/main.js?v=20260930-dashboard" defer></script>
+    <script src="/js/dashboard.js" defer></script>
+  </body>
 </html>
