@@ -148,7 +148,7 @@ if (form) {
   const errorMessage = document.querySelector('#error-message');
   const successMessage = document.querySelector('#success-message');
   const submitButton = document.querySelector('#submit-button');
-  const buttonLabel = submitButton.querySelector('.button-label');
+  const buttonLabel = submitButton?.querySelector('.button-label');
   const passwordToggle = document.querySelector('#password-toggle');
   const passwordInput = document.querySelector('#password');
   const loginTab = document.querySelector('#login-tab');
@@ -157,54 +157,91 @@ if (form) {
   const fullNameInput = document.querySelector('#full-name');
   const confirmPasswordGroup = document.querySelector('#confirm-password-group');
   const confirmPasswordInput = document.querySelector('#confirm-password');
+  const registerTerms = document.querySelector('#register-terms');
+  const registerTermsRow = registerTerms?.closest('.register-terms');
   const rememberRow = document.querySelector('.field-row');
   const rememberInput = document.querySelector('#remember-me');
+  const authTitle = document.querySelector('#auth-title');
+  const authSubtitle = document.querySelector('#auth-subtitle');
   let currentMode = 'login';
 
   const setMode = (mode, clearMessages = true) => {
     currentMode = mode;
     const isRegister = mode === 'register';
 
-    fullNameGroup.classList.toggle('hidden', !isRegister);
-    confirmPasswordGroup.classList.toggle('hidden', !isRegister);
-    rememberRow.classList.toggle('hidden', isRegister);
+    if (fullNameGroup) fullNameGroup.classList.toggle('hidden', !isRegister);
+    if (confirmPasswordGroup) confirmPasswordGroup.classList.toggle('hidden', !isRegister);
+    if (registerTermsRow) registerTermsRow.hidden = !isRegister;
+    if (registerTerms) registerTerms.required = isRegister;
+    if (rememberRow) rememberRow.classList.toggle('hidden', isRegister);
 
-    fullNameInput.required = isRegister;
-    confirmPasswordInput.required = isRegister;
-    document.querySelector('#auth-title').textContent = isRegister ? 'Tạo tài khoản' : 'Đăng nhập';
-    document.querySelector('#auth-subtitle').textContent = isRegister
+    if (fullNameInput) fullNameInput.required = isRegister;
+    if (confirmPasswordInput) confirmPasswordInput.required = isRegister;
+    if (authTitle) authTitle.textContent = isRegister ? 'Tạo tài khoản' : 'Đăng nhập';
+    if (authSubtitle) authSubtitle.textContent = isRegister
       ? 'Tạo tài khoản mới để quản lý khách sạn'
-      : 'Chào mừng bạn đến với hệ thống quản lý khách sạn';
-    buttonLabel.textContent = isRegister ? 'Đăng ký' : 'Đăng nhập';
+      : 'Chào mừng bạn quay trở lại!\nVui lòng đăng nhập để tiếp tục.';
+    if (buttonLabel) buttonLabel.textContent = isRegister ? 'Đăng ký' : 'Đăng nhập';
 
-    loginTab.classList.toggle('active', !isRegister);
-    registerTab.classList.toggle('active', isRegister);
-    loginTab.setAttribute('aria-selected', String(!isRegister));
-    registerTab.setAttribute('aria-selected', String(isRegister));
+    if (loginTab) {
+      loginTab.classList.toggle('active', !isRegister);
+      loginTab.setAttribute('aria-selected', String(!isRegister));
+    }
+    if (registerTab) {
+      registerTab.classList.toggle('active', isRegister);
+      registerTab.setAttribute('aria-selected', String(isRegister));
+    }
 
-    passwordInput.setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
+    if (passwordInput) passwordInput.setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
     if (clearMessages) {
-      errorMessage.textContent = '';
-      successMessage.textContent = '';
+      if (errorMessage) errorMessage.textContent = '';
+      if (successMessage) successMessage.textContent = '';
     }
   };
 
-  const showSupport = () => {
-    errorMessage.textContent = '';
-    successMessage.textContent = 'Vui lòng liên hệ quản trị viên khách sạn để được hỗ trợ tài khoản và đặt lại mật khẩu.';
+  const navigateToMode = (mode) => {
+    if (mode === 'register') {
+      window.location.assign('/register.html');
+      return;
+    }
+    window.location.assign('/login.html');
   };
-  document.querySelector('#forgot-password').addEventListener('click', showSupport);
-  document.querySelector('#contact-admin').addEventListener('click', showSupport);
 
-  loginTab.addEventListener('click', () => setMode('login'));
-  registerTab.addEventListener('click', () => setMode('register'));
+  const showSupport = () => {
+    if (errorMessage) errorMessage.textContent = '';
+    if (successMessage) successMessage.textContent = 'Vui lòng liên hệ quản trị viên khách sạn để được hỗ trợ tài khoản và đặt lại mật khẩu.';
+  };
 
-  passwordToggle.addEventListener('click', () => {
-    const showing = passwordInput.type === 'text';
-    passwordInput.type = showing ? 'password' : 'text';
-    passwordToggle.setAttribute('aria-label', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
-    passwordToggle.setAttribute('aria-pressed', String(!showing));
+  const forgotPasswordBtn = document.querySelector('#forgot-password');
+  if (forgotPasswordBtn) forgotPasswordBtn.addEventListener('click', showSupport);
+
+  const contactAdminBtn = document.querySelector('#contact-admin');
+  if (contactAdminBtn) {
+    contactAdminBtn.addEventListener('click', () => {
+      navigateToMode(window.location.pathname.endsWith('/register.html') ? 'login' : 'register');
+    });
+  }
+
+  document.querySelectorAll('.social-button').forEach((button) => {
+    const provider = ['google', 'microsoft', 'github'].find(name => button.classList.contains(name));
+    if (!provider) return;
+    button.addEventListener('click', () => {
+      const flow = window.location.pathname.endsWith('/register.html') ? 'register' : 'login';
+      window.location.assign(`/auth/${provider}?flow=${flow}`);
+    });
   });
+
+  if (loginTab) loginTab.addEventListener('click', () => navigateToMode('login'));
+  if (registerTab) registerTab.addEventListener('click', () => navigateToMode('register'));
+
+  if (passwordToggle && passwordInput) {
+    passwordToggle.addEventListener('click', () => {
+      const showing = passwordInput.type === 'text';
+      passwordInput.type = showing ? 'password' : 'text';
+      passwordToggle.setAttribute('aria-label', showing ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+      passwordToggle.setAttribute('aria-pressed', String(!showing));
+    });
+  }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -259,7 +296,19 @@ if (form) {
     }
   });
 
-  setMode('login');
+  const isRegisterPage = window.location.pathname.endsWith('/register.html');
+  setMode(isRegisterPage ? 'register' : 'login');
+
+  const oauthMessages = {
+    provider_not_configured: 'Đăng nhập bằng nhà cung cấp này chưa được cấu hình.',
+    email_not_verified: 'Nhà cung cấp chưa xác nhận email của bạn.',
+    email_exists: 'Email này đã có tài khoản. Hãy đăng nhập bằng email và mật khẩu.',
+    oauth_failed: 'Không thể xác thực với nhà cung cấp. Vui lòng thử lại.'
+  };
+  const oauthError = new URLSearchParams(window.location.search).get('oauth_error');
+  if (oauthError && errorMessage) {
+    errorMessage.textContent = oauthMessages[oauthError] || oauthMessages.oauth_failed;
+  }
 }
 
 const logoutButton = document.querySelector('#logout-button');

@@ -9,8 +9,11 @@ from pathlib import Path
 
 import bcrypt
 import mysql.connector
+import requests
+from authlib.integrations.base_client.errors import OAuthError
+from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, request, send_from_directory, session
+from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
 from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -38,6 +41,57 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=8 * 60 * 60,
     MAX_CONTENT_LENGTH=5 * 1024 * 1024,
 )
+
+oauth = OAuth(app)
+oauth_clients = {}
+
+
+def register_oauth_client(provider, client_id_name, client_secret_name, **options):
+    client_id = os.getenv(client_id_name)
+    client_secret = os.getenv(client_secret_name)
+    if client_id and client_secret:
+        oauth_clients[provider] = oauth.register(
+            name=provider,
+            client_id=client_id,
+            client_secret=client_secret,
+            **options,
+        )
+
+
+register_oauth_client(
+    "google",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+microsoft_tenant = os.getenv("MICROSOFT_TENANT_ID", "common")
+if not re.fullmatch(r"[A-Za-z0-9.-]+", microsoft_tenant):
+    microsoft_tenant = "common"
+register_oauth_client(
+    "microsoft",
+    "MICROSOFT_CLIENT_ID",
+    "MICROSOFT_CLIENT_SECRET",
+    authorize_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/authorize",
+    access_token_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/token",
+    api_base_url="https://graph.microsoft.com/v1.0/",
+    client_kwargs={"scope": "User.Read"},
+)
+
+register_oauth_client(
+    "github",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    authorize_url="https://github.com/login/oauth/authorize",
+    access_token_url="https://github.com/login/oauth/access_token",
+    api_base_url="https://api.github.com/",
+    client_kwargs={"scope": "read:user user:email"},
+)
+
+
+class OAuthProfileError(Exception):
+    pass
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
@@ -442,6 +496,136 @@ def register():
     all_users.append(user)
     write_json(USERS_FILE, all_users)
     return jsonify(message="Tạo tài khoản thành công. Bạn có thể đăng nhập ngay.", user=public_user(user)), 201
+
+
+def oauth_error_redirect(flow, error_code):
+    page = "register.html" if flow == "register" else "login.html"
+    return redirect(f"/{page}?oauth_error={error_code}")
+
+
+def social_profile(provider, client, token):
+    if provider == "github":
+        user_response = client.get("user")
+        user_response.raise_for_status()
+        profile = user_response.json()
+        emails_response = client.get("user/emails")
+        emails_response.raise_for_status()
+        verified_email = next(
+            (
+                item.get("email")
+                for item in emails_response.json()
+                if item.get("primary") and item.get("verified")
+            ),
+            None,
+        )
+        subject = profile.get("id")
+        email = verified_email
+        full_name = profile.get("name") or profile.get("login")
+    elif provider == "microsoft":
+        response = client.get("me", params={"$select": "id,displayName,mail,userPrincipalName"})
+        response.raise_for_status()
+        profile = response.json()
+        subject = profile.get("id")
+        email = profile.get("mail") or profile.get("userPrincipalName")
+        full_name = profile.get("displayName")
+    else:
+        profile = token.get("userinfo")
+        if not profile:
+            response = client.get("userinfo")
+            response.raise_for_status()
+            profile = response.json()
+
+        if provider == "google" and profile.get("email_verified") is not True:
+            raise OAuthProfileError("email_not_verified")
+        subject = profile.get("sub")
+        email = profile.get("email") or profile.get("preferred_username")
+        full_name = profile.get("name")
+
+    email = str(email or "").strip().lower()
+    if not subject or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise OAuthProfileError("email_not_verified")
+
+    full_name = str(full_name or email.split("@", 1)[0]).strip()[:200]
+    return str(subject), email, full_name
+
+
+def find_or_create_oauth_user(provider, subject, email, full_name):
+    all_users = users()
+    user = next(
+        (
+            item
+            for item in all_users
+            if isinstance(item.get("oauthAccounts"), dict)
+            and item["oauthAccounts"].get(provider) == subject
+        ),
+        None,
+    )
+    if user:
+        return user
+
+    if any(str(item.get("email", "")).strip().lower() == email for item in all_users):
+        raise OAuthProfileError("email_exists")
+
+    user = {
+        "id": max((item.get("id", 0) for item in all_users), default=0) + 1,
+        "email": email,
+        "fullName": full_name,
+        "passwordHash": "",
+        "oauthAccounts": {provider: subject},
+    }
+    all_users.append(user)
+    write_json(USERS_FILE, all_users)
+    return user
+
+
+@app.get("/auth/<provider>")
+def oauth_login(provider):
+    if provider not in {"google", "microsoft", "github"}:
+        return redirect("/login.html?oauth_error=oauth_failed")
+
+    flow = request.args.get("flow", "login")
+    if flow not in {"login", "register"}:
+        flow = "login"
+
+    client = oauth_clients.get(provider)
+    if not client:
+        return oauth_error_redirect(flow, "provider_not_configured")
+
+    session[f"oauth_flow_{provider}"] = flow
+    try:
+        callback_url = url_for("oauth_callback", provider=provider, _external=True)
+        return client.authorize_redirect(callback_url)
+    except Exception as error:
+        app.logger.warning("OAuth redirect failed for %s (%s)", provider, type(error).__name__)
+        return oauth_error_redirect(flow, "oauth_failed")
+
+
+@app.get("/auth/<provider>/callback")
+def oauth_callback(provider):
+    flow = session.pop(f"oauth_flow_{provider}", "login")
+    if flow not in {"login", "register"}:
+        flow = "login"
+
+    client = oauth_clients.get(provider)
+    if not client:
+        return oauth_error_redirect(flow, "provider_not_configured")
+
+    try:
+        token = client.authorize_access_token()
+        subject, email, full_name = social_profile(provider, client, token)
+        user = find_or_create_oauth_user(provider, subject, email, full_name)
+    except OAuthProfileError as error:
+        return oauth_error_redirect(flow, str(error))
+    except (OAuthError, requests.RequestException, ValueError, KeyError, TypeError) as error:
+        app.logger.warning("OAuth callback failed for %s (%s)", provider, type(error).__name__)
+        return oauth_error_redirect(flow, "oauth_failed")
+    except Exception as error:
+        app.logger.exception("Unexpected OAuth callback failure for %s (%s)", provider, type(error).__name__)
+        return oauth_error_redirect(flow, "oauth_failed")
+
+    session.clear()
+    session["user"] = public_user(user)
+    return redirect("/home")
 
 
 @app.post("/api/logout")

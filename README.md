@@ -30,6 +30,22 @@ Tai khoan thu nghiem mac dinh khi chua co `backend/data/users.json`:
 - Email: `admin@hotel.local`
 - Mat khau: `Admin@123`
 
+## Dang ky va dang nhap bang Google, Microsoft, GitHub
+
+`Dang ky ngay` mo form dang ky rieng bang ho ten, email va mat khau toi thieu 8 ky tu. Cac nut Google, Microsoft va GitHub can OAuth credentials; khi chua cau hinh, trang se hien thong bao va form email/mat khau van dung binh thuong.
+
+1. Tao OAuth application tai Google Cloud Console, Microsoft Entra admin center va GitHub Developer Settings.
+2. Khai bao callback URL cho tung ung dung:
+	- Google: `http://localhost:3001/auth/google/callback`
+	- Microsoft: `http://localhost:3001/auth/microsoft/callback`
+	- GitHub: `http://localhost:3001/auth/github/callback`
+3. Copy `backend/.env.example` thanh `backend/.env`, sau do dien client ID va client secret tu tung nha cung cap. Microsoft co the de `MICROSOFT_TENANT_ID=common` hoac thay bang tenant ID cua to chuc.
+4. Khoi dong lai `start-server.cmd` de nap credentials.
+
+Google can OAuth consent screen va scope `openid email profile`. Microsoft can delegated permission `User.Read`. GitHub can scope `read:user user:email`. Khi deploy, thay `localhost` trong callback URL bang domain HTTPS that va khai bao lai URL do trong ca ba developer console.
+
+Khong commit `backend/.env` va khong gui client secret qua chat. Neu email da co tai khoan password, OAuth se yeu cau dang nhap bang tai khoan cu; he thong khong tu dong gop tai khoan.
+
 ## Database
 
 Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, reservations va payments. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
