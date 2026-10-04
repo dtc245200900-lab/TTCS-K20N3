@@ -37,6 +37,11 @@
       <div class="sidebar-scenery" aria-hidden="true"></div>
     </aside>
     <main class="dashboard">
+      <h1 id="page-title">Tổng quan</h1>
+      <div id="room-feedback" class="room-feedback" role="status" aria-live="polite" hidden>
+        <span class="room-feedback-icon" aria-hidden="true"></span>
+        <span id="room-feedback-text"></span>
+      </div>
       <section id="overview-view" class="room-view" aria-label="Tổng quan khách sạn">
         <div class="welcome-banner">
           <div><h2>Tổng quan</h2><p id="greeting">Chào mừng bạn trở lại với hệ thống quản lý khách sạn.</p></div>
@@ -97,6 +102,44 @@
         <div id="room-grid" class="room-grid"></div>
         <p id="room-list-message" class="success" role="status" aria-live="polite"></p>
       </section>
+      <dialog id="rent-room-dialog" class="rent-room-dialog" aria-labelledby="rent-room-title">
+        <form id="rent-room-form" class="rent-room-form" novalidate>
+          <div class="rent-room-heading">
+            <div>
+              <p class="eyebrow">QUẢN LÝ PHÒNG / CHO THUÊ</p>
+              <h2 id="rent-room-title">Cho thuê phòng</h2>
+            </div>
+            <button type="button" class="rent-room-close" data-close-rent aria-label="Đóng">×</button>
+          </div>
+          <div class="rent-room-info">
+            <img id="rent-room-image" class="rent-room-image hidden" alt="">
+            <div class="rent-room-details">
+              <strong id="rent-room-code"></strong>
+              <span id="rent-room-type"></span>
+              <span id="rent-room-description"></span>
+              <span id="rent-room-status"></span>
+            </div>
+          </div>
+          <div class="rent-room-fields">
+            <label for="rent-check-in">Giờ vào
+              <input id="rent-check-in" type="text" readonly required>
+            </label>
+            <label for="rent-check-out">Thời gian trả phòng
+              <input id="rent-check-out" type="datetime-local" step="60" required>
+            </label>
+          </div>
+          <dl class="rent-room-summary">
+            <div><dt>Thời gian thuê</dt><dd id="rent-duration">—</dd></div>
+            <div><dt>Giá phòng</dt><dd id="rent-room-rate">—</dd></div>
+            <div><dt>Tổng tiền phải trả</dt><dd id="rent-total">—</dd></div>
+          </dl>
+          <p id="rent-room-error" class="error" role="alert" aria-live="polite"></p>
+          <div class="room-form-actions">
+            <button type="button" class="cancel-button" data-close-rent>Hủy</button>
+            <button type="submit" class="primary-button">Lưu</button>
+          </div>
+        </form>
+      </dialog>
       <section id="room-add-view" class="room-view hidden-view">
         <div class="view-heading">
           <div><p class="eyebrow">QUẢN LÝ PHÒNG / <span id="room-view-kicker">THÊM MỚI</span></p><h2 id="room-form-heading">Thêm phòng</h2><p class="muted" id="room-form-description">Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.</p></div>
@@ -168,7 +211,6 @@
             <div class="room-form-actions"><button type="button" class="cancel-button" id="cancel-room-form">Hủy</button><button type="submit" class="primary-button small-button"><span id="room-submit-label">Thêm phòng</span></button></div>
             <p id="room-error" class="error" aria-live="polite"></p>
           </form>
-          <p id="room-message" class="success room-message" role="status" aria-live="polite"></p>
         </article>
       </section>
       <section id="room-types-view" class="room-view hidden-view">

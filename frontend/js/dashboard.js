@@ -26,8 +26,12 @@
       const roomType = roomTypeLabel(room.roomType || room.room_type || '');
       const description = room.shortDescription || room.short_description || '';
       const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
-      const price = Number.isFinite(nightlyRate) ? nightlyRate.toLocaleString('vi-VN') + 'đ / đêm' : '';
-      return '<button type="button" class="map-room ' + status + '" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(roomCode) + ' — ' + escapeHtml(label) + '"><span class="map-room-media"><img src="' + escapeHtml(imagePath) + '" alt="Ảnh phòng ' + escapeHtml(roomCode) + '" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="map-room-status"><i></i>' + escapeHtml(label) + '</span></span><span class="map-room-details"><strong>' + escapeHtml(roomCode) + '</strong><span class="map-room-type">' + escapeHtml(roomType) + '</span><span class="map-room-description">' + escapeHtml(description) + '</span><span class="map-room-price">' + escapeHtml(price) + '</span></span></button>';
+      const currentTotal = status === 'occupied' ? roomRentalPrice(room) : null;
+      const price = status === 'occupied'
+        ? currentTotal === null ? '—' : currentTotal.toLocaleString('vi-VN') + 'đ'
+        : Number.isFinite(nightlyRate) && nightlyRate > 0 ? nightlyRate.toLocaleString('vi-VN') + 'đ / đêm' : '';
+      const totalAttribute = status === 'occupied' ? ' data-map-total-id="' + escapeHtml(room.id) + '"' : '';
+      return '<button type="button" class="map-room ' + status + '" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(roomCode) + ' — ' + escapeHtml(label) + '"><span class="map-room-media"><img src="' + escapeHtml(imagePath) + '" alt="Ảnh phòng ' + escapeHtml(roomCode) + '" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="map-room-status"><i></i>' + escapeHtml(label) + '</span></span><span class="map-room-details"><strong>' + escapeHtml(roomCode) + '</strong><span class="map-room-type">' + escapeHtml(roomType) + '</span><span class="map-room-description">' + escapeHtml(description) + '</span><span class="map-room-price"' + totalAttribute + '>' + escapeHtml(price) + '</span></span></button>';
     }).join('') : '<p class="map-empty">Không có phòng phù hợp.</p>';
   }
 

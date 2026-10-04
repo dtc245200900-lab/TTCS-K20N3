@@ -1,14 +1,5 @@
 [
   {
-    "id": 1,
-    "roomNumber": "101",
-    "roomType": "Deluxe",
-    "nightlyRate": 1200000,
-    "status": "Phòng trống",
-    "checkInAt": "2026-09-29T10:06:56.059Z",
-    "checkOutAt": "2026-09-29T10:06:59.758Z"
-  },
-  {
     "id": 5,
     "roomCode": "1223",
     "shortDescription": "view đẹp",
@@ -16,19 +7,18 @@
     "roomType": "Đôi",
     "nightlyRate": 20000000,
     "status": "Đã thuê",
-    "checkInAt": "2026-10-02T05:14:42.009989+07:00",
-    "checkOutAt": null
-  },
-  {
-    "id": 6,
-    "roomCode": "p105",
-    "shortDescription": "phòng đẹp",
-    "imagePath": "/uploads/1790675878507-phong-khach-san-tt-studio.jpg",
-    "roomType": "Đơn",
-    "nightlyRate": 500000,
-    "status": "Phòng trống",
-    "checkInAt": "2026-09-29T10:07:17.525Z",
-    "checkOutAt": "2026-09-29T10:07:20.832Z"
+    "checkInAt": "2026-10-04T19:55:00",
+    "checkOutAt": "2026-10-05T12:59:00",
+    "rentalDurationSeconds": 61440,
+    "rentalDurationMinutes": 1024,
+    "rentalDays": null,
+    "rentalTotal": 14222222.22,
+    "checked_in_at": "2026-10-04T19:55:00",
+    "checked_out_at": "2026-10-05T12:59:00",
+    "rental_duration_seconds": 61440,
+    "rental_duration_minutes": 1024,
+    "rental_days": null,
+    "rental_total": 14222222.22
   },
   {
     "id": 7,
@@ -38,8 +28,8 @@
     "roomType": "Đơn",
     "nightlyRate": 249959,
     "status": "Phòng trống",
-    "checkInAt": "2026-09-30T01:20:15.782Z",
-    "checkOutAt": "2026-10-02T05:14:46.015267+07:00"
+    "checkInAt": "2026-10-04T11:39:07.474099+07:00",
+    "checkOutAt": "2026-10-04T11:48:21.265639+07:00"
   },
   {
     "id": 8,
@@ -49,8 +39,8 @@
     "roomType": "mới",
     "nightlyRate": 1000,
     "status": "Phòng trống",
-    "checkInAt": "2026-10-02T13:40:14.895461+07:00",
-    "checkOutAt": "2026-10-02T13:40:26.092725+07:00"
+    "checkInAt": "2026-10-04T11:29:28.690844+07:00",
+    "checkOutAt": "2026-10-04T11:29:53.135023+07:00"
   },
   {
     "id": 9,
@@ -60,8 +50,27 @@
     "roomType": "Đôi",
     "nightlyRate": 500000.0,
     "status": "Phòng trống",
-    "checkInAt": "2026-10-02T14:14:43.543672+07:00",
-    "checkOutAt": "2026-10-02T14:15:08.464342+07:00"
+    "checkInAt": null,
+    "checkOutAt": null,
+    "rentalDurationSeconds": null,
+    "rentalDurationMinutes": null,
+    "rentalDays": null,
+    "rentalTotal": null,
+    "checked_in_at": null,
+    "checked_out_at": null,
+    "rental_duration_seconds": null,
+    "rental_duration_minutes": null,
+    "rental_days": null,
+    "rental_total": null,
+    "rentalHistory": [
+      {
+        "checkedInAt": "2026-10-04T19:52",
+        "scheduledCheckOutAt": "2026-10-05T19:52",
+        "returnedAt": "2026-10-04T19:54",
+        "durationMinutes": 2,
+        "rentalTotal": 694.44
+      }
+    ]
   },
   {
     "id": 10,
@@ -70,7 +79,9 @@
     "imagePath": "/uploads/1790924589466-OIP_1.jpg",
     "roomType": "Đơn",
     "nightlyRate": 250000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "checkInAt": "2026-10-04T11:50:20.740322+07:00",
+    "checkOutAt": "2026-10-04T11:57:32.636402+07:00"
   },
   {
     "id": 11,
@@ -79,7 +90,9 @@
     "imagePath": "/uploads/1790924774952-OIP_2.jpg",
     "roomType": "phòng gia đình",
     "nightlyRate": 1000000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "checkInAt": "2026-10-04T12:07:46.484252+07:00",
+    "checkOutAt": "2026-10-04T12:27:45.960270+07:00"
   },
   {
     "id": 12,
@@ -88,7 +101,28 @@
     "imagePath": "/uploads/1790924948713-OIP.jpg",
     "roomType": "Đôi",
     "nightlyRate": 550000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "checkInAt": null,
+    "checkOutAt": null,
+    "rentalDurationSeconds": null,
+    "rentalDurationMinutes": null,
+    "rentalDays": null,
+    "rentalTotal": null,
+    "checked_in_at": null,
+    "checked_out_at": null,
+    "rental_duration_seconds": null,
+    "rental_duration_minutes": null,
+    "rental_days": null,
+    "rental_total": null,
+    "rentalHistory": [
+      {
+        "checkedInAt": "2026-10-04T19:52",
+        "scheduledCheckOutAt": "2026-10-04T23:55",
+        "returnedAt": "2026-10-04T19:54",
+        "durationMinutes": 2,
+        "rentalTotal": 763.89
+      }
+    ]
   },
   {
     "id": 13,
@@ -142,6 +176,33 @@
     "imagePath": "/uploads/1790925360788-download.jpg",
     "roomType": "Deluxe",
     "nightlyRate": 2500000.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 21,
+    "roomCode": "207",
+    "shortDescription": "fcc",
+    "imagePath": "/uploads/1790928343000-OIP.jpg",
+    "roomType": "mới",
+    "nightlyRate": 344444.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 22,
+    "roomCode": "392",
+    "shortDescription": "rr",
+    "imagePath": "/uploads/1790928548273-OIP_2.jpg",
+    "roomType": "mới",
+    "nightlyRate": 333316.0,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 23,
+    "roomCode": "jj",
+    "shortDescription": "ii",
+    "imagePath": "/uploads/1790931024413-OIP_2.jpg",
+    "roomType": "Đơn",
+    "nightlyRate": 777777.0,
     "status": "Phòng trống"
   }
 ]

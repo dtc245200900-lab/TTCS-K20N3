@@ -43,9 +43,27 @@ CREATE TABLE IF NOT EXISTS rooms (
   status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
   checked_in_at DATETIME NULL,
   checked_out_at DATETIME NULL,
+  rental_duration_seconds BIGINT UNSIGNED NULL,
+  rental_duration_minutes BIGINT UNSIGNED NULL,
+  rental_days INT NULL,
+  rental_total DECIMAL(14, 2) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_rooms_code (room_code)
+);
+
+CREATE TABLE IF NOT EXISTS rental_history (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  room_id BIGINT UNSIGNED NOT NULL,
+  checked_in_at DATETIME NOT NULL,
+  scheduled_check_out_at DATETIME NULL,
+  returned_at DATETIME NOT NULL,
+  duration_minutes BIGINT UNSIGNED NOT NULL,
+  rental_total DECIMAL(14, 2) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_rental_history_room (room_id, created_at),
+  CONSTRAINT fk_rental_history_room FOREIGN KEY (room_id) REFERENCES rooms (id)
 );
 
 CREATE TABLE IF NOT EXISTS reservations (

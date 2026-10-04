@@ -2,6 +2,28 @@ const form = document.querySelector('#login-form');
 let roomTypesCache = [];
 let roomCache = [];
 let openRoomForm;
+let openRentRoom;
+let roomFeedbackTimeout;
+
+function showRoomFeedback(message, type = 'success') {
+  const feedback = document.querySelector('#room-feedback');
+  const icon = feedback?.querySelector('.room-feedback-icon');
+  const text = feedback?.querySelector('#room-feedback-text');
+  if (!feedback || !icon || !text) return;
+
+  clearTimeout(roomFeedbackTimeout);
+  feedback.hidden = !message;
+  feedback.classList.toggle('is-error', type === 'error');
+  feedback.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  icon.textContent = type === 'error' ? '!' : '✓';
+  text.textContent = message;
+  if (message && type === 'success') {
+    roomFeedbackTimeout = window.setTimeout(() => {
+      feedback.hidden = true;
+      text.textContent = '';
+    }, 4000);
+  }
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
@@ -29,21 +51,97 @@ function roomStatusInfo(status) {
   if (['available', 'phong-trong'].includes(normalized)) {
     return { className: 'available', label: 'PHÒNG TRỐNG' };
   }
-  if (['occupied', 'da-thue', 'da-co-nguoi-thue'].includes(normalized)) {
+  if (['occupied', 'rented', 'da-thue', 'da-cho-thue', 'dang-thue', 'dang-cho-thue', 'da-co-nguoi-thue'].includes(normalized)) {
     return { className: 'occupied', label: 'ĐÃ CHO THUÊ' };
   }
   return { className: 'maintenance', label: String(status || 'Chưa cập nhật').toLocaleUpperCase('vi') };
+}
+
+function formatTimeOnly(value) {
+  if (!value) return '--:--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+  const pad = part => String(part).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function roomRentalField(room, ...keys) {
+  const currentRental = room.currentRental || room.current_rental || {};
+  for (const source of [currentRental, room]) {
+    for (const key of keys) {
+      const value = source[key];
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        return value;
+      }
+    }
+  }
+  return null;
 }
 
 function formatRoomTime(value) {
   if (!value) return '--:--';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '--:--';
-  return new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(date);
+  const pad = part => String(part).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function roomRentalPrice(room, now = Date.now()) {
+  const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+  const checkInValue = roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at');
+  const checkOutValue = roomRentalField(room, 'checkOutAt', 'checkOutTime', 'check_out_time', 'checkout_time', 'checked_out_at');
+  if (!checkInValue || !Number.isFinite(Number(new Date(checkInValue).getTime()))) {
+    return null;
+  }
+
+  const checkIn = new Date(checkInValue);
+  const hasCheckOut = checkOutValue !== null;
+  const calculationEndTime = hasCheckOut ? new Date(checkOutValue) : new Date(now);
+
+  if (!Number.isFinite(nightlyRate) || nightlyRate <= 0 || !Number.isFinite(checkIn.getTime()) || !Number.isFinite(calculationEndTime.getTime()) || calculationEndTime.getTime() < checkIn.getTime()) {
+    return null;
+  }
+
+  const elapsedMinutes = Math.max(0, Math.floor((calculationEndTime.getTime() - checkIn.getTime()) / 60000));
+  if (elapsedMinutes <= 0) {
+    return 0;
+  }
+
+  if (hasCheckOut) {
+    const savedTotal = Number(roomRentalField(
+      room,
+      'rentalTotal',
+      'currentRentalTotal',
+      'current_rental_total',
+      'totalAmount',
+      'total_amount',
+      'rental_total',
+    ));
+    if (Number.isFinite(savedTotal) && savedTotal > 0) {
+      return savedTotal;
+    }
+  }
+
+  return nightlyRate * elapsedMinutes / 1440;
+}
+
+function updateLiveRoomPrices() {
+  const roomGrid = document.querySelector('#room-grid');
+  const now = Date.now();
+  for (const room of roomCache) {
+    if (roomStatusInfo(room.status).className !== 'occupied') continue;
+    const price = roomRentalPrice(room, now);
+    if (price === null) continue;
+    const formattedPrice = `${Number(price).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}đ`;
+    const cardPrice = roomGrid?.querySelector(`[data-room-total-id="${CSS.escape(String(room.id))}"]`);
+    const overviewPrice = document.querySelector(`#overview-room-map [data-map-total-id="${CSS.escape(String(room.id))}"]`);
+    if (cardPrice) {
+      cardPrice.textContent = formattedPrice;
+    }
+    if (overviewPrice) {
+      overviewPrice.textContent = formattedPrice;
+    }
+  }
 }
 
 if (form) {
@@ -193,14 +291,17 @@ function renderRoomList() {
       const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
       const imagePath = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
       const checkIn = status.className === 'occupied'
-        ? formatRoomTime(room.checkInAt || room.checked_in_at)
+        ? formatTimeOnly(roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at'))
         : '--:--';
       const checkOut = status.className === 'occupied'
-        ? formatRoomTime(room.checkOutAt || room.checked_out_at)
+        ? formatTimeOnly(roomRentalField(room, 'checkOutAt', 'checkOutTime', 'check_out_time', 'checkout_time', 'checked_out_at'))
         : '--:--';
-      const priceLabel = Number.isFinite(nightlyRate)
-        ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
-        : '';
+      const currentRentalPrice = status.className === 'occupied' ? roomRentalPrice(room) : null;
+      const priceLabel = status.className === 'occupied'
+        ? currentRentalPrice === null ? '—' : `${Number(currentRentalPrice).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
+        : Number.isFinite(nightlyRate) && nightlyRate > 0
+          ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
+          : '';
       const statusAction = status.className === 'occupied'
         ? { nextStatus: 'available', label: 'Trả phòng' }
         : status.className === 'available'
@@ -212,11 +313,11 @@ function renderRoomList() {
         <article class="room-card ${status.className}">
           <div class="room-card-media">
             <img class="room-card-image" src="${escapeHtml(imagePath)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" onerror="this.onerror=null;this.src='/assets/room-placeholder.svg'">
-            <span class="room-status ${status.className}"><i></i>${escapeHtml(readableStatus)}</span>
             <button type="button" class="room-favorite" data-favorite-room="${escapeHtml(room.id)}" aria-label="Đánh dấu phòng ${escapeHtml(roomCode)} yêu thích" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></button>
           </div>
           <div class="room-card-content">
-            <div class="room-card-heading"><div><h3 class="room-number">${escapeHtml(roomCode)}</h3><p class="room-type">${escapeHtml(roomTypeLabel(roomType))}</p></div><p class="room-price">${escapeHtml(priceLabel)}</p></div>
+            <span class="room-status ${status.className}"><i></i>${escapeHtml(readableStatus)}</span>
+            <div class="room-card-heading"><div><h3 class="room-number">${escapeHtml(roomCode)}</h3><p class="room-type">${escapeHtml(roomTypeLabel(roomType))}</p></div><p class="room-price"${status.className === 'occupied' ? ` data-room-total-id="${escapeHtml(room.id)}" aria-label="Tổng tiền hiện tại phải trả"` : ''}>${escapeHtml(priceLabel)}</p></div>
             <p class="room-description">${escapeHtml(shortDescription)}</p>
             <div class="room-time">
               <div class="room-time-item"><span>Giờ vào</span><strong>${escapeHtml(checkIn)}</strong></div>
@@ -231,6 +332,167 @@ function renderRoomList() {
         </article>
       `;
     }).join('');
+}
+
+const rentRoomDialog = document.querySelector('#rent-room-dialog');
+const rentRoomForm = document.querySelector('#rent-room-form');
+if (rentRoomDialog && rentRoomForm) {
+  const checkInInput = document.querySelector('#rent-check-in');
+  const checkOutInput = document.querySelector('#rent-check-out');
+  const rentalError = document.querySelector('#rent-room-error');
+  const rentalDuration = document.querySelector('#rent-duration');
+  const rentalTotal = document.querySelector('#rent-total');
+  const rentalRoomRate = document.querySelector('#rent-room-rate');
+  let selectedRentalRoom = null;
+  let selectedCheckIn = null;
+
+  function localDateTimeValue(date) {
+    const pad = value => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function formatRentalCurrency(value) {
+    return `${value.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`;
+  }
+
+  function formatDisplayDateTime(date) {
+    const pad = value => String(value).padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function calculateRental() {
+    const checkIn = selectedCheckIn;
+    const checkOut = new Date(checkOutInput.value);
+    const nightlyRate = Number(selectedRentalRoom?.nightlyRate ?? selectedRentalRoom?.nightly_rate);
+    let message = '';
+
+    if (!selectedRentalRoom?.id) message = 'Không tìm thấy phòng cần cho thuê.';
+    else if (!(checkIn instanceof Date) || !Number.isFinite(checkIn.getTime())) message = 'Giờ vào không hợp lệ.';
+    else if (checkIn.getTime() > Date.now()) message = 'Giờ vào không được sau thời gian hiện tại.';
+    else if (!checkOutInput.value) message = 'Vui lòng chọn thời gian trả phòng.';
+    else if (!Number.isFinite(checkOut.getTime())) message = 'Vui lòng chọn thời gian trả phòng hợp lệ.';
+    else if (checkOut.getTime() <= checkIn.getTime()) message = 'Thời gian trả phòng phải sau thời gian vào.';
+    else if (!Number.isFinite(nightlyRate) || nightlyRate <= 0) message = 'Giá phòng không hợp lệ.';
+
+    if (message) {
+      rentalDuration.textContent = '—';
+      rentalTotal.textContent = '—';
+      rentalTotal.removeAttribute('data-exact-total');
+      return { valid: false, message };
+    }
+
+    const durationMinutes = (checkOut.getTime() - checkIn.getTime()) / 60000;
+    if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+      rentalDuration.textContent = '—';
+      rentalTotal.textContent = '—';
+      rentalTotal.removeAttribute('data-exact-total');
+      return { valid: false, message: 'Thời gian thuê phải lớn hơn 0 phút.' };
+    }
+
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    rentalDuration.textContent = `${hours ? `${hours} giờ` : ''}${hours && minutes ? ' ' : ''}${minutes ? `${minutes} phút` : ''}` || '0 phút';
+    const total = nightlyRate * durationMinutes / 1440;
+    rentalRoomRate.textContent = `${formatRentalCurrency(nightlyRate)}/ngày`;
+    const roundedTotal = Math.floor(total * 100 + 0.5) / 100;
+    rentalTotal.textContent = `≈ ${formatRentalCurrency(roundedTotal)}`;
+    rentalTotal.dataset.exactTotal = roundedTotal.toFixed(2);
+    return { valid: true, checkIn, checkOut, durationMinutes, total: roundedTotal };
+  }
+
+  openRentRoom = (room) => {
+    if (!room || roomStatusInfo(room.status).className !== 'available') {
+      showRoomFeedback('Không thể cho thuê phòng đang được sử dụng.', 'error');
+      return;
+    }
+    selectedRentalRoom = room;
+    rentRoomForm.reset();
+    rentalError.textContent = '';
+    showRoomFeedback('');
+    const now = new Date();
+    now.setSeconds(0, 0);
+    selectedCheckIn = now;
+    checkInInput.value = formatDisplayDateTime(now);
+    checkOutInput.min = localDateTimeValue(now);
+    checkOutInput.value = localDateTimeValue(new Date(now.getTime() + 3600000));
+    const image = document.querySelector('#rent-room-image');
+    const imagePath = room.imagePath || room.image_path || '';
+    image.classList.toggle('hidden', !imagePath);
+    image.src = imagePath;
+    image.alt = `Ảnh phòng ${room.roomCode || room.room_code || ''}`;
+    image.onerror = () => {
+      image.onerror = null;
+      image.src = '/assets/room-placeholder.svg';
+    };
+    document.querySelector('#rent-room-code').textContent = room.roomCode || room.room_code || room.roomNumber || '';
+    document.querySelector('#rent-room-type').textContent = roomTypeLabel(room.roomType || room.room_type || '');
+    document.querySelector('#rent-room-description').textContent = room.shortDescription || room.short_description || 'Không có mô tả.';
+    document.querySelector('#rent-room-status').textContent = `Trạng thái hiện tại: ${room.status || 'Phòng trống'}`;
+    rentalRoomRate.textContent = `${formatRentalCurrency(Number(room.nightlyRate ?? room.nightly_rate))}/ngày`;
+    calculateRental();
+    rentRoomDialog.showModal();
+  };
+
+  checkOutInput.addEventListener('input', () => {
+    rentalError.textContent = '';
+    showRoomFeedback('');
+    calculateRental();
+  });
+
+  rentRoomForm.querySelectorAll('[data-close-rent]').forEach(button => {
+    button.addEventListener('click', () => {
+      rentRoomDialog.close();
+      rentalError.textContent = '';
+      showRoomFeedback('');
+    });
+  });
+
+  rentRoomForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    rentalError.textContent = '';
+    const estimate = calculateRental();
+    if (!estimate.valid) {
+      rentalError.textContent = estimate.message;
+      showRoomFeedback(estimate.message, 'error');
+      return;
+    }
+    if (roomStatusInfo(selectedRentalRoom.status).className !== 'available') {
+      rentalError.textContent = 'Không thể cho thuê phòng đang được sử dụng.';
+      showRoomFeedback(rentalError.textContent, 'error');
+      return;
+    }
+
+    const saveButton = rentRoomForm.querySelector('[type="submit"]');
+    saveButton.disabled = true;
+    showRoomFeedback('');
+    try {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(selectedRentalRoom.id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Đã thuê',
+          checkInAt: localDateTimeValue(estimate.checkIn),
+          checkOutAt: localDateTimeValue(estimate.checkOut),
+          durationMinutes: estimate.durationMinutes,
+          rentalTotal: estimate.total.toFixed(2)
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể cho thuê phòng.');
+
+      if (!result.room) throw new Error('Máy chủ không trả về thông tin phòng đã cập nhật.');
+      roomCache = roomCache.map(room => String(room.id) === String(result.room.id) ? result.room : room);
+      document.dispatchEvent(new Event('rooms-updated'));
+      renderRoomList();
+      rentRoomDialog.close();
+      showRoomFeedback(result.message || 'Cho thuê phòng thành công!');
+    } catch (error) {
+      rentalError.textContent = error.message || 'Không thể cho thuê phòng.';
+      showRoomFeedback(rentalError.textContent, 'error');
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
 }
 
 async function loadRoomTypes() {
@@ -441,11 +703,13 @@ if (roomGrid) {
 
     const statusButton = event.target.closest('.room-status-toggle');
     if (statusButton) {
-      const roomMessage = document.querySelector('#room-list-message');
+      if (statusButton.dataset.nextStatus === 'occupied') {
+        const room = roomCache.find(item => String(item.id) === statusButton.dataset.roomId);
+        openRentRoom?.(room);
+        return;
+      }
       statusButton.disabled = true;
-      roomMessage.textContent = '';
-      roomMessage.classList.remove('error');
-      roomMessage.classList.add('success');
+      showRoomFeedback('');
 
       try {
         const response = await fetch(`/api/rooms/${encodeURIComponent(statusButton.dataset.roomId)}/status`, {
@@ -455,13 +719,13 @@ if (roomGrid) {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Không thể cập nhật trạng thái phòng.');
-
-        roomMessage.textContent = result.message;
-        await loadRoomList();
+        if (!result.room) throw new Error('Máy chủ không trả về thông tin phòng đã cập nhật.');
+        roomCache = roomCache.map(room => String(room.id) === String(result.room.id) ? result.room : room);
+        document.dispatchEvent(new Event('rooms-updated'));
+        renderRoomList();
+        showRoomFeedback(result.message || 'Trả phòng thành công!');
       } catch (error) {
-        roomMessage.textContent = error.message;
-        roomMessage.classList.remove('success');
-        roomMessage.classList.add('error');
+        showRoomFeedback(error.message || 'Không thể trả phòng.', 'error');
         statusButton.disabled = false;
       }
       return;
@@ -470,14 +734,16 @@ if (roomGrid) {
     const deleteButton = event.target.closest('.delete-room-button');
     if (!deleteButton) return;
 
-    const roomMessage = document.querySelector('#room-list-message');
     const roomId = deleteButton.dataset.roomId;
     const roomCode = deleteButton.closest('.room-card').querySelector('.room-number').textContent;
+    const room = roomCache.find((item) => String(item.id) === roomId);
+    if (room && roomStatusInfo(room.status).className === 'occupied') {
+      showRoomFeedback('Không thể xóa phòng đang được thuê.', 'error');
+      return;
+    }
+    showRoomFeedback('');
     if (!window.confirm(`Bạn có chắc chắn muốn xóa phòng ${roomCode}?`)) return;
 
-    roomMessage.textContent = '';
-    roomMessage.classList.remove('error');
-    roomMessage.classList.add('success');
     deleteButton.disabled = true;
 
     try {
@@ -485,12 +751,10 @@ if (roomGrid) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể xóa phòng.');
 
-      roomMessage.textContent = result.message || 'Xóa phòng thành công.';
       await loadRoomList();
+      showRoomFeedback('Xóa phòng thành công!');
     } catch (error) {
-      roomMessage.textContent = error.message;
-      roomMessage.classList.remove('success');
-      roomMessage.classList.add('error');
+      showRoomFeedback(error.message || 'Không thể xóa phòng.', 'error');
       deleteButton.disabled = false;
     }
   });
@@ -499,6 +763,7 @@ if (roomGrid) {
 document.querySelector('#rooms-search')?.addEventListener('input', renderRoomList);
 document.querySelector('#rooms-type-filter')?.addEventListener('change', renderRoomList);
 document.querySelector('#rooms-status-filter')?.addEventListener('change', renderRoomList);
+window.setInterval(updateLiveRoomPrices, 60000);
 document.querySelector('#room-type-search')?.addEventListener('input', (event) => {
   const term = (event.target.value || '').trim().toLowerCase();
   document.querySelectorAll('#room-type-list tbody tr').forEach((row) => {
@@ -527,7 +792,6 @@ if (roomForm) {
     add: document.querySelector('#room-add-view'),
     types: document.querySelector('#room-types-view')
   };
-  const roomMessage = document.querySelector('#room-message');
   const roomError = document.querySelector('#room-error');
   const cancelButton = document.querySelector('#cancel-room-form');
   const imageInput = document.querySelector('#room-image');
@@ -566,7 +830,7 @@ if (roomForm) {
     button.addEventListener('click', () => {
       if (button.dataset.roomView === 'add') {
         clearRoomForm();
-        roomMessage.textContent = '';
+        showRoomFeedback('');
       }
       setRoomView(button.dataset.roomView);
     });
@@ -599,7 +863,7 @@ if (roomForm) {
     formKicker.textContent = 'CẬP NHẬT';
     submitLabel.textContent = 'Lưu thay đổi';
     roomError.textContent = '';
-    roomMessage.textContent = '';
+    showRoomFeedback('');
     const imagePath = room.imagePath || '';
     if (imagePreview && imagePath) {
       imagePreview.innerHTML = `<img src="${escapeHtml(imagePath)}" alt="Ảnh hiện tại của phòng"><span>Ảnh hiện tại · chọn ảnh mới để thay thế</span>`;
@@ -613,7 +877,7 @@ if (roomForm) {
 
   cancelButton.addEventListener('click', () => {
     clearRoomForm();
-    roomMessage.textContent = '';
+    showRoomFeedback('');
     setRoomView('list');
   });
 
@@ -637,19 +901,25 @@ if (roomForm) {
 
   roomForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    roomMessage.textContent = '';
     roomError.textContent = '';
 
     if (!roomForm.checkValidity()) {
+      const invalidField = roomForm.querySelector(':invalid');
+      const validationMessage = invalidField?.validationMessage || 'Vui lòng kiểm tra các thông tin bắt buộc.';
       roomForm.reportValidity();
+      roomError.textContent = validationMessage;
+      if (!editingRoomId) showRoomFeedback(validationMessage, 'error');
       return;
     }
     const imageFile = imageInput ? imageInput.files[0] : null;
     if (imageFile && imageFile.size > 5 * 1024 * 1024) {
       roomError.textContent = 'Ảnh phòng không được vượt quá 5MB.';
+      if (!editingRoomId) showRoomFeedback(roomError.textContent, 'error');
       return;
     }
 
+    const wasAddingRoom = !editingRoomId;
+    showRoomFeedback('');
     try {
       const response = await fetch(editingRoomId
         ? `/api/rooms/${encodeURIComponent(editingRoomId)}`
@@ -663,14 +933,19 @@ if (roomForm) {
         throw new Error(result.message || 'Không thể thêm phòng.');
       }
 
-      roomMessage.textContent = result.message;
       clearRoomForm();
       await loadRoomList();
       const listMessage = document.querySelector('#room-list-message');
-      listMessage.textContent = result.message;
+      if (wasAddingRoom) {
+        listMessage.textContent = '';
+        showRoomFeedback('Thêm phòng thành công!');
+      } else {
+        listMessage.textContent = result.message;
+      }
       setRoomView('list');
     } catch (error) {
       roomError.textContent = error.message;
+      if (wasAddingRoom) showRoomFeedback(error.message || 'Không thể thêm phòng.', 'error');
     }
   });
 }

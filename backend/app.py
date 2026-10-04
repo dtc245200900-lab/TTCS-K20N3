@@ -4,7 +4,7 @@ import re
 import sys
 import time
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
 import bcrypt
@@ -93,6 +93,10 @@ def initialize_database():
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 checked_in_at DATETIME NULL,
                 checked_out_at DATETIME NULL,
+                rental_duration_seconds BIGINT UNSIGNED NULL,
+                rental_duration_minutes BIGINT UNSIGNED NULL,
+                rental_days INT NULL,
+                rental_total DECIMAL(14,2) NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_rooms_code (room_code),
                 CHECK (nightly_rate > 0)
@@ -114,6 +118,16 @@ def initialize_database():
             cursor.execute("ALTER TABLE rooms ADD COLUMN checked_in_at DATETIME NULL")
         if "checked_out_at" not in columns:
             cursor.execute("ALTER TABLE rooms ADD COLUMN checked_out_at DATETIME NULL")
+        if "rental_duration_seconds" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN rental_duration_seconds BIGINT UNSIGNED NULL")
+        if "rental_duration_minutes" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN rental_duration_minutes BIGINT UNSIGNED NULL")
+        if "rental_days" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN rental_days INT NULL")
+        if "rental_total" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN rental_total DECIMAL(14,2) NULL")
+        else:
+            cursor.execute("ALTER TABLE rooms MODIFY rental_total DECIMAL(14,2) NULL")
         cursor.execute("ALTER TABLE rooms MODIFY room_type VARCHAR(80) NOT NULL")
         cursor.execute("ALTER TABLE rooms MODIFY status VARCHAR(30) NOT NULL DEFAULT 'Phòng trống'")
         cursor.execute("""
@@ -134,6 +148,25 @@ def initialize_database():
                 UNIQUE KEY uq_room_types_name (name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rental_history (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id BIGINT UNSIGNED NOT NULL,
+                checked_in_at DATETIME NOT NULL,
+                scheduled_check_out_at DATETIME NULL,
+                returned_at DATETIME NOT NULL,
+                duration_minutes BIGINT UNSIGNED NOT NULL,
+                rental_total DECIMAL(14,2) NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_rental_history_room (room_id, created_at),
+                CONSTRAINT fk_rental_history_room FOREIGN KEY (room_id) REFERENCES rooms (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        cursor.execute("SHOW COLUMNS FROM rental_history")
+        rental_history_columns = {row[0]: row[2] for row in cursor.fetchall()}
+        if rental_history_columns.get("scheduled_check_out_at") == "NO":
+            cursor.execute("ALTER TABLE rental_history MODIFY scheduled_check_out_at DATETIME NULL")
         cursor.execute("SHOW COLUMNS FROM room_types")
         room_type_columns = {row[0] for row in cursor.fetchall()}
         if "description" not in room_type_columns:
@@ -186,10 +219,36 @@ def normalized_status(value):
     status = str(value or "").strip().lower()
     aliases = {
         "available": "Phòng trống", "phòng trống": "Phòng trống",
-        "occupied": "Đã thuê", "đã thuê": "Đã thuê", "đã cho thuê": "Đã thuê",
+        "occupied": "Đã thuê", "rented": "Đã thuê", "đã thuê": "Đã thuê",
+        "đã cho thuê": "Đã thuê", "đang thuê": "Đã thuê", "đang cho thuê": "Đã thuê",
         "maintenance": "Bảo trì", "bảo trì": "Bảo trì",
     }
     return aliases.get(status, str(value or "").strip())
+
+
+def current_room_rental_total(room):
+    if normalized_status(room.get("status")) != "Đã thuê":
+        return None
+
+    def value(*keys):
+        return next((room[key] for key in keys if room.get(key) is not None), None)
+
+    try:
+        rate = Decimal(str(value("nightly_rate", "nightlyRate")))
+        checked_in_at = parse_datetime_value(value("checked_in_at", "checkInAt"))
+        scheduled_check_out = parse_datetime_value(value("checked_out_at", "checkOutAt"))
+        if checked_in_at is None or not rate.is_finite() or rate <= 0:
+            return None
+        local_check_in = checked_in_at.astimezone() if checked_in_at.tzinfo else checked_in_at.astimezone()
+        calculation_end = scheduled_check_out or datetime.now().astimezone()
+        local_end = calculation_end.astimezone() if calculation_end.tzinfo else calculation_end.astimezone()
+        elapsed_seconds = (local_end - local_check_in).total_seconds()
+        if elapsed_seconds <= 0:
+            return None
+        elapsed_minutes = max(1, int(elapsed_seconds // 60))
+        return float(max(Decimal("1"), calculate_rental_total(rate, elapsed_minutes)))
+    except (InvalidOperation, TypeError, ValueError, OverflowError):
+        return None
 
 
 def normalize_room(room):
@@ -212,12 +271,35 @@ def normalize_room(room):
         "status": normalized_status(get("status", default="Phòng trống")),
         "checkInAt": iso_value(get("checked_in_at", "checkInAt")),
         "checkOutAt": iso_value(get("checked_out_at", "checkOutAt")),
+        "rentalDurationSeconds": get("rental_duration_seconds", "rentalDurationSeconds"),
+        "rentalDurationMinutes": get("rental_duration_minutes", "rentalDurationMinutes"),
+        "rentalDays": get("rental_days", "rentalDays"),
+        "rentalTotal": float(get("rental_total", "rentalTotal")) if get("rental_total", "rentalTotal") is not None else None,
+        "currentRentalTotal": current_room_rental_total(room),
         "createdAt": iso_value(get("created_at", "createdAt")),
     }
 
 
 def iso_value(value):
     return value.isoformat() if isinstance(value, (datetime, date)) else value
+
+
+def parse_datetime_value(value):
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value)) if value else None
+
+
+def calculate_rental_total(nightly_rate, duration_minutes):
+    try:
+        rate = Decimal(str(nightly_rate))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("Giá phòng không hợp lệ.")
+    if not rate.is_finite() or rate <= 0:
+        raise ValueError("Giá phòng không hợp lệ.")
+    return (rate * Decimal(duration_minutes) / Decimal(1440)).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
 
 
 def norm_name(value):
@@ -270,7 +352,7 @@ def find_room_type(name):
 
 def list_rooms():
     if db_available():
-        rows = query("SELECT * FROM rooms ORDER BY created_at DESC", fetch=True)["rows"]
+        rows = query("SELECT * FROM rooms ORDER BY created_at DESC, id DESC", fetch=True)["rows"]
     else:
         rows = read_json(ROOMS_FILE, [])
     return [normalize_room(room) for room in rows]
@@ -434,7 +516,7 @@ def add_room():
         else:
             rooms = read_json(ROOMS_FILE, [])
             raw = {"id": max((int(item.get("id", 0)) for item in rooms), default=0) + 1, "roomCode": code, "shortDescription": description, "imagePath": image_path, "roomType": room_type, "nightlyRate": rate, "status": "Phòng trống"}
-            rooms.append(raw)
+            rooms.insert(0, raw)
             write_json(ROOMS_FILE, rooms)
             room = normalize_room(raw)
         return jsonify(message="Thêm phòng thành công.", room=room), 201
@@ -484,39 +566,193 @@ def update_room_status(room_id):
     denied = require_auth()
     if denied:
         return denied
-    requested = normalized_status(request_data().get("status"))
+    data = request_data()
+    requested = normalized_status(data.get("status"))
     if requested not in {"Phòng trống", "Đã thuê"}:
         return jsonify(message="Trạng thái phòng không hợp lệ."), 409
+    is_check_in = requested == "Đã thuê"
+    check_in = None
+    check_out = None
+    duration_minutes = None
+    duration_seconds = None
+    if is_check_in:
+        try:
+            check_in = datetime.fromisoformat(str(data.get("checkInAt", "")).strip())
+            check_out = datetime.fromisoformat(str(data.get("checkOutAt", "")).strip())
+        except ValueError:
+            return jsonify(message="Vui lòng nhập giờ vào và thời gian trả phòng hợp lệ."), 400
+        if check_in.tzinfo is not None:
+            check_in = check_in.astimezone().replace(tzinfo=None)
+        if check_out.tzinfo is not None:
+            check_out = check_out.astimezone().replace(tzinfo=None)
+        now = datetime.now()
+        if check_in > now:
+            return jsonify(message="Giờ vào không được sau thời gian hiện tại."), 400
+        if check_out <= check_in:
+            return jsonify(message="Thời gian trả phòng phải sau thời gian vào."), 400
+        duration_seconds = int((check_out - check_in).total_seconds())
+        duration_minutes = duration_seconds // 60
+        if duration_minutes <= 0:
+            return jsonify(message="Thời gian thuê phải lớn hơn 0 phút."), 400
+        if check_out.second or check_out.microsecond or check_in.second or check_in.microsecond:
+            return jsonify(message="Thời gian vào và trả phòng phải chính xác đến phút."), 400
+
     if db_available():
-        rows = query("SELECT id, status FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
-        if not rows:
-            return jsonify(message="Không tìm thấy phòng."), 404
-        current = normalized_status(rows[0]["status"])
-        if current == requested:
-            return jsonify(message="Trạng thái phòng không thay đổi.", room=room_by_id(room_id))
-        if current not in {"Phòng trống", "Đã thuê"}:
-            return jsonify(message="Trạng thái phòng không hợp lệ."), 409
-        if requested == "Đã thuê":
-            query("UPDATE rooms SET status = %s, checked_in_at = CURRENT_TIMESTAMP, checked_out_at = NULL WHERE id = %s", (requested, room_id))
-        else:
-            query("UPDATE rooms SET status = %s, checked_out_at = CURRENT_TIMESTAMP WHERE id = %s", (requested, room_id))
+        connection = None
+        cursor = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT id, status, nightly_rate, checked_in_at, checked_out_at, rental_duration_minutes, rental_duration_seconds, rental_days, rental_total FROM rooms WHERE id = %s LIMIT 1 FOR UPDATE",
+                (room_id,),
+            )
+            room = cursor.fetchone()
+            if not room:
+                connection.rollback()
+                return jsonify(message="Không tìm thấy phòng."), 404
+            current = normalized_status(room["status"])
+            if is_check_in:
+                if current != "Phòng trống":
+                    connection.rollback()
+                    return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
+                try:
+                    rental_total = calculate_rental_total(room["nightly_rate"], duration_minutes)
+                except ValueError as error:
+                    connection.rollback()
+                    return jsonify(message=str(error)), 400
+                cursor.execute(
+                    "UPDATE rooms SET status = %s, checked_in_at = %s, checked_out_at = %s, rental_duration_seconds = %s, rental_duration_minutes = %s, rental_days = NULL, rental_total = %s WHERE id = %s AND LOWER(status) IN (%s, %s)",
+                    (
+                        requested,
+                        check_in,
+                        check_out,
+                        duration_seconds,
+                        duration_minutes,
+                        rental_total,
+                        room_id,
+                        "phòng trống",
+                        "available",
+                    ),
+                )
+                if not cursor.rowcount:
+                    connection.rollback()
+                    return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
+                success_message = "Cho thuê phòng thành công!"
+            else:
+                if current != "Đã thuê":
+                    connection.rollback()
+                    return jsonify(message="Phòng hiện không được cho thuê."), 409
+                try:
+                    checked_in_at = parse_datetime_value(room["checked_in_at"])
+                    scheduled_check_out = parse_datetime_value(room["checked_out_at"])
+                    if not checked_in_at:
+                        raise ValueError
+                    returned_at = datetime.now()
+                    stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
+                    rental_total = calculate_rental_total(room["nightly_rate"], stored_minutes)
+                except (TypeError, ValueError, InvalidOperation):
+                    connection.rollback()
+                    return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
+                cursor.execute(
+                    "INSERT INTO rental_history (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (room_id, checked_in_at, scheduled_check_out, returned_at, stored_minutes, rental_total),
+                )
+                cursor.execute(
+                    "UPDATE rooms SET status = %s, checked_in_at = NULL, checked_out_at = NULL, rental_duration_seconds = NULL, rental_duration_minutes = NULL, rental_days = NULL, rental_total = NULL WHERE id = %s AND status = %s",
+                    (requested, room_id, "Đã thuê"),
+                )
+                if not cursor.rowcount:
+                    connection.rollback()
+                    return jsonify(message="Không thể trả phòng do trạng thái phòng đã thay đổi."), 409
+                success_message = "Trả phòng thành công!"
+            connection.commit()
+            refreshed = room_by_id(room_id)
+            return jsonify(message=success_message, room=refreshed)
+        except mysql.connector.Error as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể cập nhật thông tin thuê phòng."), 500
+        except OSError as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể cập nhật thông tin thuê phòng."), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
     else:
         rooms = read_json(ROOMS_FILE, [])
         room = next((item for item in rooms if int(item.get("id", 0)) == room_id), None)
         if not room:
             return jsonify(message="Không tìm thấy phòng."), 404
         current = normalized_status(room.get("status"))
-        if current == requested:
-            return jsonify(message="Trạng thái phòng không thay đổi.", room=normalize_room(room))
-        if current not in {"Phòng trống", "Đã thuê"}:
-            return jsonify(message="Trạng thái phòng không hợp lệ."), 409
-        room["status"] = requested
-        room["checkInAt" if requested == "Đã thuê" else "checkOutAt"] = datetime.now().astimezone().isoformat()
-        if requested == "Đã thuê":
+        if is_check_in:
+            if current != "Phòng trống":
+                return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
+            try:
+                rental_total = calculate_rental_total(
+                    room.get("nightlyRate", room.get("nightly_rate", 0)), duration_minutes
+                )
+            except ValueError as error:
+                return jsonify(message=str(error)), 400
+            room["checkInAt"] = check_in.isoformat()
+            room["checkOutAt"] = check_out.isoformat()
+            room["rentalDurationSeconds"] = duration_seconds
+            room["rentalDurationMinutes"] = duration_minutes
+            room["rentalDays"] = None
+            room["rentalTotal"] = float(rental_total)
+            room["checked_in_at"] = check_in.isoformat()
+            room["checked_out_at"] = check_out.isoformat()
+            room["rental_duration_seconds"] = duration_seconds
+            room["rental_duration_minutes"] = duration_minutes
+            room["rental_days"] = None
+            room["rental_total"] = float(rental_total)
+            success_message = "Cho thuê phòng thành công!"
+        else:
+            if current != "Đã thuê":
+                return jsonify(message="Phòng hiện không được cho thuê."), 409
+            try:
+                checked_in_at = parse_datetime_value(room.get("checkInAt", room.get("checked_in_at")))
+                scheduled_check_out = parse_datetime_value(room.get("checkOutAt", room.get("checked_out_at")))
+                if not checked_in_at:
+                    raise ValueError
+                returned_at = datetime.now()
+                stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
+                rental_total = calculate_rental_total(
+                    room.get("nightlyRate", room.get("nightly_rate", 0)), stored_minutes
+                )
+            except (TypeError, ValueError, InvalidOperation):
+                return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
+            history = room.setdefault("rentalHistory", [])
+            history.append({
+                "checkedInAt": checked_in_at.isoformat(timespec="minutes"),
+                "scheduledCheckOutAt": scheduled_check_out.isoformat(timespec="minutes") if scheduled_check_out else None,
+                "returnedAt": returned_at.isoformat(timespec="minutes"),
+                "durationMinutes": int(stored_minutes),
+                "rentalTotal": float(rental_total),
+            })
+            room["checkInAt"] = None
             room["checkOutAt"] = None
-        write_json(ROOMS_FILE, rooms)
-        return jsonify(message="Cập nhật trạng thái phòng thành công.", room=normalize_room(room))
-    return jsonify(message="Cập nhật trạng thái phòng thành công.", room=room_by_id(room_id))
+            room["checked_in_at"] = None
+            room["checked_out_at"] = None
+            room["rentalDurationSeconds"] = None
+            room["rentalDurationMinutes"] = None
+            room["rentalDays"] = None
+            room["rentalTotal"] = None
+            room["rental_duration_seconds"] = None
+            room["rental_duration_minutes"] = None
+            room["rental_days"] = None
+            room["rental_total"] = None
+            success_message = "Trả phòng thành công!"
+        room["status"] = requested
+        try:
+            write_json(ROOMS_FILE, rooms)
+        except OSError as error:
+            return jsonify(message=str(error) or "Không thể lưu thông tin thuê phòng."), 500
+        return jsonify(message=success_message, room=normalize_room(room))
+    return jsonify(message=success_message, room=room_by_id(room_id))
 
 
 @app.delete("/api/rooms/<int:room_id>")
