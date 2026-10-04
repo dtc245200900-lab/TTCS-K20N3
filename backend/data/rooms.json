@@ -5,8 +5,9 @@
     "shortDescription": "view đẹp",
     "imagePath": "/uploads/1790675187245-anh-phong-khach-san-dep-11.jpg",
     "roomType": "Đôi",
-    "nightlyRate": 20000000,
+    "nightlyRate": 20000001.0,
     "status": "Đã thuê",
+<<<<<<< HEAD
     "checkInAt": "2026-10-04T19:55:00",
     "checkOutAt": "2026-10-05T12:59:00",
     "rentalDurationSeconds": 61440,
@@ -19,13 +20,28 @@
     "rental_duration_minutes": 1024,
     "rental_days": null,
     "rental_total": 14222222.22
+=======
+    "checkInAt": "2026-10-02T14:29:51.413698+07:00",
+    "checkOutAt": null
+  },
+  {
+    "id": 6,
+    "roomCode": "p105",
+    "shortDescription": "phòng thay đổi phù hợp với gia đình",
+    "imagePath": "/uploads/1790675878507-phong-khach-san-tt-studio.jpg",
+    "roomType": "phòng gia đình",
+    "nightlyRate": 500005.0,
+    "status": "Phòng trống",
+    "checkInAt": "2026-09-29T10:07:17.525Z",
+    "checkOutAt": "2026-09-29T10:07:20.832Z"
+>>>>>>> 6813630 (Cập nhật code)
   },
   {
     "id": 7,
     "roomCode": "P106",
     "shortDescription": "phòng đẹp, đủ tiện nghi",
     "imagePath": "",
-    "roomType": "Đơn",
+    "roomType": "đơn",
     "nightlyRate": 249959,
     "status": "Phòng trống",
     "checkInAt": "2026-10-04T11:39:07.474099+07:00",
@@ -77,7 +93,7 @@
     "roomCode": "P109",
     "shortDescription": "Sạch, đẹp",
     "imagePath": "/uploads/1790924589466-OIP_1.jpg",
-    "roomType": "Đơn",
+    "roomType": "đơn",
     "nightlyRate": 250000.0,
     "status": "Phòng trống",
     "checkInAt": "2026-10-04T11:50:20.740322+07:00",
@@ -147,7 +163,7 @@
     "roomCode": "P204",
     "shortDescription": "đẹp",
     "imagePath": "/uploads/1790925159155-OIP_1.jpg",
-    "roomType": "Đơn",
+    "roomType": "đơn",
     "nightlyRate": 850000.0,
     "status": "Phòng trống"
   },
@@ -156,7 +172,7 @@
     "roomCode": "P204",
     "shortDescription": "đẹp",
     "imagePath": "/uploads/1790925162281-OIP_1.jpg",
-    "roomType": "Đơn",
+    "roomType": "đơn",
     "nightlyRate": 850000.0,
     "status": "Phòng trống"
   },
@@ -180,6 +196,7 @@
   },
   {
     "id": 21,
+<<<<<<< HEAD
     "roomCode": "207",
     "shortDescription": "fcc",
     "imagePath": "/uploads/1790928343000-OIP.jpg",
@@ -203,6 +220,13 @@
     "imagePath": "/uploads/1790931024413-OIP_2.jpg",
     "roomType": "Đơn",
     "nightlyRate": 777777.0,
+=======
+    "roomCode": "P309",
+    "shortDescription": "phong đối diện với biển",
+    "imagePath": "/uploads/1790926695201-Genshin_Impact_Screenshot_2026.09.16_-_09.51.06.63.png",
+    "roomType": "Đôi",
+    "nightlyRate": 999998.0,
+>>>>>>> 6813630 (Cập nhật code)
     "status": "Phòng trống"
   }
 ]

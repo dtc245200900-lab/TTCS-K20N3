@@ -148,8 +148,46 @@ if (form) {
   const errorMessage = document.querySelector('#error-message');
   const successMessage = document.querySelector('#success-message');
   const submitButton = document.querySelector('#submit-button');
+  const buttonLabel = submitButton.querySelector('.button-label');
   const passwordToggle = document.querySelector('#password-toggle');
   const passwordInput = document.querySelector('#password');
+  const loginTab = document.querySelector('#login-tab');
+  const registerTab = document.querySelector('#register-tab');
+  const fullNameGroup = document.querySelector('#full-name-group');
+  const fullNameInput = document.querySelector('#full-name');
+  const confirmPasswordGroup = document.querySelector('#confirm-password-group');
+  const confirmPasswordInput = document.querySelector('#confirm-password');
+  const rememberRow = document.querySelector('.field-row');
+  const rememberInput = document.querySelector('#remember-me');
+  let currentMode = 'login';
+
+  const setMode = (mode, clearMessages = true) => {
+    currentMode = mode;
+    const isRegister = mode === 'register';
+
+    fullNameGroup.classList.toggle('hidden', !isRegister);
+    confirmPasswordGroup.classList.toggle('hidden', !isRegister);
+    rememberRow.classList.toggle('hidden', isRegister);
+
+    fullNameInput.required = isRegister;
+    confirmPasswordInput.required = isRegister;
+    document.querySelector('#auth-title').textContent = isRegister ? 'Tạo tài khoản' : 'Đăng nhập';
+    document.querySelector('#auth-subtitle').textContent = isRegister
+      ? 'Tạo tài khoản mới để quản lý khách sạn'
+      : 'Chào mừng bạn đến với hệ thống quản lý khách sạn';
+    buttonLabel.textContent = isRegister ? 'Đăng ký' : 'Đăng nhập';
+
+    loginTab.classList.toggle('active', !isRegister);
+    registerTab.classList.toggle('active', isRegister);
+    loginTab.setAttribute('aria-selected', String(!isRegister));
+    registerTab.setAttribute('aria-selected', String(isRegister));
+
+    passwordInput.setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
+    if (clearMessages) {
+      errorMessage.textContent = '';
+      successMessage.textContent = '';
+    }
+  };
 
   const showSupport = () => {
     errorMessage.textContent = '';
@@ -157,6 +195,9 @@ if (form) {
   };
   document.querySelector('#forgot-password').addEventListener('click', showSupport);
   document.querySelector('#contact-admin').addEventListener('click', showSupport);
+
+  loginTab.addEventListener('click', () => setMode('login'));
+  registerTab.addEventListener('click', () => setMode('register'));
 
   passwordToggle.addEventListener('click', () => {
     const showing = passwordInput.type === 'text';
@@ -172,22 +213,43 @@ if (form) {
     successMessage.textContent = '';
     submitButton.disabled = true;
     form.setAttribute('aria-busy', 'true');
+
     try {
-      const response = await fetch('/api/login', {
+      const isRegister = currentMode === 'register';
+      const payload = isRegister
+        ? {
+            fullName: fullNameInput.value.trim(),
+            email: document.querySelector('#email').value.trim(),
+            password: passwordInput.value,
+            confirmPassword: confirmPasswordInput.value
+          }
+        : {
+            email: document.querySelector('#email').value.trim(),
+            password: passwordInput.value,
+            rememberMe: rememberInput.checked
+          };
+
+      const response = await fetch(isRegister ? '/api/register' : '/api/login', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: document.querySelector('#email').value.trim(),
-          password: passwordInput.value,
-          rememberMe: document.querySelector('#remember-me').checked
-        })
+        body: JSON.stringify(payload)
       });
       const result = await response.json();
+
       if (!response.ok) {
         errorMessage.textContent = result.message || 'Không thể xử lý yêu cầu.';
         return;
       }
+
+      if (isRegister) {
+        form.reset();
+        setMode('login', false);
+        successMessage.textContent = result.message || 'Tạo tài khoản thành công.';
+        document.querySelector('#email').value = payload.email;
+        return;
+      }
+
       window.location.assign('/home');
     } catch {
       errorMessage.textContent = 'Không thể kết nối đến máy chủ.';
@@ -196,6 +258,8 @@ if (form) {
       form.removeAttribute('aria-busy');
     }
   });
+
+  setMode('login');
 }
 
 const logoutButton = document.querySelector('#logout-button');

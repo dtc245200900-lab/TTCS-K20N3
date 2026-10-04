@@ -33,9 +33,13 @@
 .login-page .eye-slash { display: none; }
 .login-page .password-toggle[aria-pressed="true"] .eye-slash { display: block; }
 .login-page .field-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.login-page .field-row.hidden { display: none; }
 .login-page .remember-me { display: flex; align-items: center; gap: 10px; margin: 0; color: #665666; font-size: 15px; font-weight: 400; cursor: pointer; }
 .login-page .remember-me input { width: 20px; height: 20px; margin: 0; padding: 0; flex: 0 0 20px; accent-color: var(--wine); }
 .login-page .helper-link, .login-page .support-button { margin: 0; padding: 0; border: 0; background: transparent; color: #a12655; font-size: 15px; font-weight: 400; text-decoration: none; }
+.login-page .auth-mode-switch { display: flex; gap: 10px; margin-top: 22px; padding: 6px; border: 1px solid #f0e9e7; border-radius: 999px; background: #fffafc; }
+.login-page .mode-tab { flex: 1 1 0; min-height: 42px; padding: 8px 12px; border: 0; border-radius: 999px; background: transparent; color: #684f5d; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+.login-page .mode-tab.active { background: var(--wine); color: #fff; box-shadow: 0 8px 18px rgba(120, 29, 67, 0.18); }
 .login-page .helper-link:hover, .login-page .support-button:hover { text-decoration: underline; }
 .login-page .error, .login-page .success { margin: 12px 0 0; font-size: 14px; line-height: 1.5; }
 .login-page .error { color: #ac2447; }
