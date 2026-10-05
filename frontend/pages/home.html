@@ -84,6 +84,21 @@
                 /></svg></span
             >Danh sách phòng
           </button>
+          <button type="button" class="room-nav-link" data-room-view="checkout">
+            <span class="nav-icon" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10 17l5-5-5-5M15 12H3" />
+                <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /></svg></span
+            >Trả phòng <span id="checkout-nav-count" class="nav-count">0</span>
+          </button>
           <button type="button" class="room-nav-link" data-room-view="types">
             <span class="nav-icon" aria-hidden="true"
               ><svg
@@ -369,6 +384,19 @@
               </div>
             </article>
           </div>
+        </section>
+        <section id="room-checkout-view" class="room-view hidden-view">
+          <div class="view-heading room-view-heading rooms-header">
+            <div>
+              <p class="eyebrow">QUẢN LÝ PHÒNG</p>
+              <h2>Trả phòng</h2>
+              <p class="muted">
+                Danh sách phòng đang có khách. Chọn trả phòng để cập nhật trạng thái phòng.
+              </p>
+            </div>
+          </div>
+          <p id="checkout-room-count" class="room-count" aria-live="polite"></p>
+          <div id="checkout-room-grid" class="room-grid"></div>
         </section>
         <section id="room-list-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">

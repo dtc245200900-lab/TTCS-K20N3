@@ -26,6 +26,8 @@
 .dashboard-page .room-nav-link { min-height: 43px; padding: 10px 12px; border-radius: 10px; color: #5f3648; font-size: 15px; gap: 12px; transition: all .2s ease; box-shadow: inset 0 0 0 1px transparent; }
 .dashboard-page .room-nav-link.active, .dashboard-page .room-nav-link:hover { color: #fff; background: linear-gradient(135deg, #d43473, #bc2f5f); box-shadow: 0 8px 16px rgba(188, 47, 95, 0.18); }
 .dashboard-page .room-nav-link.active { font-weight: 700; }
+.dashboard-page .nav-count { display: inline-grid; place-items: center; min-width: 21px; height: 21px; margin-left: auto; padding: 0 6px; border-radius: 999px; color: #a82b54; background: #fbe6ee; font-size: 11px; font-weight: 700; }
+.dashboard-page .room-nav-link.active .nav-count { color: #fff; background: rgba(255,255,255,.2); }
 .dashboard-page .nav-icon { color: currentColor; font-size: 22px; width: 24px; }
 .dashboard-page .sidebar-scenery { flex: 1; min-height: 180px; margin: auto -12px -18px; background: linear-gradient(#fffdfc 0%, transparent 35%), url('/assets/sakura-login-background.png') 0 bottom / auto 100% no-repeat; opacity: .87; }
 .dashboard-page .dashboard { margin-left: 210px; min-height: calc(100vh - 72px); padding: 0 20px 24px; background: transparent; }
@@ -704,6 +706,10 @@
 .dashboard-page .map-room-type { margin: 0; color: #756572; font-size: 10px; }
 .dashboard-page .map-room-description { display: -webkit-box; min-height: 28px; margin: 2px 0 0; overflow: hidden; color: #756572; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .dashboard-page .map-room-price { margin: 2px 0 0; color: #bc2e60; font-size: 11px; font-weight: 700; }
+.dashboard-page .map-room-open { display: block; width: 100%; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.dashboard-page .map-room-checkout { display: block; width: calc(100% - 16px); margin: 0 8px 8px; padding: 6px 8px; border: 1px solid #f0c9d5; border-radius: 5px; color: #a82b54; background: #fff4f7; font-size: 11px; font-weight: 700; cursor: pointer; }
+.dashboard-page .map-room-checkout:hover:not(:disabled) { color: #fff; background: #a82b54; }
+.dashboard-page .map-room-checkout:disabled { cursor: wait; opacity: .6; }
 @media (max-width: 850px) {
   .dashboard-page .overview-panels { grid-template-columns: 1fr; }
   .dashboard-page .room-map-card { grid-column: auto; }

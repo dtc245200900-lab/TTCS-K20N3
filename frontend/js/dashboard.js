@@ -31,7 +31,10 @@
         ? currentTotal === null ? '—' : currentTotal.toLocaleString('vi-VN') + 'đ'
         : Number.isFinite(nightlyRate) && nightlyRate > 0 ? nightlyRate.toLocaleString('vi-VN') + 'đ / đêm' : '';
       const totalAttribute = status === 'occupied' ? ' data-map-total-id="' + escapeHtml(room.id) + '"' : '';
-      return '<button type="button" class="map-room ' + status + '" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(roomCode) + ' — ' + escapeHtml(label) + '"><span class="map-room-media"><img src="' + escapeHtml(imagePath) + '" alt="Ảnh phòng ' + escapeHtml(roomCode) + '" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="map-room-status"><i></i>' + escapeHtml(label) + '</span></span><span class="map-room-details"><strong>' + escapeHtml(roomCode) + '</strong><span class="map-room-type">' + escapeHtml(roomType) + '</span><span class="map-room-description">' + escapeHtml(description) + '</span><span class="map-room-price"' + totalAttribute + '>' + escapeHtml(price) + '</span></span></button>';
+      const checkoutAction = status === 'occupied'
+        ? '<button type="button" class="map-room-checkout" data-checkout-room="' + escapeHtml(room.id) + '">Trả phòng</button>'
+        : '';
+      return '<article class="map-room ' + status + '"><button type="button" class="map-room-open" data-map-room="' + escapeHtml(room.id) + '" aria-label="Cập nhật phòng ' + escapeHtml(roomCode) + ' — ' + escapeHtml(label) + '"><span class="map-room-media"><img src="' + escapeHtml(imagePath) + '" alt="Ảnh phòng ' + escapeHtml(roomCode) + '" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="map-room-status"><i></i>' + escapeHtml(label) + '</span></span><span class="map-room-details"><strong>' + escapeHtml(roomCode) + '</strong><span class="map-room-type">' + escapeHtml(roomType) + '</span><span class="map-room-description">' + escapeHtml(description) + '</span><span class="map-room-price"' + totalAttribute + '>' + escapeHtml(price) + '</span></span></button>' + checkoutAction + '</article>';
     }).join('') : '<p class="map-empty">Không có phòng phù hợp.</p>';
   }
 

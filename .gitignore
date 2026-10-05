@@ -1,7 +1,12 @@
 .venv/
 __pycache__/
 *.py[cod]
+node_modules/
+backend/uploads/
 users.json
 .env
 backend/.env
 backend/data/users.json
+backend/data/rooms.json
+backend/data/room-types.json
+cookies.txt
