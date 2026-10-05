@@ -781,14 +781,18 @@ def update_room_status(room_id):
         if check_out.second or check_out.microsecond or check_in.second or check_in.microsecond:
             return jsonify(message="Thời gian vào và trả phòng phải chính xác đến phút."), 400
 
-    if db_available():
-        connection = None
+    connection = None
+    try:
+        connection = db_connection()
+    except mysql.connector.Error:
+        pass
+
+    if connection:
         cursor = None
         try:
-            connection = db_connection()
             cursor = connection.cursor(dictionary=True)
             cursor.execute(
-                "SELECT id, status, nightly_rate, checked_in_at, checked_out_at, rental_duration_minutes, rental_duration_seconds, rental_days, rental_total FROM rooms WHERE id = %s LIMIT 1 FOR UPDATE",
+                "SELECT * FROM rooms WHERE id = %s LIMIT 1 FOR UPDATE",
                 (room_id,),
             )
             room = cursor.fetchone()
@@ -823,6 +827,15 @@ def update_room_status(room_id):
                     connection.rollback()
                     return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
                 success_message = "Cho thuê phòng thành công!"
+                room.update({
+                    "status": requested,
+                    "checked_in_at": check_in,
+                    "checked_out_at": check_out,
+                    "rental_duration_seconds": duration_seconds,
+                    "rental_duration_minutes": duration_minutes,
+                    "rental_days": None,
+                    "rental_total": rental_total,
+                })
             else:
                 if current != "Đã thuê":
                     connection.rollback()
@@ -850,9 +863,17 @@ def update_room_status(room_id):
                     connection.rollback()
                     return jsonify(message="Không thể trả phòng do trạng thái phòng đã thay đổi."), 409
                 success_message = "Trả phòng thành công!"
+                room.update({
+                    "status": requested,
+                    "checked_in_at": None,
+                    "checked_out_at": None,
+                    "rental_duration_seconds": None,
+                    "rental_duration_minutes": None,
+                    "rental_days": None,
+                    "rental_total": None,
+                })
             connection.commit()
-            refreshed = room_by_id(room_id)
-            return jsonify(message=success_message, room=refreshed)
+            return jsonify(message=success_message, room=normalize_room(room))
         except mysql.connector.Error as error:
             if connection:
                 connection.rollback()

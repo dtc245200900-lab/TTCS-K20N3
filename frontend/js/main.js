@@ -355,9 +355,76 @@ async function returnRoom(roomId, button) {
     return;
   }
 
-  button.disabled = true;
+  const dialog = document.querySelector('#checkout-room-dialog');
+  if (!dialog) return;
+  const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
+  const image = dialog.querySelector('#checkout-room-image');
+  const checkIn = roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at');
+  const checkOut = roomRentalField(room, 'checkOutAt', 'checkOutTime', 'check_out_time', 'checkout_time', 'checked_out_at');
+  const formatDateTime = value => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }).format(date);
+  };
+  image.src = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
+  image.alt = `Ảnh phòng ${roomCode}`;
+  image.onerror = () => {
+    image.onerror = null;
+    image.src = '/assets/room-placeholder.svg';
+  };
+  dialog.querySelector('#checkout-room-code').textContent = roomCode;
+  dialog.querySelector('#checkout-room-type').textContent = roomTypeLabel(room.roomType || room.room_type || '');
+  dialog.querySelector('#checkout-room-check-in').textContent = formatDateTime(checkIn);
+  dialog.querySelector('#checkout-room-check-out').textContent = formatDateTime(checkOut);
+  const total = roomRentalPrice(room);
+  dialog.querySelector('#checkout-room-total').textContent = total === null
+    ? '—'
+    : `${Number(total).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`;
+  dialog.querySelector('#checkout-room-error').textContent = '';
+  dialog.querySelector('[data-checkout-submit]').disabled = false;
+  dialog.querySelectorAll('[data-checkout-step]').forEach(step => {
+    step.hidden = step.dataset.checkoutStep !== 'confirm';
+  });
+  dialog.classList.remove('is-success');
+  dialog.dataset.step = 'confirm';
+  dialog.dataset.roomId = roomId;
   showRoomFeedback('');
+  dialog.showModal();
+}
 
+const checkoutRoomDialog = document.querySelector('#checkout-room-dialog');
+if (checkoutRoomDialog) {
+  const checkoutSubmit = checkoutRoomDialog.querySelector('[data-checkout-submit]');
+  const setCheckoutStep = stepName => {
+    checkoutRoomDialog.classList.toggle('is-success', stepName === 'success');
+    checkoutRoomDialog.querySelectorAll('[data-checkout-step]').forEach(step => {
+      step.hidden = step.dataset.checkoutStep !== stepName;
+    });
+  };
+
+  checkoutRoomDialog.querySelectorAll('[data-close-checkout]').forEach(button => {
+    button.addEventListener('click', () => checkoutRoomDialog.close());
+  });
+
+  checkoutRoomDialog.addEventListener('cancel', event => {
+    if (checkoutRoomDialog.dataset.step === 'loading') event.preventDefault();
+  });
+
+  checkoutRoomDialog.querySelector('[data-checkout-submit]').addEventListener('click', async () => {
+    const roomId = checkoutRoomDialog.dataset.roomId;
+    const room = roomCache.find(item => String(item.id) === String(roomId));
+    if (!room || roomStatusInfo(room.status).className !== 'occupied') {
+      checkoutRoomDialog.querySelector('#checkout-room-error').textContent = 'Phòng hiện không được cho thuê.';
+      return;
+    }
+
+    checkoutRoomDialog.dataset.step = 'loading';
+    checkoutRoomDialog.querySelector('#checkout-room-error').textContent = '';
+    checkoutSubmit.disabled = true;
+    checkoutRoomDialog.querySelectorAll('[data-close-checkout]').forEach(button => { button.disabled = true; });
+    setCheckoutStep('loading');
   try {
     const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/status`, {
       method: 'PATCH',
@@ -371,11 +438,23 @@ async function returnRoom(roomId, button) {
     roomCache = roomCache.map(item => String(item.id) === String(result.room.id) ? result.room : item);
     document.dispatchEvent(new Event('rooms-updated'));
     renderRoomList();
-    showRoomFeedback(result.message || 'Trả phòng thành công!');
+    checkoutRoomDialog.querySelector('#checkout-success-message').textContent = `Phòng ${room.roomCode || room.room_code || room.roomNumber || ''} đã được cập nhật trạng thái thành Phòng trống.`;
+    checkoutRoomDialog.dataset.step = 'success';
+    setCheckoutStep('success');
   } catch (error) {
-    showRoomFeedback(error.message || 'Không thể trả phòng.', 'error');
-    if (button.isConnected) button.disabled = false;
-  }
+      checkoutRoomDialog.dataset.step = 'confirm';
+      checkoutRoomDialog.querySelector('#checkout-room-error').textContent = error.message || 'Không thể trả phòng.';
+      setCheckoutStep('confirm');
+    } finally {
+      checkoutSubmit.disabled = false;
+      checkoutRoomDialog.querySelectorAll('[data-close-checkout]').forEach(button => { button.disabled = false; });
+    }
+  });
+
+  checkoutRoomDialog.querySelector('[data-checkout-view-list]').addEventListener('click', () => {
+    checkoutRoomDialog.close();
+    document.querySelector('.room-navigation [data-room-view="list"]')?.click();
+  });
 }
 
 function renderRoomList() {
