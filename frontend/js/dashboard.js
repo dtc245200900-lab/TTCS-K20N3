@@ -78,6 +78,20 @@
   });
   search.addEventListener('input', renderMap);
   statusFilter.addEventListener('change', renderMap);
+  // BL-12: Lọc phòng theo trạng thái khi bấm vào số lượng
+[
+  ['stat-occupied', 'occupied'],
+  ['stat-available', 'available'],
+  ['stat-other', 'other']
+].forEach(([id, status]) => {
+  const stat = document.getElementById(id);
+  if (!stat) return;
+
+  stat.addEventListener('click', () => {
+    statusFilter.value = status;
+    renderMap();
+  });
+})
   document.querySelector('#overview-room-map').addEventListener('click', event => {
     const button = event.target.closest('[data-map-room]');
     if (!button) return;
