@@ -468,6 +468,7 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
   const search = document.querySelector('#rooms-search');
   const typeFilter = document.querySelector('#rooms-type-filter');
   const statusFilter = document.querySelector('#rooms-status-filter');
+  const bookingViewActive = document.querySelector('.room-navigation [data-room-view="booking"]')?.classList.contains('active');
   const normalized = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
   const roomTypeNames = [...new Set([
     ...roomTypesCache.map(type => type.name),
@@ -531,11 +532,13 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
         : Number.isFinite(nightlyRate) && nightlyRate > 0
           ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
           : '';
-      const statusAction = status.className === 'occupied'
-        ? { nextStatus: 'available', label: 'Trả phòng' }
-        : status.className === 'available'
-          ? { nextStatus: 'occupied', label: 'Cho thuê' }
-          : null;
+      const statusAction = occupiedOnly || bookingViewActive
+        ? status.className === 'occupied'
+          ? { nextStatus: 'available', label: 'Trả phòng' }
+          : status.className === 'available'
+            ? { nextStatus: 'occupied', label: 'Đặt phòng' }
+            : null
+        : null;
       const readableStatus = status.className === 'occupied' ? 'Đang cho thuê' : status.className === 'available' ? 'Phòng trống' : status.label;
 
       return `
@@ -714,7 +717,7 @@ if (rentRoomDialog && rentRoomForm) {
       document.dispatchEvent(new Event('rooms-updated'));
       renderRoomList();
       rentRoomDialog.close();
-      showRoomFeedback(result.message || 'Cho thuê phòng thành công!');
+      showRoomFeedback('Đặt phòng thành công!');
     } catch (error) {
       rentalError.textContent = error.message || 'Không thể cho thuê phòng.';
       showRoomFeedback(rentalError.textContent, 'error');
@@ -1030,13 +1033,19 @@ if (roomForm) {
   let editingRoomId = null;
 
   const setRoomView = (viewName) => {
-    Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== viewName));
+    const contentViewName = viewName === 'booking' ? 'list' : viewName;
+    Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== contentViewName));
+    roomViews.list.classList.toggle('booking-view', viewName === 'booking');
     navigationButtons.forEach((button) => button.classList.toggle('active', button.dataset.roomView === viewName));
     document.querySelectorAll('.room-navigation [data-room-view]').forEach((button) => {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
+    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
+    document.querySelector('#room-view-title').textContent = viewName === 'booking' ? 'Đặt phòng' : 'Danh sách phòng';
+    document.querySelector('#room-view-description').textContent = viewName === 'booking'
+      ? 'Chọn phòng trống để tạo đặt phòng.'
+      : 'Theo dõi trạng thái và thời gian sử dụng của các phòng.';
     if (viewName === 'add') document.querySelector('#room-code').focus();
   };
 
@@ -1052,7 +1061,11 @@ if (roomForm) {
         clearRoomForm();
         showRoomFeedback('');
       }
+      if (button.dataset.roomView === 'booking') {
+        document.querySelector('#rooms-status-filter').value = 'available';
+      }
       setRoomView(button.dataset.roomView);
+      if (['booking', 'list'].includes(button.dataset.roomView)) renderRoomList();
     });
   });
 
