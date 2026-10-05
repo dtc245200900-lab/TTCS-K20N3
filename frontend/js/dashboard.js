@@ -82,7 +82,7 @@
 [
   ['stat-occupied', 'occupied'],
   ['stat-available', 'available'],
-  ['stat-other', 'other']
+  ['stat-other', 'maintenance']
 ].forEach(([id, status]) => {
   const stat = document.getElementById(id);
   if (!stat) return;
