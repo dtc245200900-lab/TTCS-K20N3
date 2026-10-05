@@ -13,24 +13,46 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, request, send_from_directory, session
 from werkzeug.utils import secure_filename
 
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_DIR / "frontend"
 DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = BASE_DIR / "uploads"
+
 ROOMS_FILE = DATA_DIR / "rooms.json"
 ROOM_TYPES_FILE = DATA_DIR / "room-types.json"
 USERS_FILE = DATA_DIR / "users.json"
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ROOM_STATUSES = {"Phòng trống", "Đã thuê", "Bảo trì"}
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif"
+}
+
+ROOM_STATUSES = {
+    "Phòng trống",
+    "Đã thuê",
+    "Bảo trì"
+}
 
 load_dotenv(BASE_DIR / ".env")
 
+
 app = Flask(__name__, static_folder=None)
+
 secret = os.getenv("SESSION_SECRET")
+
 if not secret and os.getenv("NODE_ENV") == "production":
-    raise RuntimeError("SESSION_SECRET is required when NODE_ENV=production.")
-app.secret_key = secret or "local-only-session-secret-change-before-production"
+    raise RuntimeError(
+        "SESSION_SECRET is required when NODE_ENV=production."
+    )
+
+app.secret_key = (
+    secret or "local-only-session-secret-change-before-production"
+)
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -38,6 +60,11 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=8 * 60 * 60,
     MAX_CONTENT_LENGTH=5 * 1024 * 1024,
 )
+
+
+# =========================================================
+# DATABASE
+# =========================================================
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
@@ -66,12 +93,22 @@ def db_available():
 def query(sql, params=(), fetch=False):
     connection = db_connection()
     cursor = connection.cursor(dictionary=True)
+
     try:
         cursor.execute(sql, params)
+
         rows = cursor.fetchall() if fetch else None
-        result = {"rows": rows, "lastrowid": cursor.lastrowid, "rowcount": cursor.rowcount}
+
+        result = {
+            "rows": rows,
+            "lastrowid": cursor.lastrowid,
+            "rowcount": cursor.rowcount
+        }
+
         connection.commit()
+
         return result
+
     finally:
         cursor.close()
         connection.close()
@@ -81,6 +118,7 @@ def initialize_database():
     try:
         connection = db_connection()
         cursor = connection.cursor()
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rooms (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -89,215 +127,684 @@ def initialize_database():
                 image_path VARCHAR(255) NULL,
                 room_type VARCHAR(80) NOT NULL,
                 nightly_rate DECIMAL(12,2) NOT NULL,
-                status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
+                status ENUM(
+                    'Phòng trống',
+                    'Đã thuê',
+                    'Bảo trì'
+                ) NOT NULL DEFAULT 'Phòng trống',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 checked_in_at DATETIME NULL,
                 checked_out_at DATETIME NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_rooms_code (room_code),
                 CHECK (nightly_rate > 0)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ) ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_unicode_ci
         """)
+
         cursor.execute("SHOW COLUMNS FROM rooms")
-        columns = {row[0] for row in cursor.fetchall()}
+
+        columns = {
+            row[0]
+            for row in cursor.fetchall()
+        }
+
         if "room_code" not in columns:
-            cursor.execute("ALTER TABLE rooms ADD COLUMN room_code VARCHAR(30) NULL AFTER id")
-            cursor.execute("ALTER TABLE rooms ADD COLUMN short_description TEXT NULL AFTER room_code")
-            cursor.execute("ALTER TABLE rooms ADD COLUMN image_path VARCHAR(255) NULL AFTER short_description")
-            cursor.execute("ALTER TABLE rooms ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN room_code VARCHAR(30) NULL AFTER id"
+            )
+
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN short_description TEXT NULL AFTER room_code"
+            )
+
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN image_path VARCHAR(255) NULL "
+                "AFTER short_description"
+            )
+
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN created_at TIMESTAMP "
+                "NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            )
+
             if "room_number" in columns:
-                cursor.execute("UPDATE rooms SET room_code = room_number WHERE room_code IS NULL")
-            cursor.execute("UPDATE rooms SET room_code = CONCAT('ROOM-', id) WHERE room_code IS NULL OR room_code = ''")
-            cursor.execute("ALTER TABLE rooms MODIFY room_code VARCHAR(30) NOT NULL")
-            cursor.execute("ALTER TABLE rooms ADD UNIQUE KEY uq_rooms_code (room_code)")
+                cursor.execute(
+                    "UPDATE rooms "
+                    "SET room_code = room_number "
+                    "WHERE room_code IS NULL"
+                )
+
+            cursor.execute(
+                "UPDATE rooms "
+                "SET room_code = CONCAT('ROOM-', id) "
+                "WHERE room_code IS NULL OR room_code = ''"
+            )
+
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "MODIFY room_code VARCHAR(30) NOT NULL"
+            )
+
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD UNIQUE KEY uq_rooms_code (room_code)"
+            )
+
         if "checked_in_at" not in columns:
-            cursor.execute("ALTER TABLE rooms ADD COLUMN checked_in_at DATETIME NULL")
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN checked_in_at DATETIME NULL"
+            )
+
         if "checked_out_at" not in columns:
-            cursor.execute("ALTER TABLE rooms ADD COLUMN checked_out_at DATETIME NULL")
-        cursor.execute("ALTER TABLE rooms MODIFY room_type VARCHAR(80) NOT NULL")
-        cursor.execute("ALTER TABLE rooms MODIFY status VARCHAR(30) NOT NULL DEFAULT 'Phòng trống'")
+            cursor.execute(
+                "ALTER TABLE rooms "
+                "ADD COLUMN checked_out_at DATETIME NULL"
+            )
+
+        cursor.execute(
+            "ALTER TABLE rooms "
+            "MODIFY room_type VARCHAR(80) NOT NULL"
+        )
+
+        cursor.execute(
+            "ALTER TABLE rooms "
+            "MODIFY status VARCHAR(30) "
+            "NOT NULL DEFAULT 'Phòng trống'"
+        )
+
         cursor.execute("""
-            UPDATE rooms SET status = CASE LOWER(status)
+            UPDATE rooms
+            SET status = CASE LOWER(status)
                 WHEN 'available' THEN 'Phòng trống'
                 WHEN 'occupied' THEN 'Đã thuê'
                 WHEN 'maintenance' THEN 'Bảo trì'
-                ELSE status END
+                ELSE status
+            END
         """)
-        cursor.execute("ALTER TABLE rooms MODIFY status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống'")
+
+        cursor.execute("""
+            ALTER TABLE rooms
+            MODIFY status ENUM(
+                'Phòng trống',
+                'Đã thuê',
+                'Bảo trì'
+            )
+            NOT NULL DEFAULT 'Phòng trống'
+        """)
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS room_types (
                 code VARCHAR(16) NOT NULL,
                 name VARCHAR(80) NOT NULL,
                 description TEXT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP
+                    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (code),
                 UNIQUE KEY uq_room_types_name (name)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_unicode_ci
         """)
-        cursor.execute("SHOW COLUMNS FROM room_types")
-        room_type_columns = {row[0] for row in cursor.fetchall()}
+
+        cursor.execute(
+            "SHOW COLUMNS FROM room_types"
+        )
+
+        room_type_columns = {
+            row[0]
+            for row in cursor.fetchall()
+        }
+
         if "description" not in room_type_columns:
-            cursor.execute("ALTER TABLE room_types ADD COLUMN description TEXT NULL AFTER name")
+            cursor.execute(
+                "ALTER TABLE room_types "
+                "ADD COLUMN description TEXT NULL AFTER name"
+            )
+
         connection.commit()
+
     except mysql.connector.Error as error:
-        print(f"MySQL chưa sẵn sàng, sẽ dùng lưu trữ dự phòng JSON: {error}")
+        print(
+            "MySQL chưa sẵn sàng, "
+            f"sẽ dùng lưu trữ dự phòng JSON: {error}"
+        )
+
     finally:
         if "cursor" in locals():
             cursor.close()
-        if "connection" in locals() and connection.is_connected():
+
+        if (
+            "connection" in locals()
+            and connection.is_connected()
+        ):
             connection.close()
 
 
+# =========================================================
+# JSON
+# =========================================================
+
 def read_json(path, default):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
     if not path.exists():
         write_json(path, default)
-        return default.copy() if isinstance(default, list) else default
+
+        if isinstance(default, list):
+            return default.copy()
+
+        return default
+
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-        return value if isinstance(value, type(default)) else default.copy() if isinstance(default, list) else default
-    except (OSError, json.JSONDecodeError):
-        return default.copy() if isinstance(default, list) else default
+        value = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        if isinstance(value, type(default)):
+            return value
+
+        if isinstance(default, list):
+            return default.copy()
+
+        return default
+
+    except (
+        OSError,
+        json.JSONDecodeError
+    ):
+        if isinstance(default, list):
+            return default.copy()
+
+        return default
 
 
 def write_json(path, value):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+    DATA_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
+    path.write_text(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            indent=2
+        ),
+        encoding="utf-8"
+    )
+
+
+# =========================================================
+# USER / PROFILE - BL-10
+# =========================================================
 
 def public_user(user):
-    return {"id": user["id"], "email": user["email"], "fullName": user["fullName"]}
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "fullName": user["fullName"]
+    }
+
+
+def public_profile(user):
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "fullName": user.get("fullName", ""),
+        "dateOfBirth": user.get("dateOfBirth", ""),
+        "phone": user.get("phone", ""),
+        "avatar": user.get("avatar", "")
+    }
 
 
 def users():
-    existing = read_json(USERS_FILE, [])
+    existing = read_json(
+        USERS_FILE,
+        []
+    )
+
     if not existing:
-        password_hash = bcrypt.hashpw(b"Admin@123", bcrypt.gensalt(rounds=12)).decode("utf-8")
-        existing = [{"id": 1, "email": "admin@hotel.local", "passwordHash": password_hash, "fullName": "Quản trị viên"}]
-        write_json(USERS_FILE, existing)
+        password_hash = bcrypt.hashpw(
+            b"Admin@123",
+            bcrypt.gensalt(rounds=12)
+        ).decode("utf-8")
+
+        existing = [
+            {
+                "id": 1,
+                "email": "admin@hotel.local",
+                "passwordHash": password_hash,
+                "fullName": "Quản trị viên"
+            }
+        ]
+
+        write_json(
+            USERS_FILE,
+            existing
+        )
+
     return existing
 
 
 def find_user(email):
-    return next((user for user in users() if user.get("email") == email), None)
+    return next(
+        (
+            user
+            for user in users()
+            if user.get("email") == email
+        ),
+        None
+    )
 
+
+# =========================================================
+# ROOM HELPERS
+# =========================================================
 
 def normalized_status(value):
     status = str(value or "").strip().lower()
+
     aliases = {
-        "available": "Phòng trống", "phòng trống": "Phòng trống",
-        "occupied": "Đã thuê", "đã thuê": "Đã thuê", "đã cho thuê": "Đã thuê",
-        "maintenance": "Bảo trì", "bảo trì": "Bảo trì",
+        "available": "Phòng trống",
+        "phòng trống": "Phòng trống",
+
+        "occupied": "Đã thuê",
+        "đã thuê": "Đã thuê",
+        "đã cho thuê": "Đã thuê",
+
+        "maintenance": "Bảo trì",
+        "bảo trì": "Bảo trì",
     }
-    return aliases.get(status, str(value or "").strip())
+
+    return aliases.get(
+        status,
+        str(value or "").strip()
+    )
 
 
 def normalize_room(room):
+
     def get(*keys, default=None):
         for key in keys:
             if room.get(key) is not None:
                 return room[key]
+
         return default
 
-    rate = get("nightly_rate", "nightlyRate", default=0)
+    rate = get(
+        "nightly_rate",
+        "nightlyRate",
+        default=0
+    )
+
     if isinstance(rate, Decimal):
         rate = float(rate)
+
     return {
         "id": get("id"),
-        "roomCode": get("room_code", "roomCode", "roomNumber", default=""),
-        "shortDescription": get("short_description", "shortDescription", default=""),
-        "imagePath": get("image_path", "imagePath", default=""),
-        "roomType": get("room_type", "roomType", default="Đơn"),
+
+        "roomCode": get(
+            "room_code",
+            "roomCode",
+            "roomNumber",
+            default=""
+        ),
+
+        "shortDescription": get(
+            "short_description",
+            "shortDescription",
+            default=""
+        ),
+
+        "imagePath": get(
+            "image_path",
+            "imagePath",
+            default=""
+        ),
+
+        "roomType": get(
+            "room_type",
+            "roomType",
+            default="Đơn"
+        ),
+
         "nightlyRate": float(rate or 0),
-        "status": normalized_status(get("status", default="Phòng trống")),
-        "checkInAt": iso_value(get("checked_in_at", "checkInAt")),
-        "checkOutAt": iso_value(get("checked_out_at", "checkOutAt")),
-        "createdAt": iso_value(get("created_at", "createdAt")),
+
+        "status": normalized_status(
+            get(
+                "status",
+                default="Phòng trống"
+            )
+        ),
+
+        "checkInAt": iso_value(
+            get(
+                "checked_in_at",
+                "checkInAt"
+            )
+        ),
+
+        "checkOutAt": iso_value(
+            get(
+                "checked_out_at",
+                "checkOutAt"
+            )
+        ),
+
+        "createdAt": iso_value(
+            get(
+                "created_at",
+                "createdAt"
+            )
+        ),
     }
 
 
 def iso_value(value):
-    return value.isoformat() if isinstance(value, (datetime, date)) else value
+    return (
+        value.isoformat()
+        if isinstance(
+            value,
+            (datetime, date)
+        )
+        else value
+    )
 
 
 def norm_name(value):
-    return " ".join(str(value or "").split()).casefold()
+    return " ".join(
+        str(value or "").split()
+    ).casefold()
 
 
 def next_type_code(room_types):
     highest = 0
+
     for room_type in room_types:
-        match = re.fullmatch(r"LP(\d+)", str(room_type.get("code", "")), re.IGNORECASE)
+        match = re.fullmatch(
+            r"LP(\d+)",
+            str(
+                room_type.get(
+                    "code",
+                    ""
+                )
+            ),
+            re.IGNORECASE
+        )
+
         if match:
-            highest = max(highest, int(match.group(1)))
+            highest = max(
+                highest,
+                int(match.group(1))
+            )
+
     return f"LP{highest + 1:03d}"
 
 
 def list_room_types():
+
     if db_available():
-        room_rows = query("SELECT DISTINCT room_type FROM rooms", fetch=True)["rows"]
-        type_rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
-        types = [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in type_rows]
-        names = ([] if types else ["Đơn", "Đôi", "VIP"]) + [row["room_type"] for row in room_rows]
+
+        room_rows = query(
+            "SELECT DISTINCT room_type FROM rooms",
+            fetch=True
+        )["rows"]
+
+        type_rows = query(
+            "SELECT code, name, description "
+            "FROM room_types "
+            "ORDER BY code",
+            fetch=True
+        )["rows"]
+
+        types = [
+            {
+                "code": row["code"],
+                "name": row["name"],
+                "description": row.get("description") or ""
+            }
+            for row in type_rows
+        ]
+
+        names = (
+            ([] if types else [
+                "Đơn",
+                "Đôi",
+                "VIP"
+            ])
+            + [
+                row["room_type"]
+                for row in room_rows
+            ]
+        )
+
         for name in names:
-            if not str(name or "").strip() or any(norm_name(item["name"]) == norm_name(name) for item in types):
+
+            if (
+                not str(name or "").strip()
+                or any(
+                    norm_name(item["name"])
+                    == norm_name(name)
+                    for item in types
+                )
+            ):
                 continue
+
             code = next_type_code(types)
+
             try:
-                query("INSERT INTO room_types (code, name, description) VALUES (%s, %s, %s)", (code, str(name).strip(), ""))
-                types.append({"code": code, "name": str(name).strip(), "description": ""})
+                query(
+                    "INSERT INTO room_types "
+                    "(code, name, description) "
+                    "VALUES (%s, %s, %s)",
+                    (
+                        code,
+                        str(name).strip(),
+                        ""
+                    )
+                )
+
+                types.append(
+                    {
+                        "code": code,
+                        "name": str(name).strip(),
+                        "description": ""
+                    }
+                )
+
             except mysql.connector.IntegrityError:
                 pass
-        rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
-        return [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in rows]
 
-    types = read_json(ROOM_TYPES_FILE, [])
-    rooms = read_json(ROOMS_FILE, [])
-    names = ([] if types else ["Đơn", "Đôi", "VIP"])
-    names.extend(room.get("roomType", room.get("room_type")) for room in rooms)
+        rows = query(
+            "SELECT code, name, description "
+            "FROM room_types "
+            "ORDER BY code",
+            fetch=True
+        )["rows"]
+
+        return [
+            {
+                "code": row["code"],
+                "name": row["name"],
+                "description": row.get("description") or ""
+            }
+            for row in rows
+        ]
+
+    types = read_json(
+        ROOM_TYPES_FILE,
+        []
+    )
+
+    rooms = read_json(
+        ROOMS_FILE,
+        []
+    )
+
+    names = (
+        ([] if types else [
+            "Đơn",
+            "Đôi",
+            "VIP"
+        ])
+    )
+
+    names.extend(
+        room.get(
+            "roomType",
+            room.get("room_type")
+        )
+        for room in rooms
+    )
+
     for name in names:
-        if not str(name or "").strip() or any(norm_name(item.get("name")) == norm_name(name) for item in types):
+
+        if (
+            not str(name or "").strip()
+            or any(
+                norm_name(item.get("name"))
+                == norm_name(name)
+                for item in types
+            )
+        ):
             continue
-            types.append({"code": next_type_code(types), "name": str(name).strip(), "description": ""})
-    write_json(ROOM_TYPES_FILE, types)
+
+        types.append(
+            {
+                "code": next_type_code(types),
+                "name": str(name).strip(),
+                "description": ""
+            }
+        )
+
+    write_json(
+        ROOM_TYPES_FILE,
+        types
+    )
+
     return types
 
 
 def find_room_type(name):
     target = norm_name(name)
-    return next((item for item in list_room_types() if norm_name(item["name"]) == target), None)
+
+    return next(
+        (
+            item
+            for item in list_room_types()
+            if norm_name(item["name"]) == target
+        ),
+        None
+    )
 
 
 def list_rooms():
+
     if db_available():
-        rows = query("SELECT * FROM rooms ORDER BY created_at DESC", fetch=True)["rows"]
+
+        rows = query(
+            "SELECT * FROM rooms "
+            "ORDER BY created_at DESC",
+            fetch=True
+        )["rows"]
+
     else:
-        rows = read_json(ROOMS_FILE, [])
-    return [normalize_room(room) for room in rows]
+
+        rows = read_json(
+            ROOMS_FILE,
+            []
+        )
+
+    return [
+        normalize_room(room)
+        for room in rows
+    ]
 
 
 def room_by_id(room_id):
-    if db_available():
-        rows = query("SELECT * FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
-        return normalize_room(rows[0]) if rows else None
-    rows = read_json(ROOMS_FILE, [])
-    room = next((item for item in rows if str(item.get("id")) == str(room_id)), None)
-    return normalize_room(room) if room else None
 
+    if db_available():
+
+        rows = query(
+            "SELECT * FROM rooms "
+            "WHERE id = %s "
+            "LIMIT 1",
+            (room_id,),
+            fetch=True
+        )["rows"]
+
+        return (
+            normalize_room(rows[0])
+            if rows
+            else None
+        )
+
+    rows = read_json(
+        ROOMS_FILE,
+        []
+    )
+
+    room = next(
+        (
+            item
+            for item in rows
+            if str(item.get("id"))
+            == str(room_id)
+        ),
+        None
+    )
+
+    return (
+        normalize_room(room)
+        if room
+        else None
+    )
+
+
+# =========================================================
+# AUTH
+# =========================================================
 
 def require_auth():
+
     if not session.get("user"):
-        return jsonify(message="Bạn cần đăng nhập để tiếp tục."), 401
+        return jsonify(
+            message="Bạn cần đăng nhập để tiếp tục."
+        ), 401
+
     return None
 
 
 def request_data():
-    return request.get_json(silent=True) or request.form
+    return (
+        request.get_json(silent=True)
+        or request.form
+    )
 
+
+# =========================================================
+# BASIC ROUTES
+# =========================================================
 
 @app.get("/health")
 def health():
-    return jsonify(status="ok", runtime="python")
+    return jsonify(
+        status="ok",
+        runtime="python"
+    )
 
 
 @app.get("/")
@@ -307,391 +814,1708 @@ def index():
 
 @app.get("/home")
 def home_page():
+
     if not session.get("user"):
         return redirect("/login.html")
-    return send_from_directory(FRONTEND_DIR / "pages", "home.html")
+
+    return send_from_directory(
+        FRONTEND_DIR / "pages",
+        "home.html"
+    )
 
 
 @app.get("/api/session")
 def get_session():
-    return jsonify(user=session.get("user"))
+    return jsonify(
+        user=session.get("user")
+    )
 
+
+# =========================================================
+# LOGIN
+# =========================================================
 
 @app.post("/api/login")
 def login():
+
     data = request_data()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
+
+    email = str(
+        data.get("email", "")
+    ).strip().lower()
+
+    password = str(
+        data.get("password", "")
+    )
+
     if not email or not password:
-        return jsonify(message="Vui lòng nhập email và mật khẩu."), 400
+        return jsonify(
+            message="Vui lòng nhập email và mật khẩu."
+        ), 400
+
     user = find_user(email)
+
     try:
-        valid = user and bcrypt.checkpw(password.encode("utf-8"), user["passwordHash"].encode("utf-8"))
+        valid = (
+            user
+            and bcrypt.checkpw(
+                password.encode("utf-8"),
+                user["passwordHash"].encode("utf-8")
+            )
+        )
+
     except (ValueError, KeyError):
         valid = False
-    if not valid:
-        return jsonify(message="Email hoặc mật khẩu không chính xác."), 401
-    session.clear()
-    session["user"] = public_user(user)
-    session.permanent = data.get("rememberMe") is True or str(data.get("rememberMe", "")).lower() == "true"
-    return jsonify(message="Đăng nhập thành công.", user=session["user"])
 
+    if not valid:
+        return jsonify(
+            message="Email hoặc mật khẩu không chính xác."
+        ), 401
+
+    session.clear()
+
+    session["user"] = public_user(user)
+
+    session.permanent = (
+        data.get("rememberMe") is True
+        or str(
+            data.get(
+                "rememberMe",
+                ""
+            )
+        ).lower() == "true"
+    )
+
+    return jsonify(
+        message="Đăng nhập thành công.",
+        user=session["user"]
+    )
+
+
+# =========================================================
+# REGISTER
+# =========================================================
 
 @app.post("/api/register")
 def register():
+
     data = request_data()
-    full_name = str(data.get("fullName", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
-    confirm = str(data.get("confirmPassword", ""))
-    if len(full_name) < 2 or not email or len(password) < 8:
-        return jsonify(message="Vui lòng nhập họ tên, email hợp lệ và mật khẩu tối thiểu 8 ký tự."), 400
+
+    full_name = str(
+        data.get("fullName", "")
+    ).strip()
+
+    email = str(
+        data.get("email", "")
+    ).strip().lower()
+
+    password = str(
+        data.get("password", "")
+    )
+
+    confirm = str(
+        data.get("confirmPassword", "")
+    )
+
+    if (
+        len(full_name) < 2
+        or not email
+        or len(password) < 8
+    ):
+        return jsonify(
+            message=(
+                "Vui lòng nhập họ tên, "
+                "email hợp lệ và mật khẩu "
+                "tối thiểu 8 ký tự."
+            )
+        ), 400
+
     if password != confirm:
-        return jsonify(message="Mật khẩu xác nhận không trùng khớp."), 400
+        return jsonify(
+            message="Mật khẩu xác nhận không trùng khớp."
+        ), 400
+
     all_users = users()
-    if any(item.get("email") == email for item in all_users):
-        return jsonify(message="Email này đã được sử dụng."), 409
+
+    if any(
+        item.get("email") == email
+        for item in all_users
+    ):
+        return jsonify(
+            message="Email này đã được sử dụng."
+        ), 409
+
     user = {
-        "id": max((item.get("id", 0) for item in all_users), default=0) + 1,
+        "id": max(
+            (
+                item.get("id", 0)
+                for item in all_users
+            ),
+            default=0
+        ) + 1,
+
         "email": email,
-        "passwordHash": bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8"),
+
+        "passwordHash": bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt(rounds=12)
+        ).decode("utf-8"),
+
         "fullName": full_name,
     }
-    all_users.append(user)
-    write_json(USERS_FILE, all_users)
-    return jsonify(message="Tạo tài khoản thành công. Bạn có thể đăng nhập ngay.", user=public_user(user)), 201
 
+    all_users.append(user)
+
+    write_json(
+        USERS_FILE,
+        all_users
+    )
+
+    return jsonify(
+        message=(
+            "Tạo tài khoản thành công. "
+            "Bạn có thể đăng nhập ngay."
+        ),
+        user=public_user(user)
+    ), 201
+
+
+# =========================================================
+# BL-10 - PROFILE
+# =========================================================
+
+@app.get("/api/profile")
+def get_profile():
+
+    denied = require_auth()
+
+    if denied:
+        return denied
+
+    current_user = session.get("user")
+
+    user = next(
+        (
+            item
+            for item in users()
+            if item.get("id")
+            == current_user.get("id")
+        ),
+        None
+    )
+
+    if not user:
+        return jsonify(
+            message="Không tìm thấy người dùng."
+        ), 404
+
+    return jsonify(
+        user=public_profile(user)
+    )
+
+
+@app.put("/api/profile")
+def update_profile():
+
+    denied = require_auth()
+
+    if denied:
+        return denied
+
+    current_user = session.get("user")
+
+    all_users = users()
+
+    user = next(
+        (
+            item
+            for item in all_users
+            if item.get("id")
+            == current_user.get("id")
+        ),
+        None
+    )
+
+    if not user:
+        return jsonify(
+            message="Không tìm thấy người dùng."
+        ), 404
+
+    # -----------------------------------------------------
+    # LẤY DỮ LIỆU FORM
+    # -----------------------------------------------------
+
+    full_name = str(
+        request.form.get(
+            "fullName",
+            ""
+        )
+    ).strip()
+
+    date_of_birth = str(
+        request.form.get(
+            "dateOfBirth",
+            ""
+        )
+    ).strip()
+
+    phone = str(
+        request.form.get(
+            "phone",
+            ""
+        )
+    ).strip()
+
+    # -----------------------------------------------------
+    # KIỂM TRA HỌ TÊN
+    # -----------------------------------------------------
+
+    if not full_name:
+        return jsonify(
+            message="Họ và tên không được để trống."
+        ), 400
+
+    if len(full_name) < 2:
+        return jsonify(
+            message="Họ và tên phải có ít nhất 2 ký tự."
+        ), 400
+
+    if len(full_name) > 100:
+        return jsonify(
+            message="Họ và tên không được vượt quá 100 ký tự."
+        ), 400
+
+    # -----------------------------------------------------
+    # KIỂM TRA NGÀY SINH
+    # -----------------------------------------------------
+
+    if not date_of_birth:
+        return jsonify(
+            message="Ngày sinh không được để trống."
+        ), 400
+
+    try:
+        datetime.strptime(
+            date_of_birth,
+            "%Y-%m-%d"
+        )
+
+    except ValueError:
+        return jsonify(
+            message="Ngày sinh không hợp lệ."
+        ), 400
+
+    # -----------------------------------------------------
+    # KIỂM TRA SỐ ĐIỆN THOẠI
+    # -----------------------------------------------------
+
+    if not phone:
+        return jsonify(
+            message="Số điện thoại không được để trống."
+        ), 400
+
+    if not re.fullmatch(
+        r"[0-9+\-\s()]{8,30}",
+        phone
+    ) or len(re.sub(r"\D", "", phone)) < 8:
+        return jsonify(
+            message="Số điện thoại không hợp lệ."
+        ), 400
+
+    # -----------------------------------------------------
+    # CẬP NHẬT THÔNG TIN
+    # -----------------------------------------------------
+
+    user["fullName"] = full_name
+    user["dateOfBirth"] = date_of_birth
+    user["phone"] = phone
+
+    # -----------------------------------------------------
+    # EMAIL KHÔNG ĐƯỢC THAY ĐỔI
+    # -----------------------------------------------------
+
+    # Không lấy email từ request.
+    # Email cũ được giữ nguyên.
+
+    # -----------------------------------------------------
+    # UPLOAD AVATAR
+    # -----------------------------------------------------
+
+    avatar = request.files.get("avatar")
+
+    if avatar and avatar.filename:
+
+        if avatar.mimetype not in ALLOWED_IMAGE_TYPES:
+            return jsonify(
+                message=(
+                    "Chỉ chấp nhận ảnh "
+                    "JPG, PNG, WEBP hoặc GIF."
+                )
+            ), 400
+
+        original = Path(
+            avatar.filename
+        )
+
+        extension = (
+            original.suffix.lower()
+        )
+
+        stem = (
+            secure_filename(
+                original.stem
+            )
+            .replace(" ", "-")[:50]
+        )
+
+        if not stem:
+            stem = "avatar"
+
+        UPLOAD_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        filename = (
+            f"{int(time.time() * 1000)}-"
+            f"{stem}"
+            f"{extension}"
+        )
+
+        avatar.save(
+            UPLOAD_DIR / filename
+        )
+
+        user["avatar"] = (
+            f"/uploads/{filename}"
+        )
+
+    # -----------------------------------------------------
+    # LƯU USERS.JSON
+    # -----------------------------------------------------
+
+    write_json(
+        USERS_FILE,
+        all_users
+    )
+
+    # -----------------------------------------------------
+    # CẬP NHẬT SESSION
+    # -----------------------------------------------------
+
+    session["user"]["fullName"] = (
+        user["fullName"]
+    )
+
+    return jsonify(
+        message=(
+            "Cập nhật thông tin cá nhân "
+            "thành công."
+        ),
+        user=public_profile(user)
+    )
+
+
+# =========================================================
+# LOGOUT
+# =========================================================
 
 @app.post("/api/logout")
 def logout():
-    session.clear()
-    return jsonify(message="Đăng xuất thành công.")
 
+    session.clear()
+
+    return jsonify(
+        message="Đăng xuất thành công."
+    )
+
+
+# =========================================================
+# HOME API
+# =========================================================
 
 @app.get("/api/home")
 def api_home():
+
     denied = require_auth()
+
     if denied:
         return denied
-    return jsonify(message="Bạn đã truy cập trang chủ.", user=session["user"])
 
+    return jsonify(
+        message="Bạn đã truy cập trang chủ.",
+        user=session["user"]
+    )
+
+
+# =========================================================
+# ROOMS
+# =========================================================
 
 @app.get("/api/rooms")
 def get_rooms():
+
     denied = require_auth()
+
     if denied:
         return denied
+
     try:
-        return jsonify(rooms=list_rooms())
+
+        return jsonify(
+            rooms=list_rooms()
+        )
+
     except mysql.connector.Error as error:
-        return jsonify(message=str(error) or "Không thể tải danh sách phòng."), 500
+
+        return jsonify(
+            message=str(error)
+            or "Không thể tải danh sách phòng."
+        ), 500
 
 
 def save_upload():
+
     image = request.files.get("image")
+
     if not image or not image.filename:
         return ""
+
     if image.mimetype not in ALLOWED_IMAGE_TYPES:
-        raise ValueError("Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.")
-    original = Path(image.filename)
-    extension = original.suffix.lower()
-    stem = secure_filename(original.stem).replace(" ", "-")[:50] or "room"
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"{int(time.time() * 1000)}-{stem}{extension}"
-    image.save(UPLOAD_DIR / filename)
+        raise ValueError(
+            "Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF."
+        )
+
+    original = Path(
+        image.filename
+    )
+
+    extension = (
+        original.suffix.lower()
+    )
+
+    stem = (
+        secure_filename(
+            original.stem
+        )
+        .replace(" ", "-")[:50]
+        or "room"
+    )
+
+    UPLOAD_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    filename = (
+        f"{int(time.time() * 1000)}-"
+        f"{stem}"
+        f"{extension}"
+    )
+
+    image.save(
+        UPLOAD_DIR / filename
+    )
+
     return f"/uploads/{filename}"
 
 
 def read_room_fields(data):
-    code = str(data.get("roomCode", "")).strip()
-    description = str(data.get("shortDescription", "")).strip()
-    room_type = str(data.get("roomType", "")).strip()
+
+    code = str(
+        data.get(
+            "roomCode",
+            ""
+        )
+    ).strip()
+
+    description = str(
+        data.get(
+            "shortDescription",
+            ""
+        )
+    ).strip()
+
+    room_type = str(
+        data.get(
+            "roomType",
+            ""
+        )
+    ).strip()
+
     try:
-        rate = float(data.get("nightlyRate", ""))
-    except (TypeError, ValueError):
+
+        rate = float(
+            data.get(
+                "nightlyRate",
+                ""
+            )
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
         rate = float("nan")
-    return code, description, room_type, rate
+
+    return (
+        code,
+        description,
+        room_type,
+        rate
+    )
 
 
 @app.post("/api/rooms")
 def add_room():
+
     denied = require_auth()
+
     if denied:
         return denied
-    code, description, room_type, rate = read_room_fields(request.form)
-    if not re.fullmatch(r"[A-Za-z0-9-]+", code) or len(description) > 240 or not code or not room_type or not description or not (rate > 0 and rate < float("inf")):
-        return jsonify(message="Vui lòng nhập đầy đủ mã phòng, mô tả, thể loại và giá thuê > 0."), 400
+
+    code, description, room_type, rate = (
+        read_room_fields(request.form)
+    )
+
+    if (
+        not re.fullmatch(
+            r"[A-Za-z0-9-]+",
+            code
+        )
+        or len(description) > 240
+        or not code
+        or not room_type
+        or not description
+        or not (
+            rate > 0
+            and rate < float("inf")
+        )
+    ):
+        return jsonify(
+            message=(
+                "Vui lòng nhập đầy đủ "
+                "mã phòng, mô tả, "
+                "thể loại và giá thuê > 0."
+            )
+        ), 400
+
     try:
+
         image_path = save_upload()
+
         if not find_room_type(room_type):
-            raise ValueError("Loại phòng không hợp lệ.")
-        existing = next((room for room in list_rooms() if room["roomCode"].casefold() == code.casefold()), None)
+            raise ValueError(
+                "Loại phòng không hợp lệ."
+            )
+
+        existing = next(
+            (
+                room
+                for room in list_rooms()
+                if room["roomCode"].casefold()
+                == code.casefold()
+            ),
+            None
+        )
+
         if existing:
-            raise ValueError("Mã phòng đã tồn tại.")
+            raise ValueError(
+                "Mã phòng đã tồn tại."
+            )
+
         if db_available():
-            result = query("INSERT INTO rooms (room_code, short_description, image_path, room_type, nightly_rate, status) VALUES (%s, %s, %s, %s, %s, %s)", (code, description, image_path or None, room_type, rate, "Phòng trống"))
-            room = room_by_id(result["lastrowid"])
+
+            result = query(
+                "INSERT INTO rooms "
+                "(room_code, short_description, "
+                "image_path, room_type, "
+                "nightly_rate, status) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+
+                (
+                    code,
+                    description,
+                    image_path or None,
+                    room_type,
+                    rate,
+                    "Phòng trống"
+                )
+            )
+
+            room = room_by_id(
+                result["lastrowid"]
+            )
+
         else:
-            rooms = read_json(ROOMS_FILE, [])
-            raw = {"id": max((int(item.get("id", 0)) for item in rooms), default=0) + 1, "roomCode": code, "shortDescription": description, "imagePath": image_path, "roomType": room_type, "nightlyRate": rate, "status": "Phòng trống"}
+
+            rooms = read_json(
+                ROOMS_FILE,
+                []
+            )
+
+            raw = {
+                "id": max(
+                    (
+                        int(
+                            item.get(
+                                "id",
+                                0
+                            )
+                        )
+                        for item in rooms
+                    ),
+                    default=0
+                ) + 1,
+
+                "roomCode": code,
+                "shortDescription": description,
+                "imagePath": image_path,
+                "roomType": room_type,
+                "nightlyRate": rate,
+                "status": "Phòng trống"
+            }
+
             rooms.append(raw)
-            write_json(ROOMS_FILE, rooms)
+
+            write_json(
+                ROOMS_FILE,
+                rooms
+            )
+
             room = normalize_room(raw)
-        return jsonify(message="Thêm phòng thành công.", room=room), 201
-    except (ValueError, mysql.connector.Error) as error:
-        return jsonify(message=str(error) or "Không thể thêm phòng."), 400
+
+        return jsonify(
+            message="Thêm phòng thành công.",
+            room=room
+        ), 201
+
+    except (
+        ValueError,
+        mysql.connector.Error
+    ) as error:
+
+        return jsonify(
+            message=str(error)
+            or "Không thể thêm phòng."
+        ), 400
 
 
 @app.put("/api/rooms/<int:room_id>")
 def update_room(room_id):
+
     denied = require_auth()
+
     if denied:
         return denied
+
     data = request.form
-    code, description, room_type, rate = read_room_fields(data)
-    if not re.fullmatch(r"[A-Za-z0-9-]{1,20}", code) or not description or len(description) > 240 or not room_type or not (rate > 0 and rate < float("inf")):
-        return jsonify(message="Vui lòng nhập mã phòng hợp lệ, mô tả (tối đa 240 ký tự), thể loại và giá thuê > 0."), 400
+
+    code, description, room_type, rate = (
+        read_room_fields(data)
+    )
+
+    if (
+        not re.fullmatch(
+            r"[A-Za-z0-9-]{1,20}",
+            code
+        )
+        or not description
+        or len(description) > 240
+        or not room_type
+        or not (
+            rate > 0
+            and rate < float("inf")
+        )
+    ):
+        return jsonify(
+            message=(
+                "Vui lòng nhập mã phòng hợp lệ, "
+                "mô tả (tối đa 240 ký tự), "
+                "thể loại và giá thuê > 0."
+            )
+        ), 400
+
     try:
+
         if not find_room_type(room_type):
-            raise ValueError("Loại phòng không hợp lệ.")
+            raise ValueError(
+                "Loại phòng không hợp lệ."
+            )
+
         image_path = save_upload()
+
         if db_available():
-            rows = query("SELECT id, image_path FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
+
+            rows = query(
+                "SELECT id, image_path "
+                "FROM rooms "
+                "WHERE id = %s "
+                "LIMIT 1",
+                (room_id,),
+                fetch=True
+            )["rows"]
+
             if not rows:
-                return jsonify(message="Không tìm thấy phòng."), 404
-            duplicates = query("SELECT id FROM rooms WHERE room_code = %s AND id <> %s LIMIT 1", (code, room_id), fetch=True)["rows"]
+                return jsonify(
+                    message="Không tìm thấy phòng."
+                ), 404
+
+            duplicates = query(
+                "SELECT id "
+                "FROM rooms "
+                "WHERE room_code = %s "
+                "AND id <> %s "
+                "LIMIT 1",
+                (
+                    code,
+                    room_id
+                ),
+                fetch=True
+            )["rows"]
+
             if duplicates:
-                raise ValueError("Mã phòng đã tồn tại.")
-            query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, room_id))
+                raise ValueError(
+                    "Mã phòng đã tồn tại."
+                )
+
+            query(
+                "UPDATE rooms "
+                "SET room_code = %s, "
+                "short_description = %s, "
+                "image_path = %s, "
+                "room_type = %s, "
+                "nightly_rate = %s "
+                "WHERE id = %s",
+
+                (
+                    code,
+                    description,
+                    image_path
+                    or rows[0]["image_path"],
+                    room_type,
+                    rate,
+                    room_id
+                )
+            )
+
             room = room_by_id(room_id)
+
         else:
-            rooms = read_json(ROOMS_FILE, [])
-            room = next((item for item in rooms if int(item.get("id", 0)) == room_id), None)
+
+            rooms = read_json(
+                ROOMS_FILE,
+                []
+            )
+
+            room = next(
+                (
+                    item
+                    for item in rooms
+                    if int(
+                        item.get(
+                            "id",
+                            0
+                        )
+                    ) == room_id
+                ),
+                None
+            )
+
             if not room:
-                return jsonify(message="Không tìm thấy phòng."), 404
-            if any(int(item.get("id", 0)) != room_id and str(item.get("roomCode", item.get("room_code", item.get("roomNumber", "")))).casefold() == code.casefold() for item in rooms):
-                raise ValueError("Mã phòng đã tồn tại.")
-            room.update({"roomCode": code, "shortDescription": description, "imagePath": image_path or room.get("imagePath", room.get("image_path", "")), "roomType": room_type, "nightlyRate": rate})
-            write_json(ROOMS_FILE, rooms)
+                return jsonify(
+                    message="Không tìm thấy phòng."
+                ), 404
+
+            if any(
+                int(
+                    item.get(
+                        "id",
+                        0
+                    )
+                ) != room_id
+                and str(
+                    item.get(
+                        "roomCode",
+                        item.get(
+                            "room_code",
+                            item.get(
+                                "roomNumber",
+                                ""
+                            )
+                        )
+                    )
+                ).casefold()
+                == code.casefold()
+                for item in rooms
+            ):
+                raise ValueError(
+                    "Mã phòng đã tồn tại."
+                )
+
+            room.update(
+                {
+                    "roomCode": code,
+                    "shortDescription": description,
+                    "imagePath": (
+                        image_path
+                        or room.get(
+                            "imagePath",
+                            room.get(
+                                "image_path",
+                                ""
+                            )
+                        )
+                    ),
+                    "roomType": room_type,
+                    "nightlyRate": rate
+                }
+            )
+
+            write_json(
+                ROOMS_FILE,
+                rooms
+            )
+
             room = normalize_room(room)
-        return jsonify(message="Cập nhật thông tin phòng thành công.", room=room)
-    except (ValueError, mysql.connector.Error) as error:
-        return jsonify(message=str(error) or "Không thể cập nhật thông tin phòng."), 400
+
+        return jsonify(
+            message=(
+                "Cập nhật thông tin "
+                "phòng thành công."
+            ),
+            room=room
+        )
+
+    except (
+        ValueError,
+        mysql.connector.Error
+    ) as error:
+
+        return jsonify(
+            message=str(error)
+            or "Không thể cập nhật "
+            "thông tin phòng."
+        ), 400
 
 
 @app.patch("/api/rooms/<int:room_id>/status")
 def update_room_status(room_id):
+
     denied = require_auth()
+
     if denied:
         return denied
-    requested = normalized_status(request_data().get("status"))
-    if requested not in {"Phòng trống", "Đã thuê"}:
-        return jsonify(message="Trạng thái phòng không hợp lệ."), 409
+
+    requested = normalized_status(
+        request_data().get("status")
+    )
+
+    if requested not in {
+        "Phòng trống",
+        "Đã thuê"
+    }:
+        return jsonify(
+            message="Trạng thái phòng không hợp lệ."
+        ), 409
+
     if db_available():
-        rows = query("SELECT id, status FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
+
+        rows = query(
+            "SELECT id, status "
+            "FROM rooms "
+            "WHERE id = %s "
+            "LIMIT 1",
+            (room_id,),
+            fetch=True
+        )["rows"]
+
         if not rows:
-            return jsonify(message="Không tìm thấy phòng."), 404
-        current = normalized_status(rows[0]["status"])
+            return jsonify(
+                message="Không tìm thấy phòng."
+            ), 404
+
+        current = normalized_status(
+            rows[0]["status"]
+        )
+
         if current == requested:
-            return jsonify(message="Trạng thái phòng không thay đổi.", room=room_by_id(room_id))
-        if current not in {"Phòng trống", "Đã thuê"}:
-            return jsonify(message="Trạng thái phòng không hợp lệ."), 409
+            return jsonify(
+                message=(
+                    "Trạng thái phòng "
+                    "không thay đổi."
+                ),
+                room=room_by_id(room_id)
+            )
+
+        if current not in {
+            "Phòng trống",
+            "Đã thuê"
+        }:
+            return jsonify(
+                message="Trạng thái phòng không hợp lệ."
+            ), 409
+
         if requested == "Đã thuê":
-            query("UPDATE rooms SET status = %s, checked_in_at = CURRENT_TIMESTAMP, checked_out_at = NULL WHERE id = %s", (requested, room_id))
+
+            query(
+                "UPDATE rooms "
+                "SET status = %s, "
+                "checked_in_at = CURRENT_TIMESTAMP, "
+                "checked_out_at = NULL "
+                "WHERE id = %s",
+                (
+                    requested,
+                    room_id
+                )
+            )
+
         else:
-            query("UPDATE rooms SET status = %s, checked_out_at = CURRENT_TIMESTAMP WHERE id = %s", (requested, room_id))
+
+            query(
+                "UPDATE rooms "
+                "SET status = %s, "
+                "checked_out_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s",
+                (
+                    requested,
+                    room_id
+                )
+            )
+
     else:
-        rooms = read_json(ROOMS_FILE, [])
-        room = next((item for item in rooms if int(item.get("id", 0)) == room_id), None)
+
+        rooms = read_json(
+            ROOMS_FILE,
+            []
+        )
+
+        room = next(
+            (
+                item
+                for item in rooms
+                if int(
+                    item.get(
+                        "id",
+                        0
+                    )
+                ) == room_id
+            ),
+            None
+        )
+
         if not room:
-            return jsonify(message="Không tìm thấy phòng."), 404
-        current = normalized_status(room.get("status"))
+            return jsonify(
+                message="Không tìm thấy phòng."
+            ), 404
+
+        current = normalized_status(
+            room.get("status")
+        )
+
         if current == requested:
-            return jsonify(message="Trạng thái phòng không thay đổi.", room=normalize_room(room))
-        if current not in {"Phòng trống", "Đã thuê"}:
-            return jsonify(message="Trạng thái phòng không hợp lệ."), 409
+            return jsonify(
+                message=(
+                    "Trạng thái phòng "
+                    "không thay đổi."
+                ),
+                room=normalize_room(room)
+            )
+
+        if current not in {
+            "Phòng trống",
+            "Đã thuê"
+        }:
+            return jsonify(
+                message="Trạng thái phòng không hợp lệ."
+            ), 409
+
         room["status"] = requested
-        room["checkInAt" if requested == "Đã thuê" else "checkOutAt"] = datetime.now().astimezone().isoformat()
+
+        room[
+            "checkInAt"
+            if requested == "Đã thuê"
+            else "checkOutAt"
+        ] = datetime.now().astimezone().isoformat()
+
         if requested == "Đã thuê":
             room["checkOutAt"] = None
-        write_json(ROOMS_FILE, rooms)
-        return jsonify(message="Cập nhật trạng thái phòng thành công.", room=normalize_room(room))
-    return jsonify(message="Cập nhật trạng thái phòng thành công.", room=room_by_id(room_id))
+
+        write_json(
+            ROOMS_FILE,
+            rooms
+        )
+
+        return jsonify(
+            message=(
+                "Cập nhật trạng thái "
+                "phòng thành công."
+            ),
+            room=normalize_room(room)
+        )
+
+    return jsonify(
+        message=(
+            "Cập nhật trạng thái "
+            "phòng thành công."
+        ),
+        room=room_by_id(room_id)
+    )
 
 
 @app.delete("/api/rooms/<int:room_id>")
 def delete_room(room_id):
+
     denied = require_auth()
+
     if denied:
         return denied
-    if db_available():
-        rows = query("SELECT id, status FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
-        if not rows:
-            return jsonify(message="Không tìm thấy phòng cần xóa."), 404
-        if str(rows[0]["status"]).casefold() in {"đã thuê", "đang thuê", "rented", "occupied"}:
-            return jsonify(message="Không thể xóa phòng đang được thuê."), 409
-        try:
-            result = query("DELETE FROM rooms WHERE id = %s AND LOWER(status) NOT IN (%s, %s, %s, %s)", (room_id, "đã thuê", "đang thuê", "rented", "occupied"))
-        except mysql.connector.Error as error:
-            if error.errno == 1451:
-                return jsonify(message="Không thể xóa phòng đang có dữ liệu đặt phòng."), 409
-            raise
-        if result["rowcount"]:
-            return jsonify(message="Xóa phòng thành công.")
-        return jsonify(message="Không thể xóa phòng đang được thuê."), 409
-    rooms = read_json(ROOMS_FILE, [])
-    index = next((i for i, room in enumerate(rooms) if int(room.get("id", 0)) == room_id), None)
-    if index is None:
-        return jsonify(message="Không tìm thấy phòng cần xóa."), 404
-    if str(rooms[index].get("status", "")).casefold() in {"đã thuê", "đang thuê", "rented", "occupied"}:
-        return jsonify(message="Không thể xóa phòng đang được thuê."), 409
-    rooms.pop(index)
-    write_json(ROOMS_FILE, rooms)
-    return jsonify(message="Xóa phòng thành công.")
 
+    if db_available():
+
+        rows = query(
+            "SELECT id, status "
+            "FROM rooms "
+            "WHERE id = %s "
+            "LIMIT 1",
+            (room_id,),
+            fetch=True
+        )["rows"]
+
+        if not rows:
+            return jsonify(
+                message="Không tìm thấy phòng cần xóa."
+            ), 404
+
+        if str(
+            rows[0]["status"]
+        ).casefold() in {
+            "đã thuê",
+            "đang thuê",
+            "rented",
+            "occupied"
+        }:
+            return jsonify(
+                message=(
+                    "Không thể xóa phòng "
+                    "đang được thuê."
+                )
+            ), 409
+
+        try:
+
+            result = query(
+                "DELETE FROM rooms "
+                "WHERE id = %s "
+                "AND LOWER(status) NOT IN "
+                "(%s, %s, %s, %s)",
+
+                (
+                    room_id,
+                    "đã thuê",
+                    "đang thuê",
+                    "rented",
+                    "occupied"
+                )
+            )
+
+        except mysql.connector.Error as error:
+
+            if error.errno == 1451:
+                return jsonify(
+                    message=(
+                        "Không thể xóa phòng "
+                        "đang có dữ liệu "
+                        "đặt phòng."
+                    )
+                ), 409
+
+            raise
+
+        if result["rowcount"]:
+            return jsonify(
+                message="Xóa phòng thành công."
+            )
+
+        return jsonify(
+            message=(
+                "Không thể xóa phòng "
+                "đang được thuê."
+            )
+        ), 409
+
+    rooms = read_json(
+        ROOMS_FILE,
+        []
+    )
+
+    index = next(
+        (
+            i
+            for i, room in enumerate(rooms)
+            if int(
+                room.get(
+                    "id",
+                    0
+                )
+            ) == room_id
+        ),
+        None
+    )
+
+    if index is None:
+        return jsonify(
+            message="Không tìm thấy phòng cần xóa."
+        ), 404
+
+    if str(
+        rooms[index].get(
+            "status",
+            ""
+        )
+    ).casefold() in {
+        "đã thuê",
+        "đang thuê",
+        "rented",
+        "occupied"
+    }:
+        return jsonify(
+            message=(
+                "Không thể xóa phòng "
+                "đang được thuê."
+            )
+        ), 409
+
+    rooms.pop(index)
+
+    write_json(
+        ROOMS_FILE,
+        rooms
+    )
+
+    return jsonify(
+        message="Xóa phòng thành công."
+    )
+
+
+# =========================================================
+# ROOM TYPES
+# =========================================================
 
 @app.get("/api/room-types")
 def get_room_types():
+
     denied = require_auth()
+
     if denied:
         return denied
+
     try:
+
         types = list_room_types()
-        return jsonify(roomTypes=types, nextCode=next_type_code(types))
+
+        return jsonify(
+            roomTypes=types,
+            nextCode=next_type_code(types)
+        )
+
     except mysql.connector.Error as error:
-        return jsonify(message=str(error) or "Không thể tải danh sách thể loại phòng."), 500
+
+        return jsonify(
+            message=str(error)
+            or "Không thể tải danh sách "
+            "thể loại phòng."
+        ), 500
 
 
 @app.post("/api/room-types")
 def add_room_type():
+
     denied = require_auth()
+
     if denied:
         return denied
-    name = " ".join(str(request_data().get("name", "")).split())
-    description = str(request_data().get("description", "")).strip()
+
+    name = " ".join(
+        str(
+            request_data().get(
+                "name",
+                ""
+            )
+        ).split()
+    )
+
+    description = str(
+        request_data().get(
+            "description",
+            ""
+        )
+    ).strip()
+
     if not name:
-        return jsonify(message="Tên thể loại không được để trống."), 400
+        return jsonify(
+            message="Tên thể loại không được để trống."
+        ), 400
+
     if len(description) > 500:
-        return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
+        return jsonify(
+            message=(
+                "Mô tả không được vượt quá "
+                "500 ký tự."
+            )
+        ), 400
+
     try:
+
         types = list_room_types()
-        if any(norm_name(item["name"]) == norm_name(name) for item in types):
-            return jsonify(message="Tên thể loại đã tồn tại."), 409
+
+        if any(
+            norm_name(item["name"])
+            == norm_name(name)
+            for item in types
+        ):
+            return jsonify(
+                message="Tên thể loại đã tồn tại."
+            ), 409
+
         code = next_type_code(types)
+
         if db_available():
-            query("INSERT INTO room_types (code, name, description) VALUES (%s, %s, %s)", (code, name, description))
+
+            query(
+                "INSERT INTO room_types "
+                "(code, name, description) "
+                "VALUES (%s, %s, %s)",
+                (
+                    code,
+                    name,
+                    description
+                )
+            )
+
         else:
-            types.append({"code": code, "name": name, "description": description})
-            write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description}), 201
+
+            types.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "description": description
+                }
+            )
+
+            write_json(
+                ROOM_TYPES_FILE,
+                types
+            )
+
+        return jsonify(
+            message="Thêm thể loại phòng thành công.",
+            roomType={
+                "code": code,
+                "name": name,
+                "description": description
+            }
+        ), 201
+
     except mysql.connector.Error as error:
-        status = 409 if error.errno == 1062 else 400
-        return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status
+
+        status = (
+            409
+            if error.errno == 1062
+            else 400
+        )
+
+        return jsonify(
+            message=(
+                "Tên thể loại đã tồn tại."
+                if status == 409
+                else str(error)
+            )
+        ), status
 
 
 @app.put("/api/room-types/<code>")
 def update_room_type(code):
+
     denied = require_auth()
+
     if denied:
         return denied
+
     payload = request_data()
-    name = " ".join(str(payload.get("name", "")).split())
+
+    name = " ".join(
+        str(
+            payload.get(
+                "name",
+                ""
+            )
+        ).split()
+    )
+
     if not name:
-        return jsonify(message="Tên thể loại không được để trống."), 400
+        return jsonify(
+            message="Tên thể loại không được để trống."
+        ), 400
+
     if len(name) > 80:
-        return jsonify(message="Tên thể loại không được vượt quá 80 ký tự."), 400
+        return jsonify(
+            message=(
+                "Tên thể loại không được "
+                "vượt quá 80 ký tự."
+            )
+        ), 400
+
     try:
+
         types = list_room_types()
-        current = next((item for item in types if item["code"] == code), None)
+
+        current = next(
+            (
+                item
+                for item in types
+                if item["code"] == code
+            ),
+            None
+        )
+
         if not current:
-            return jsonify(message="Không tìm thấy thể loại phòng."), 404
-        description = str(payload.get("description", current.get("description", "")) or "").strip()
+            return jsonify(
+                message="Không tìm thấy thể loại phòng."
+            ), 404
+
+        description = str(
+            payload.get(
+                "description",
+                current.get(
+                    "description",
+                    ""
+                )
+            )
+            or ""
+        ).strip()
+
         if len(description) > 500:
-            return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
-        if any(item["code"] != code and norm_name(item["name"]) == norm_name(name) for item in types):
-            return jsonify(message="Tên thể loại đã tồn tại."), 409
+            return jsonify(
+                message=(
+                    "Mô tả không được vượt quá "
+                    "500 ký tự."
+                )
+            ), 400
+
+        if any(
+            item["code"] != code
+            and norm_name(item["name"])
+            == norm_name(name)
+            for item in types
+        ):
+            return jsonify(
+                message="Tên thể loại đã tồn tại."
+            ), 409
+
         if db_available():
+
             connection = db_connection()
             cursor = connection.cursor()
+
             try:
+
                 connection.start_transaction()
-                cursor.execute("SELECT code FROM room_types WHERE code = %s FOR UPDATE", (code,))
+
+                cursor.execute(
+                    "SELECT code "
+                    "FROM room_types "
+                    "WHERE code = %s "
+                    "FOR UPDATE",
+                    (code,)
+                )
+
                 if not cursor.fetchone():
+
                     connection.rollback()
-                    return jsonify(message="Không tìm thấy thể loại phòng."), 404
-                cursor.execute("UPDATE room_types SET name = %s, description = %s WHERE code = %s", (name, description, code))
-                cursor.execute("UPDATE rooms SET room_type = %s WHERE room_type = %s", (name, current["name"]))
+
+                    return jsonify(
+                        message=(
+                            "Không tìm thấy "
+                            "thể loại phòng."
+                        )
+                    ), 404
+
+                cursor.execute(
+                    "UPDATE room_types "
+                    "SET name = %s, "
+                    "description = %s "
+                    "WHERE code = %s",
+                    (
+                        name,
+                        description,
+                        code
+                    )
+                )
+
+                cursor.execute(
+                    "UPDATE rooms "
+                    "SET room_type = %s "
+                    "WHERE room_type = %s",
+                    (
+                        name,
+                        current["name"]
+                    )
+                )
+
                 connection.commit()
+
             except Exception:
+
                 connection.rollback()
                 raise
+
             finally:
+
                 cursor.close()
                 connection.close()
+
         else:
+
             for item in types:
+
                 if item["code"] == code:
+
                     item["name"] = name
                     item["description"] = description
-            rooms = read_json(ROOMS_FILE, [])
+
+            rooms = read_json(
+                ROOMS_FILE,
+                []
+            )
+
             for room in rooms:
-                old_name = room.get("roomType", room.get("room_type", ""))
-                if norm_name(old_name) == norm_name(current["name"]):
-                    if "roomType" in room or "room_type" not in room:
+
+                old_name = room.get(
+                    "roomType",
+                    room.get(
+                        "room_type",
+                        ""
+                    )
+                )
+
+                if (
+                    norm_name(old_name)
+                    == norm_name(current["name"])
+                ):
+
+                    if (
+                        "roomType" in room
+                        or "room_type" not in room
+                    ):
                         room["roomType"] = name
+
                     if "room_type" in room:
                         room["room_type"] = name
-            write_json(ROOMS_FILE, rooms)
-            write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description})
+
+            write_json(
+                ROOMS_FILE,
+                rooms
+            )
+
+            write_json(
+                ROOM_TYPES_FILE,
+                types
+            )
+
+        return jsonify(
+            message=(
+                "Cập nhật thể loại "
+                "phòng thành công."
+            ),
+            roomType={
+                "code": code,
+                "name": name,
+                "description": description
+            }
+        )
+
     except mysql.connector.Error as error:
-        status = 409 if error.errno == 1062 else 400
-        return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status
+
+        status = (
+            409
+            if error.errno == 1062
+            else 400
+        )
+
+        return jsonify(
+            message=(
+                "Tên thể loại đã tồn tại."
+                if status == 409
+                else str(error)
+            )
+        ), status
 
 
 @app.delete("/api/room-types/<code>")
 def delete_room_type(code):
+
     denied = require_auth()
+
     if denied:
         return denied
-    types = list_room_types()
-    current = next((item for item in types if item["code"] == code), None)
-    if not current:
-        return jsonify(message="Không tìm thấy thể loại phòng."), 404
-    if len(types) <= 1:
-        return jsonify(message="Không thể xóa thể loại phòng cuối cùng."), 409
-    if db_available():
-        count = query("SELECT COUNT(*) AS total FROM rooms WHERE room_type = %s", (current["name"],), fetch=True)["rows"][0]["total"]
-        if count:
-            return jsonify(message="Không thể xóa thể loại đang được sử dụng bởi phòng."), 409
-        query("DELETE FROM room_types WHERE code = %s", (code,))
-    else:
-        rooms = read_json(ROOMS_FILE, [])
-        if any(norm_name(room.get("roomType", room.get("room_type"))) == norm_name(current["name"]) for room in rooms):
-            return jsonify(message="Không thể xóa thể loại đang được sử dụng bởi phòng."), 409
-        write_json(ROOM_TYPES_FILE, [item for item in types if item["code"] != code])
-    return jsonify(message="Xóa thể loại phòng thành công.", roomType=current)
 
+    types = list_room_types()
+
+    current = next(
+        (
+            item
+            for item in types
+            if item["code"] == code
+        ),
+        None
+    )
+
+    if not current:
+        return jsonify(
+            message="Không tìm thấy thể loại phòng."
+        ), 404
+
+    if len(types) <= 1:
+        return jsonify(
+            message=(
+                "Không thể xóa thể loại "
+                "phòng cuối cùng."
+            )
+        ), 409
+
+    if db_available():
+
+        count = query(
+            "SELECT COUNT(*) AS total "
+            "FROM rooms "
+            "WHERE room_type = %s",
+            (current["name"],),
+            fetch=True
+        )["rows"][0]["total"]
+
+        if count:
+            return jsonify(
+                message=(
+                    "Không thể xóa thể loại "
+                    "đang được sử dụng bởi phòng."
+                )
+            ), 409
+
+        query(
+            "DELETE FROM room_types "
+            "WHERE code = %s",
+            (code,)
+        )
+
+    else:
+
+        rooms = read_json(
+            ROOMS_FILE,
+            []
+        )
+
+        if any(
+            norm_name(
+                room.get(
+                    "roomType",
+                    room.get(
+                        "room_type"
+                    )
+                )
+            )
+            == norm_name(
+                current["name"]
+            )
+            for room in rooms
+        ):
+            return jsonify(
+                message=(
+                    "Không thể xóa thể loại "
+                    "đang được sử dụng bởi phòng."
+                )
+            ), 409
+
+        write_json(
+            ROOM_TYPES_FILE,
+            [
+                item
+                for item in types
+                if item["code"] != code
+            ]
+        )
+
+    return jsonify(
+        message="Xóa thể loại phòng thành công.",
+        roomType=current
+    )
+
+
+# =========================================================
+# UPLOADS / FRONTEND
+# =========================================================
 
 @app.get("/uploads/<path:filename>")
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
+    return send_from_directory(
+        UPLOAD_DIR,
+        filename
+    )
 
 
 @app.get("/<path:filename>")
 def frontend_file(filename):
-    return send_from_directory(FRONTEND_DIR, filename)
+    return send_from_directory(
+        FRONTEND_DIR,
+        filename
+    )
 
+
+# =========================================================
+# ERROR HANDLER
+# =========================================================
 
 @app.errorhandler(413)
 def file_too_large(_error):
-    return jsonify(message="Ảnh phòng không được vượt quá 5MB."), 413
+    return jsonify(
+        message="Ảnh không được vượt quá 5MB."
+    ), 413
 
+
+# =========================================================
+# RUN
+# =========================================================
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    if hasattr(
+        sys.stdout,
+        "reconfigure"
+    ):
+        sys.stdout.reconfigure(
+            encoding="utf-8",
+            errors="replace"
+        )
+
+    if hasattr(
+        sys.stderr,
+        "reconfigure"
+    ):
+        sys.stderr.reconfigure(
+            encoding="utf-8",
+            errors="replace"
+        )
+
     initialize_database()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "3001")), debug=False)
+
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.getenv(
+                "PORT",
+                "3001"
+            )
+        ),
+        debug=False
+    )

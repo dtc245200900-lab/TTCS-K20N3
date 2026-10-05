@@ -46,6 +46,62 @@ function formatRoomTime(value) {
   }).format(date);
 }
 
+function renderUserAvatar(element, user) {
+  if (!element) return;
+  element.replaceChildren();
+  if (user.avatar) {
+    const image = document.createElement('img');
+    image.src = user.avatar;
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    element.append(image);
+    return;
+  }
+  element.textContent = (user.fullName || '?').charAt(0).toLocaleUpperCase('vi');
+}
+
+let currentAvatarPath = '';
+
+function renderProfileAvatarPreview(avatarPath) {
+  const preview = document.querySelector('#profile-avatar-preview');
+  if (!preview) return;
+  preview.replaceChildren();
+  if (avatarPath) {
+    const image = document.createElement('img');
+    image.src = avatarPath;
+    image.alt = 'Ảnh đại diện hiện tại';
+    preview.append(image);
+    const label = document.createElement('span');
+    label.textContent = 'Ảnh đại diện hiện tại';
+    preview.append(label);
+    return;
+  }
+  preview.textContent = 'Chưa có ảnh đại diện.';
+}
+
+async function loadProfile() {
+  const errorMessage = document.querySelector('#profile-error');
+  const message = document.querySelector('#profile-message');
+  if (errorMessage) errorMessage.textContent = '';
+  if (message) message.textContent = '';
+  try {
+    const response = await fetch('/api/profile');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Không thể tải thông tin cá nhân.');
+    const { user } = result;
+    document.querySelector('#profile-full-name').value = user.fullName || '';
+    document.querySelector('#profile-email').value = user.email || '';
+    document.querySelector('#profile-date-of-birth').value = user.dateOfBirth || '';
+    document.querySelector('#profile-phone').value = user.phone || '';
+    document.querySelector('#top-name').textContent = user.fullName || '';
+    renderUserAvatar(document.querySelector('#avatar'), user);
+    currentAvatarPath = user.avatar || '';
+    renderProfileAvatarPreview(currentAvatarPath);
+  } catch (error) {
+    if (errorMessage) errorMessage.textContent = error.message || 'Không thể kết nối đến máy chủ.';
+  }
+}
+
 if (form) {
   const errorMessage = document.querySelector('#error-message');
   const successMessage = document.querySelector('#success-message');
@@ -525,7 +581,8 @@ if (roomForm) {
     overview: document.querySelector('#overview-view'),
     list: document.querySelector('#room-list-view'),
     add: document.querySelector('#room-add-view'),
-    types: document.querySelector('#room-types-view')
+    types: document.querySelector('#room-types-view'),
+    profile: document.querySelector('#profile-view')
   };
   const roomMessage = document.querySelector('#room-message');
   const roomError = document.querySelector('#room-error');
@@ -552,7 +609,8 @@ if (roomForm) {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
+    const pageTitle = document.querySelector('#page-title');
+    if (pageTitle) pageTitle.textContent = { overview: 'Tổng quan', list: 'Phòng', add: 'Thông tin phòng', types: 'Thể loại phòng', profile: 'Thông tin cá nhân' }[viewName];
     if (viewName === 'add') document.querySelector('#room-code').focus();
   };
 
@@ -569,6 +627,7 @@ if (roomForm) {
         roomMessage.textContent = '';
       }
       setRoomView(button.dataset.roomView);
+      if (button.dataset.roomView === 'profile') loadProfile();
     });
   });
 
@@ -675,6 +734,72 @@ if (roomForm) {
   });
 }
 
+const profileForm = document.querySelector('#profile-form');
+if (profileForm) {
+  const errorMessage = document.querySelector('#profile-error');
+  const successMessage = document.querySelector('#profile-message');
+  const submitButton = document.querySelector('#profile-submit');
+  const avatarInput = document.querySelector('#profile-avatar');
+  const avatarPreview = document.querySelector('#profile-avatar-preview');
+
+  avatarInput.addEventListener('change', () => {
+    const file = avatarInput.files[0];
+    if (!file) {
+      renderProfileAvatarPreview(currentAvatarPath);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      errorMessage.textContent = 'Ảnh đại diện không được vượt quá 5 MB.';
+      avatarInput.value = '';
+      return;
+    }
+    errorMessage.textContent = '';
+    avatarPreview.replaceChildren();
+    const image = document.createElement('img');
+    image.src = URL.createObjectURL(file);
+    image.alt = 'Ảnh đại diện xem trước';
+    avatarPreview.append(image);
+    const label = document.createElement('span');
+    label.textContent = file.name;
+    avatarPreview.append(label);
+  });
+
+  profileForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    if (!profileForm.reportValidity()) return;
+    const avatarFile = avatarInput.files[0];
+    if (avatarFile && avatarFile.size > 5 * 1024 * 1024) {
+      errorMessage.textContent = 'Ảnh đại diện không được vượt quá 5 MB.';
+      return;
+    }
+    submitButton.disabled = true;
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        body: new FormData(profileForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể cập nhật thông tin cá nhân.');
+      const { user } = result;
+      document.querySelector('#profile-full-name').value = user.fullName || '';
+      document.querySelector('#profile-email').value = user.email || '';
+      document.querySelector('#profile-date-of-birth').value = user.dateOfBirth || '';
+      document.querySelector('#profile-phone').value = user.phone || '';
+      document.querySelector('#top-name').textContent = user.fullName || '';
+      renderUserAvatar(document.querySelector('#avatar'), user);
+      avatarInput.value = '';
+      await loadProfile();
+      successMessage.textContent = result.message || 'Cập nhật thông tin cá nhân thành công.';
+    } catch (error) {
+      errorMessage.textContent = error.message || 'Không thể kết nối đến máy chủ.';
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+}
+
 async function loadSession() {
   if (!document.querySelector('#top-name')) return;
   try {
@@ -686,8 +811,8 @@ async function loadSession() {
     }
     const { user } = result;
     document.querySelector('#top-name').textContent = user.fullName;
-    document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
-    await Promise.all([loadRoomList(), loadRoomTypes()]);
+    renderUserAvatar(document.querySelector('#avatar'), user);
+    await Promise.all([loadRoomList(), loadRoomTypes(), loadProfile()]);
   } catch {
     window.location.href = '/login.html';
   }

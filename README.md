@@ -40,6 +40,7 @@ Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles
 - `POST /api/register`
 - `POST /api/logout`
 - `GET /api/session`
+- `GET /api/profile`, `PUT /api/profile` (requires login; updates full name, date of birth, phone and avatar; email is read-only)
 - `GET /api/home` (can dang nhap)
 - `GET /api/rooms`, `POST /api/rooms`, `PUT /api/rooms/:id`, `PATCH /api/rooms/:id/status`, `DELETE /api/rooms/:id` (can dang nhap)
 - `GET /api/room-types`, `POST /api/room-types`, `PUT /api/room-types/:code`, `DELETE /api/room-types/:code` (can dang nhap)
