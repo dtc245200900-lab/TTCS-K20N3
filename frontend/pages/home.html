@@ -605,6 +605,47 @@
             </div>
           </form>
         </dialog>
+        <dialog id="checkout-room-dialog" class="checkout-room-dialog" aria-labelledby="checkout-room-title">
+          <section data-checkout-step="confirm" aria-labelledby="checkout-room-title">
+            <div class="checkout-dialog-heading">
+              <div>
+                <p class="eyebrow">QUẢN LÝ PHÒNG / TRẢ PHÒNG</p>
+                <h2 id="checkout-room-title">Xác nhận trả phòng</h2>
+                <p>Vui lòng kiểm tra thông tin trước khi xác nhận trả phòng.</p>
+              </div>
+              <button type="button" class="rent-room-close" data-close-checkout aria-label="Đóng">×</button>
+            </div>
+            <div class="checkout-room-info">
+              <img id="checkout-room-image" alt="" />
+              <dl>
+                <div><dt>Mã phòng</dt><dd id="checkout-room-code"></dd></div>
+                <div><dt>Loại phòng</dt><dd id="checkout-room-type"></dd></div>
+                <div><dt>Giờ vào</dt><dd id="checkout-room-check-in"></dd></div>
+                <div><dt>Giờ trả dự kiến</dt><dd id="checkout-room-check-out"></dd></div>
+                <div><dt>Tổng tiền hiện tại</dt><dd id="checkout-room-total"></dd></div>
+              </dl>
+            </div>
+            <p id="checkout-room-error" role="alert" aria-live="polite"></p>
+            <div class="checkout-dialog-actions">
+              <button type="button" class="cancel-button" data-close-checkout>Hủy</button>
+              <button type="button" class="primary-button" data-checkout-submit>Xác nhận trả phòng</button>
+            </div>
+          </section>
+          <section class="checkout-progress" data-checkout-step="loading" aria-live="polite" hidden>
+            <span class="checkout-spinner" aria-hidden="true"></span>
+            <h2>Đang xử lý...</h2>
+            <p>Vui lòng chờ trong giây lát.</p>
+          </section>
+          <section class="checkout-success" data-checkout-step="success" aria-live="polite" hidden>
+            <span class="checkout-success-icon" aria-hidden="true">✓</span>
+            <h2>Trả phòng thành công</h2>
+            <p id="checkout-success-message"></p>
+            <div class="checkout-dialog-actions">
+              <button type="button" class="cancel-button" data-close-checkout>Đóng</button>
+              <button type="button" class="primary-button" data-checkout-view-list>Xem danh sách phòng</button>
+            </div>
+          </section>
+        </dialog>
         <section id="room-add-view" class="room-view hidden-view">
           <div class="view-heading">
             <div>

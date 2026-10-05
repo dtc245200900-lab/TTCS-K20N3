@@ -597,6 +597,71 @@
 .dashboard-page .room-form-actions .primary-button:hover { background: linear-gradient(180deg,#7a2149,#581834); }
 .dashboard-page .rent-room-dialog { width: min(620px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; overflow: auto; border: 1px solid #f0dfe7; border-radius: 14px; color: #392330; background: rgba(255,255,255,.98); box-shadow: 0 18px 55px rgba(67,27,46,.24); }
 .dashboard-page .rent-room-dialog::backdrop { background: rgba(48,23,36,.44); backdrop-filter: blur(2px); }
+.dashboard-page .checkout-room-dialog { width: min(520px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; overflow: auto; border: 1px solid #f0dfe7; border-radius: 12px; color: #392330; background: #fff; box-shadow: 0 18px 55px rgba(67,27,46,.24); opacity: 0; transform: translateY(10px) scale(.985); transition: opacity .22s ease, transform .22s cubic-bezier(.2,.8,.2,1), display .22s allow-discrete, overlay .22s allow-discrete; }
+.dashboard-page .checkout-room-dialog[open] { opacity: 1; transform: translateY(0) scale(1); }
+.dashboard-page .checkout-room-dialog::backdrop { background: rgba(48,23,36,.58); backdrop-filter: blur(0); transition: background-color .22s ease, backdrop-filter .22s ease, display .22s allow-discrete, overlay .22s allow-discrete; }
+.dashboard-page .checkout-room-dialog[open]::backdrop { backdrop-filter: blur(2px); }
+@starting-style {
+  .dashboard-page .checkout-room-dialog[open] { opacity: 0; transform: translateY(10px) scale(.985); }
+  .dashboard-page .checkout-room-dialog[open]::backdrop { background: rgba(48,23,36,0); backdrop-filter: blur(0); }
+}
+.dashboard-page .checkout-room-dialog [hidden] { display: none !important; }
+.dashboard-page .checkout-room-dialog [data-checkout-step]:not([hidden]) { animation: checkout-step-enter .22s ease both; }
+.dashboard-page .checkout-room-dialog > section { padding: 22px; }
+.dashboard-page .checkout-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.dashboard-page .checkout-dialog-heading .eyebrow { margin: 0 0 6px; color: #d32864; font-size: 11px; }
+.dashboard-page .checkout-dialog-heading h2, .dashboard-page .checkout-progress h2, .dashboard-page .checkout-success h2 { margin: 0; color: #4b1a2d; font-size: 22px; }
+.dashboard-page .checkout-dialog-heading p:last-child { margin: 7px 0 0; color: #806d79; font-size: 13px; }
+.dashboard-page .checkout-room-info { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px; margin-top: 18px; padding: 12px; border: 1px solid #f0e4e9; border-radius: 8px; background: #fff9fb; }
+.dashboard-page .checkout-room-info > img { width: 132px; height: 148px; border-radius: 5px; object-fit: cover; }
+.dashboard-page .checkout-room-info dl { display: grid; align-content: center; gap: 10px; margin: 0; min-width: 0; }
+.dashboard-page .checkout-room-info dl > div { display: grid; grid-template-columns: minmax(88px, .8fr) minmax(0, 1.2fr); gap: 10px; font-size: 12px; }
+.dashboard-page .checkout-room-info dt { color: #806d79; }
+.dashboard-page .checkout-room-info dd { margin: 0; color: #42152e; font-weight: 700; overflow-wrap: anywhere; }
+.dashboard-page #checkout-room-error { margin: 10px 0 0; color: #a93232; font-size: 13px; }
+.dashboard-page #checkout-room-error:empty { display: none; }
+.dashboard-page .checkout-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.dashboard-page .checkout-dialog-actions button { min-height: 42px; padding: 9px 16px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+.dashboard-page .checkout-dialog-actions button:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(94,36,58,.14); }
+.dashboard-page .checkout-dialog-actions button:not(:disabled):active { transform: translateY(0) scale(.98); }
+.dashboard-page .checkout-dialog-actions .cancel-button { border: 1px solid #ddcbd4; color: #592b3f; background: #fff; }
+.dashboard-page .checkout-dialog-actions .primary-button { border: 0; color: #fff; background: #d83d72; }
+.dashboard-page .checkout-dialog-actions button:disabled { cursor: wait; opacity: .65; }
+.dashboard-page .checkout-progress, .dashboard-page .checkout-success { display: grid; justify-items: center; text-align: center; }
+.dashboard-page .checkout-progress { min-height: 230px; align-content: center; }
+.dashboard-page .checkout-progress p, .dashboard-page .checkout-success p { margin: 8px 0 0; color: #806d79; font-size: 13px; }
+.dashboard-page .checkout-spinner { width: 42px; height: 42px; margin-bottom: 15px; border: 4px solid #f5d6e1; border-top-color: #d83d72; border-radius: 50%; animation: checkout-spin .8s linear infinite; }
+.dashboard-page .checkout-success { padding-top: 28px !important; }
+.dashboard-page .checkout-success-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 50%; color: #fff; background: #2eae58; font-size: 27px; animation: checkout-check-pop .42s cubic-bezier(.2,.8,.2,1) both; }
+.dashboard-page .checkout-success .checkout-dialog-actions { width: 100%; justify-content: center; margin-top: 22px; }
+.dashboard-page .checkout-room-dialog.is-success { width: min(420px, calc(100vw - 32px)); }
+.dashboard-page .checkout-room-dialog.is-success > section { padding: 20px 18px; }
+.dashboard-page .checkout-room-dialog.is-success .checkout-success-icon { width: 40px; height: 40px; margin-bottom: 10px; font-size: 24px; }
+.dashboard-page .checkout-room-dialog.is-success .checkout-success h2 { font-size: 18px; }
+.dashboard-page .checkout-room-dialog.is-success .checkout-success p { max-width: 330px; font-size: 12px; line-height: 1.5; }
+.dashboard-page .checkout-room-dialog.is-success .checkout-dialog-actions { gap: 8px; margin-top: 18px; }
+.dashboard-page .checkout-room-dialog.is-success .checkout-dialog-actions button { min-height: 36px; padding: 8px 12px; }
+.dashboard-page .checkout-room-dialog.is-success .cancel-button { min-width: 120px; }
+.dashboard-page .checkout-room-dialog.is-success [data-checkout-view-list] { min-width: 150px; }
+@keyframes checkout-spin { to { transform: rotate(360deg); } }
+@keyframes checkout-step-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes checkout-check-pop { 0% { opacity: 0; transform: scale(.45); } 70% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page .checkout-room-dialog,
+  .dashboard-page .checkout-room-dialog::backdrop,
+  .dashboard-page .checkout-room-dialog [data-checkout-step],
+  .dashboard-page .checkout-success-icon,
+  .dashboard-page .checkout-spinner,
+  .dashboard-page .checkout-dialog-actions button { animation: none !important; transition: none !important; }
+}
+@media (max-width: 600px) {
+  .dashboard-page .checkout-room-dialog > section { padding: 16px; }
+  .dashboard-page .checkout-room-info { grid-template-columns: 1fr; gap: 12px; }
+  .dashboard-page .checkout-room-info > img { width: 100%; height: 150px; }
+  .dashboard-page .checkout-room-info dl > div { grid-template-columns: minmax(90px, .8fr) minmax(0, 1.2fr); }
+  .dashboard-page .checkout-dialog-actions { flex-direction: column-reverse; }
+  .dashboard-page .checkout-dialog-actions button { width: 100%; }
+}
 .dashboard-page .rent-room-form { margin: 0; padding: 20px; }
 .dashboard-page .rent-room-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .dashboard-page .rent-room-heading .eyebrow { margin: 0 0 5px; color: #d32864; font-size: 11px; letter-spacing: .1em; }
