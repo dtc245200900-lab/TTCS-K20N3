@@ -253,7 +253,14 @@ def write_json(path, value):
 
 
 def public_user(user):
-    return {"id": user["id"], "email": user["email"], "fullName": user["fullName"]}
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "fullName": user["fullName"],
+        "dateOfBirth": user.get("dateOfBirth", ""),
+        "phone": user.get("phone", ""),
+        "avatar": user.get("avatar", ""),
+    }
 
 
 def users():
@@ -451,6 +458,55 @@ def home_page():
 @app.get("/api/session")
 def get_session():
     return jsonify(user=session.get("user"))
+
+
+@app.put("/api/profile")
+def update_profile():
+    denied = require_auth()
+    if denied:
+        return denied
+
+    full_name = str(request.form.get("fullName", "")).strip()
+    date_of_birth = str(request.form.get("dateOfBirth", "")).strip()
+    phone = str(request.form.get("phone", "")).strip()
+    if not 2 <= len(full_name) <= 150:
+        return jsonify(message="Họ và tên phải có từ 2 đến 150 ký tự."), 400
+    try:
+        parsed_date = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+        if parsed_date > date.today():
+            raise ValueError
+    except ValueError:
+        return jsonify(message="Vui lòng nhập ngày sinh hợp lệ, không ở trong tương lai."), 400
+    digits = re.sub(r"\D", "", phone)
+    if not re.fullmatch(r"[+0-9() -]{7,20}", phone) or not 7 <= len(digits) <= 15:
+        return jsonify(message="Vui lòng nhập số điện thoại hợp lệ."), 400
+
+    all_users = users()
+    current_user = session["user"]
+    user = next((item for item in all_users if str(item.get("id")) == str(current_user.get("id"))), None)
+    if not user:
+        return jsonify(message="Không tìm thấy tài khoản người dùng."), 404
+
+    avatar = request.files.get("avatar")
+    if avatar and avatar.filename:
+        allowed_extensions = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/gif": ".gif",
+        }
+        extension = allowed_extensions.get(avatar.mimetype)
+        if not extension:
+            return jsonify(message="Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF."), 400
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        filename = f"{time.time_ns()}-{user['id']}-avatar{extension}"
+        avatar.save(UPLOAD_DIR / filename)
+        user["avatar"] = f"/uploads/{filename}"
+
+    user.update(fullName=full_name, dateOfBirth=date_of_birth, phone=phone)
+    write_json(USERS_FILE, all_users)
+    session["user"] = public_user(user)
+    return jsonify(message="Cập nhật thông tin cá nhân thành công", user=session["user"])
 
 
 @app.post("/api/login")
@@ -1126,7 +1182,7 @@ def frontend_file(filename):
 
 @app.errorhandler(413)
 def file_too_large(_error):
-    return jsonify(message="Ảnh phòng không được vượt quá 5MB."), 413
+    return jsonify(message="Tệp ảnh không được vượt quá 5MB."), 413
 
 
 if __name__ == "__main__":

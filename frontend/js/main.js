@@ -316,18 +316,40 @@ if (logoutButton) {
   logoutButton.addEventListener('click', async (event) => {
     const button = event.currentTarget;
     const errorMessage = document.querySelector('#logout-error');
+    const accountMenu = document.querySelector('#account-menu');
     button.disabled = true;
-    errorMessage.textContent = '';
+    if (errorMessage) errorMessage.textContent = '';
     try {
       const response = await fetch('/api/logout', { method: 'POST' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể đăng xuất.');
       window.location.href = '/login.html';
     } catch (error) {
-      errorMessage.textContent = error.message || 'Không thể kết nối đến máy chủ.';
+      if (errorMessage) errorMessage.textContent = error.message || 'Không thể kết nối đến máy chủ.';
       button.disabled = false;
+      if (accountMenu) accountMenu.hidden = false;
     }
   });
+}
+
+const accountToggle = document.querySelector('#account-toggle');
+const accountMenu = document.querySelector('#account-menu');
+if (accountToggle && accountMenu) {
+  const closeAccountMenu = () => {
+    accountMenu.hidden = true;
+    accountToggle.setAttribute('aria-expanded', 'false');
+  };
+  accountToggle.addEventListener('click', () => {
+    accountMenu.hidden = !accountMenu.hidden;
+    accountToggle.setAttribute('aria-expanded', String(!accountMenu.hidden));
+  });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.sidebar-account')) closeAccountMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAccountMenu();
+  });
+  document.querySelector('#profile-menu-item')?.addEventListener('click', closeAccountMenu);
 }
 
 async function loadRoomList() {
@@ -1013,7 +1035,8 @@ if (roomForm) {
     list: document.querySelector('#room-list-view'),
     checkout: document.querySelector('#room-checkout-view'),
     add: document.querySelector('#room-add-view'),
-    types: document.querySelector('#room-types-view')
+    types: document.querySelector('#room-types-view'),
+    profile: document.querySelector('#profile-view')
   };
   const roomError = document.querySelector('#room-error');
   const cancelButton = document.querySelector('#cancel-room-form');
@@ -1041,7 +1064,7 @@ if (roomForm) {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
+    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', types: 'Thể loại phòng', profile: 'Cập nhật thông tin cá nhân' }[viewName];
     document.querySelector('#room-view-title').textContent = viewName === 'booking' ? 'Đặt phòng' : 'Danh sách phòng';
     document.querySelector('#room-view-description').textContent = viewName === 'booking'
       ? 'Chọn phòng trống để tạo đặt phòng.'
@@ -1194,11 +1217,81 @@ async function loadSession() {
     }
     const { user } = result;
     document.querySelector('#top-name').textContent = user.fullName;
-    document.querySelector('#avatar').textContent = user.fullName.charAt(0).toUpperCase();
+    updateProfileForm(user);
     await Promise.all([loadRoomList(), loadRoomTypes()]);
   } catch {
     window.location.href = '/login.html';
   }
+}
+
+const profileForm = document.querySelector('#profile-form');
+if (profileForm) {
+  const avatarInput = document.querySelector('#profile-avatar');
+  const avatarPreview = document.querySelector('#profile-avatar-preview');
+  const errorMessage = document.querySelector('#profile-error');
+  const successMessage = document.querySelector('#profile-success');
+  const saveButton = document.querySelector('#profile-save-button');
+
+  profileForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    if (!profileForm.checkValidity()) {
+      profileForm.reportValidity();
+      errorMessage.textContent = 'Vui lòng kiểm tra và điền đầy đủ các thông tin bắt buộc.';
+      return;
+    }
+    const avatarFile = avatarInput.files[0];
+    if (avatarFile && avatarFile.size > 5 * 1024 * 1024) {
+      errorMessage.textContent = 'Ảnh đại diện không được vượt quá 5MB.';
+      return;
+    }
+
+    saveButton.disabled = true;
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        body: new FormData(profileForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể cập nhật thông tin cá nhân.');
+      updateProfileForm(result.user);
+      avatarInput.value = '';
+      successMessage.textContent = result.message || 'Cập nhật thông tin cá nhân thành công';
+    } catch (error) {
+      errorMessage.textContent = error.message || 'Không thể cập nhật thông tin cá nhân.';
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  avatarInput.addEventListener('change', () => {
+    const file = avatarInput.files[0];
+    if (file) avatarPreview.src = URL.createObjectURL(file);
+  });
+}
+
+function updateProfileForm(user) {
+  if (!user) return;
+  const topName = document.querySelector('#top-name');
+  const fullName = document.querySelector('#profile-full-name');
+  const dateOfBirth = document.querySelector('#profile-date-of-birth');
+  const email = document.querySelector('#profile-email');
+  const phone = document.querySelector('#profile-phone');
+  const avatarPreview = document.querySelector('#profile-avatar-preview');
+  if (topName) topName.textContent = user.fullName || '';
+  if (fullName) fullName.value = user.fullName || '';
+  if (dateOfBirth) dateOfBirth.value = user.dateOfBirth || '';
+  if (email) email.value = user.email || '';
+  if (phone) phone.value = user.phone || '';
+  const initials = (user.fullName || 'H').trim().charAt(0).toLocaleUpperCase('vi');
+  const topAvatar = document.querySelector('#avatar');
+  if (topAvatar) {
+    topAvatar.textContent = user.avatar ? '' : initials;
+    topAvatar.style.backgroundImage = user.avatar ? `url("${user.avatar}")` : '';
+    topAvatar.classList.toggle('has-avatar', Boolean(user.avatar));
+  }
+  if (avatarPreview && user.avatar) avatarPreview.src = user.avatar;
 }
 
 loadSession();

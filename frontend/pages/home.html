@@ -29,18 +29,7 @@
         />
       </div>
       <time id="dashboard-date" class="topbar-date"></time>
-      <div class="user-chip">
-        <div>
-          <strong id="top-name">...</strong>
-          <small>Đang hoạt động</small>
-        </div>
-        <div class="avatar" id="avatar">H</div>
-        <button id="logout-button" class="secondary-button" type="button">
-          Đăng xuất
-        </button>
-      </div>
     </header>
-    <p id="logout-error" class="error" role="alert"></p>
     <div class="dashboard-layout">
       <aside class="room-sidebar" aria-label="Điều hướng quản lý phòng">
         <div class="sidebar-brand">
@@ -131,6 +120,25 @@
           </button>
         </nav>
         <div class="sidebar-scenery" aria-hidden="true"></div>
+        <div class="sidebar-account">
+          <button id="account-toggle" class="account-toggle" type="button" aria-expanded="false" aria-controls="account-menu">
+            <span class="avatar account-avatar" id="avatar" aria-hidden="true">H</span>
+            <span class="sidebar-account-info">
+              <strong id="top-name">...</strong>
+              <small>Tài khoản</small>
+            </span>
+            <span class="account-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="account-menu" class="account-menu" hidden>
+            <button id="profile-menu-item" class="account-menu-item" type="button" data-room-view="profile">
+              Cập nhật thông tin cá nhân
+            </button>
+            <button id="logout-button" class="account-menu-item" type="button">
+              Đăng xuất
+            </button>
+            <p id="logout-error" class="error" role="alert" aria-live="polite"></p>
+          </div>
+        </div>
       </aside>
       <main class="dashboard">
         <h1 id="page-title">Tổng quan</h1>
@@ -958,9 +966,42 @@
             <div id="room-type-list" class="room-type-list"></div>
           </article>
         </section>
+        <section id="profile-view" class="room-view hidden-view" aria-label="Cập nhật thông tin cá nhân">
+          <article class="profile-card">
+            <div class="profile-heading">
+              <div>
+                <p class="eyebrow">TÀI KHOẢN</p>
+                <h2>Thông tin cá nhân</h2>
+                <p class="muted">Cập nhật thông tin liên hệ và ảnh đại diện của bạn.</p>
+              </div>
+            </div>
+            <form id="profile-form" class="profile-form" novalidate>
+              <div class="profile-avatar-field">
+                <img id="profile-avatar-preview" src="/assets/sakura-mark.svg" alt="Ảnh đại diện hiện tại" />
+                <label for="profile-avatar">Ảnh đại diện</label>
+                <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+                <small>JPG, PNG, WEBP hoặc GIF; tối đa 5MB.</small>
+              </div>
+              <div class="profile-fields">
+                <label for="profile-full-name">Họ và tên <span class="required-mark">*</span></label>
+                <input id="profile-full-name" name="fullName" type="text" maxlength="150" autocomplete="name" required />
+                <label for="profile-date-of-birth">Ngày sinh <span class="required-mark">*</span></label>
+                <input id="profile-date-of-birth" name="dateOfBirth" type="date" required />
+                <label for="profile-email">Email</label>
+                <input id="profile-email" name="email" type="email" readonly aria-describedby="profile-email-hint" />
+                <small id="profile-email-hint">Email không thể thay đổi.</small>
+                <label for="profile-phone">Số điện thoại <span class="required-mark">*</span></label>
+                <input id="profile-phone" name="phone" type="tel" maxlength="20" pattern="[+0-9() -]{7,20}" autocomplete="tel" required />
+              </div>
+              <p id="profile-error" class="error" role="alert" aria-live="polite"></p>
+              <p id="profile-success" class="success" role="status" aria-live="polite"></p>
+              <button id="profile-save-button" type="submit" class="primary-button">Lưu thay đổi</button>
+            </form>
+          </article>
+        </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20260930-dashboard" defer></script>
+    <script src="/js/main.js?v=20261006-profile" defer></script>
     <script src="/js/dashboard.js" defer></script>
   </body>
 </html>

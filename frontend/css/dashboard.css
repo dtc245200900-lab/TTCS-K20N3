@@ -26,6 +26,23 @@
 .dashboard-page .room-nav-link { min-height: 43px; padding: 10px 12px; border-radius: 10px; color: #5f3648; font-size: 15px; gap: 12px; transition: all .2s ease; box-shadow: inset 0 0 0 1px transparent; }
 .dashboard-page .room-nav-link.active, .dashboard-page .room-nav-link:hover { color: #fff; background: linear-gradient(135deg, #d43473, #bc2f5f); box-shadow: 0 8px 16px rgba(188, 47, 95, 0.18); }
 .dashboard-page .room-nav-link.active { font-weight: 700; }
+.dashboard-page .nav-icon svg { display: block; width: 22px; height: 22px; }
+.dashboard-page .avatar.has-avatar { background-position: center; background-size: cover; color: transparent; }
+.dashboard-page .profile-card { max-width: 760px; padding: 28px; border: 1px solid rgba(240, 228, 233, 0.9); border-radius: 16px; background: rgba(255,255,255,0.97); box-shadow: 0 10px 22px rgba(97, 46, 60, 0.05); }
+.dashboard-page .profile-heading h2 { margin-top: 8px; color: #6b163f; font-size: 30px; }
+.dashboard-page .profile-heading .muted { margin-top: 8px; }
+.dashboard-page .profile-form { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+.dashboard-page .profile-avatar-field { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+.dashboard-page .profile-avatar-field img { width: 112px; height: 112px; border: 1px solid var(--line); border-radius: 50%; background: #fcecf1; object-fit: cover; }
+.dashboard-page .profile-avatar-field label, .dashboard-page .profile-fields label { margin: 0; color: #5f3648; font-size: 14px; }
+.dashboard-page .profile-avatar-field input { padding: 0; border: 0; background: transparent; font-size: 12px; }
+.dashboard-page .profile-avatar-field small, .dashboard-page #profile-email-hint { color: var(--muted); font-size: 12px; }
+.dashboard-page .profile-fields { display: grid; gap: 8px; }
+.dashboard-page .profile-fields input { min-height: 44px; padding: 10px 12px; border: 1px solid #ead5df; border-radius: 8px; color: var(--ink); background: #fff; }
+.dashboard-page .profile-fields input:read-only { color: #766671; background: #f8f3f5; cursor: not-allowed; }
+.dashboard-page #profile-save-button { grid-column: 2; width: auto; justify-self: start; margin: 0; }
+.dashboard-page #profile-error, .dashboard-page #profile-success { grid-column: 2; margin: 0; }
+.dashboard-page #profile-error:empty, .dashboard-page #profile-success:empty { display: none; }
 .dashboard-page .nav-count { display: inline-grid; place-items: center; min-width: 21px; height: 21px; margin-left: auto; padding: 0 6px; border-radius: 999px; color: #a82b54; background: #fbe6ee; font-size: 11px; font-weight: 700; }
 .dashboard-page .room-nav-link.active .nav-count { color: #fff; background: rgba(255,255,255,.2); }
 .dashboard-page .nav-icon { color: currentColor; font-size: 22px; width: 24px; }
@@ -382,6 +399,25 @@
  .dashboard-page .occupancy-legend { font-size: 12px; }
  .dashboard-page .room-type-fields, .dashboard-page .room-type-form .room-type-fields { grid-template-columns: 1fr; }
  .dashboard-page .form-intro { flex-wrap: wrap; }
+}
+
+.dashboard-page .sidebar-account { position: relative; z-index: 6; margin-top: auto; padding: 12px 0 0; border-top: 1px solid rgba(214, 170, 188, 0.45); }
+.dashboard-page .account-toggle { display: flex; align-items: center; width: 100%; min-height: 54px; gap: 10px; padding: 7px 8px; border: 0; border-radius: 10px; color: #5f3648; background: transparent; text-align: left; }
+.dashboard-page .account-toggle:hover, .dashboard-page .account-toggle[aria-expanded="true"] { background: rgba(255,255,255,.72); }
+.dashboard-page .account-avatar { flex: 0 0 38px; width: 38px; height: 38px; overflow: hidden; background-position: center; background-size: cover; }
+.dashboard-page .sidebar-account-info { display: grid; min-width: 0; gap: 3px; }
+.dashboard-page .sidebar-account-info strong { overflow: hidden; color: #4a1430; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-page .sidebar-account-info small { color: var(--muted); font-size: 11px; }
+.dashboard-page .account-chevron { margin-left: auto; font-size: 20px; }
+.dashboard-page .account-menu { position: absolute; right: 0; bottom: calc(100% + 8px); left: 0; padding: 6px; border: 1px solid #ead5df; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgba(91, 38, 58, .15); }
+.dashboard-page .account-menu[hidden] { display: none; }
+.dashboard-page .account-menu-item { display: block; width: 100%; padding: 10px; border: 0; border-radius: 7px; color: #5f3648; background: transparent; font: inherit; font-size: 13px; text-align: left; }
+.dashboard-page .account-menu-item:hover { color: #842448; background: #fff0f5; }
+.dashboard-page #logout-error { margin: 4px 8px; }
+@media (max-width: 600px) {
+  .dashboard-page .room-sidebar { min-height: 0; }
+  .dashboard-page .sidebar-account { width: 100%; }
+  .dashboard-page .account-menu { bottom: auto; top: calc(100% + 8px); }
 }
 @media (prefers-reduced-motion: reduce) { .dashboard-page * { transition: none !important; } }
 
@@ -790,4 +826,6 @@
   .dashboard-page .welcome-banner { align-items: flex-start; padding: 17px; }
   .dashboard-page .welcome-banner h2 { font-size: 25px; }
   .dashboard-page .welcome-banner .primary-button { width: auto; }
+  .dashboard-page .profile-form { grid-template-columns: 1fr; }
+  .dashboard-page #profile-save-button, .dashboard-page #profile-error, .dashboard-page #profile-success { grid-column: 1; }
 }
