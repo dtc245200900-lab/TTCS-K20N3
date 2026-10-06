@@ -33,10 +33,13 @@
 .dashboard-page .profile-heading .muted { margin-top: 8px; }
 .dashboard-page .profile-form { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; margin-top: 24px; }
 .dashboard-page .profile-avatar-field { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
-.dashboard-page .profile-avatar-field img { width: 112px; height: 112px; border: 1px solid var(--line); border-radius: 50%; background: #fcecf1; object-fit: cover; }
+.dashboard-page .profile-avatar-upload { position: relative; width: 112px; height: 112px; }
+.dashboard-page .profile-avatar-upload img { width: 112px; height: 112px; border: 1px solid var(--line); border-radius: 50%; background: #fcecf1; object-fit: cover; }
+.dashboard-page .avatar-upload-trigger { position: absolute; right: -4px; bottom: 4px; display: grid; place-items: center; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 50%; background: linear-gradient(135deg, #d84a7b, #c53467); color: #fff; box-shadow: 0 10px 18px rgba(197, 52, 103, 0.25); cursor: pointer; }
+.dashboard-page .avatar-upload-trigger svg { width: 16px; height: 16px; stroke: currentColor; }
 .dashboard-page .profile-avatar-field label, .dashboard-page .profile-fields label { margin: 0; color: #5f3648; font-size: 14px; }
 .dashboard-page .profile-avatar-field input { padding: 0; border: 0; background: transparent; font-size: 12px; }
-.dashboard-page .profile-avatar-field small, .dashboard-page #profile-email-hint { color: var(--muted); font-size: 12px; }
+.dashboard-page .profile-avatar-field small, .dashboard-page #profile-email-hint { display: none; }
 .dashboard-page .profile-fields { display: grid; gap: 8px; }
 .dashboard-page .profile-fields input { min-height: 44px; padding: 10px 12px; border: 1px solid #ead5df; border-radius: 8px; color: var(--ink); background: #fff; }
 .dashboard-page .profile-fields input:read-only { color: #766671; background: #f8f3f5; cursor: not-allowed; }
@@ -408,7 +411,6 @@
 .dashboard-page .sidebar-account-info { display: grid; min-width: 0; gap: 3px; }
 .dashboard-page .sidebar-account-info strong { overflow: hidden; color: #4a1430; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-page .sidebar-account-info small { color: var(--muted); font-size: 11px; }
-.dashboard-page .account-chevron { margin-left: auto; font-size: 20px; }
 .dashboard-page .account-menu { position: absolute; right: 0; bottom: calc(100% + 8px); left: 0; padding: 6px; border: 1px solid #ead5df; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgba(91, 38, 58, .15); }
 .dashboard-page .account-menu[hidden] { display: none; }
 .dashboard-page .account-menu-item { display: block; width: 100%; padding: 10px; border: 0; border-radius: 7px; color: #5f3648; background: transparent; font: inherit; font-size: 13px; text-align: left; }

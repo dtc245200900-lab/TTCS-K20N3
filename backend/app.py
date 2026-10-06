@@ -381,6 +381,10 @@ def list_room_types():
         room_rows = query("SELECT DISTINCT room_type FROM rooms", fetch=True)["rows"]
         type_rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
         types = [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in type_rows]
+        if not type_rows and not room_rows:
+            json_types = read_json(ROOM_TYPES_FILE, [])
+            if json_types:
+                return json_types
         names = ([] if types else ["Đơn", "Đôi", "VIP"]) + [row["room_type"] for row in room_rows]
         for name in names:
             if not str(name or "").strip() or any(norm_name(item["name"]) == norm_name(name) for item in types):
@@ -392,16 +396,21 @@ def list_room_types():
             except mysql.connector.IntegrityError:
                 pass
         rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
-        return [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in rows]
+        if rows:
+            return [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in rows]
 
     types = read_json(ROOM_TYPES_FILE, [])
     rooms = read_json(ROOMS_FILE, [])
+    if not types and not rooms:
+        types = [{"code": "LP001", "name": "Đơn", "description": ""}, {"code": "LP002", "name": "Đôi", "description": ""}, {"code": "LP003", "name": "VIP", "description": ""}]
+        write_json(ROOM_TYPES_FILE, types)
+        return types
     names = ([] if types else ["Đơn", "Đôi", "VIP"])
     names.extend(room.get("roomType", room.get("room_type")) for room in rooms)
     for name in names:
         if not str(name or "").strip() or any(norm_name(item.get("name")) == norm_name(name) for item in types):
             continue
-            types.append({"code": next_type_code(types), "name": str(name).strip(), "description": ""})
+        types.append({"code": next_type_code(types), "name": str(name).strip(), "description": ""})
     write_json(ROOM_TYPES_FILE, types)
     return types
 
@@ -414,6 +423,10 @@ def find_room_type(name):
 def list_rooms():
     if db_available():
         rows = query("SELECT * FROM rooms ORDER BY created_at DESC, id DESC", fetch=True)["rows"]
+        if not rows:
+            json_rows = read_json(ROOMS_FILE, [])
+            if json_rows:
+                return [normalize_room(room) for room in json_rows]
     else:
         rows = read_json(ROOMS_FILE, [])
     return [normalize_room(room) for room in rows]
@@ -422,7 +435,11 @@ def list_rooms():
 def room_by_id(room_id):
     if db_available():
         rows = query("SELECT * FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
-        return normalize_room(rows[0]) if rows else None
+        if rows:
+            return normalize_room(rows[0])
+        json_rows = read_json(ROOMS_FILE, [])
+        room = next((item for item in json_rows if str(item.get("id")) == str(room_id)), None)
+        return normalize_room(room) if room else None
     rows = read_json(ROOMS_FILE, [])
     room = next((item for item in rows if str(item.get("id")) == str(room_id)), None)
     return normalize_room(room) if room else None

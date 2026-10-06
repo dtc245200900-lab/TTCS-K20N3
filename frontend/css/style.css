@@ -115,14 +115,16 @@ button[type="submit"]:hover { background: #ce624d; transform: translateY(-2px); 
 .status-default input { margin: 0; padding-left: 2rem; color: #39704f; background: #f1f8f1; }
 .status-dot { position: absolute; left: .85rem; z-index: 1; width: .5rem; height: .5rem; border-radius: 50%; background: #55a66e; }
 .image-field { grid-column: auto; }
-.upload-zone { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; min-height: 8rem; margin-top: .35rem; padding: 1rem; border: 1px dashed #9bb5a5; color: var(--muted); background: rgba(255,255,255,.7); text-align: center; cursor: pointer; }
+.upload-zone { position: relative; display: flex; align-items: center; justify-content: center; min-height: 6rem; margin-top: .35rem; padding: 1rem; border: 1px dashed #9bb5a5; border-radius: 12px; color: var(--muted); background: rgba(255,255,255,.7); text-align: center; cursor: pointer; }
 .upload-zone:hover { border-color: var(--forest-light); background: #fff; }
-.upload-zone strong { color: var(--forest); font-size: .82rem; }
-.upload-zone > span:last-of-type { font-size: .68rem; font-weight: 400; }
-.upload-icon { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; color: #fff; background: var(--forest-light); font-size: 1.1rem; }
+.upload-zone strong { display: none; }
+.upload-zone > span:last-of-type { display: none; }
+.upload-icon { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #d84a7b, #c53467); box-shadow: 0 10px 18px rgba(197, 52, 103, 0.25); }
+.upload-icon svg { width: 1.5rem; height: 1.5rem; }
 .upload-zone input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
 .image-preview { display: flex; align-items: center; gap: .6rem; margin-top: .6rem; color: var(--muted); font-size: .7rem; font-weight: 400; }
 .image-preview img { width: 4rem; height: 3rem; object-fit: cover; border: 1px solid var(--line); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .room-form-actions { display: flex; align-items: center; gap: .75rem; }
 .room-form-actions .small-button { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
 .small-button { width: auto; margin-top: 1rem; padding: .8rem 1.2rem; }

@@ -127,7 +127,6 @@
               <strong id="top-name">...</strong>
               <small>Tài khoản</small>
             </span>
-            <span class="account-chevron" aria-hidden="true">⌄</span>
           </button>
           <div id="account-menu" class="account-menu" hidden>
             <button id="profile-menu-item" class="account-menu-item" type="button" data-room-view="profile">
@@ -839,14 +838,13 @@
                 </label>
                 <label class="image-field" for="room-image"
                   >Ảnh phòng
-                  <small class="field-hint"
-                    >Không bắt buộc · JPG, PNG, WEBP hoặc GIF · tối đa 5
-                    MB</small
-                  >
-                  <span class="upload-zone">
-                    <span class="upload-icon" aria-hidden="true">+</span>
-                    <strong>Chọn ảnh phòng</strong>
-                    <span>Nhấn vào đây để chọn ảnh từ thiết bị</span>
+                  <span class="upload-zone" aria-label="Tải ảnh phòng">
+                    <span class="upload-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.3l1.1-1.8h6.2L15.2 5H17.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/>
+                        <circle cx="12" cy="12.5" r="3.35"/>
+                      </svg>
+                    </span>
                     <input
                       id="room-image"
                       type="file"
@@ -977,10 +975,16 @@
             </div>
             <form id="profile-form" class="profile-form" novalidate>
               <div class="profile-avatar-field">
-                <img id="profile-avatar-preview" src="/assets/sakura-mark.svg" alt="Ảnh đại diện hiện tại" />
-                <label for="profile-avatar">Ảnh đại diện</label>
-                <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-                <small>JPG, PNG, WEBP hoặc GIF; tối đa 5MB.</small>
+                <div class="profile-avatar-upload">
+                  <img id="profile-avatar-preview" src="/assets/sakura-mark.svg" alt="Ảnh đại diện hiện tại" />
+                  <label for="profile-avatar" class="avatar-upload-trigger" aria-label="Tải ảnh đại diện">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.3l1.1-1.8h6.2L15.2 5H17.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/>
+                      <circle cx="12" cy="12.5" r="3.35"/>
+                    </svg>
+                  </label>
+                  <input id="profile-avatar" class="visually-hidden" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+                </div>
               </div>
               <div class="profile-fields">
                 <label for="profile-full-name">Họ và tên <span class="required-mark">*</span></label>
