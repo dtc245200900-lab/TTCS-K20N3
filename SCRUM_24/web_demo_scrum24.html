@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>SCRUM-24: Phân quyền đa vai trò & Mobile 360px</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .screen-360-container {
+      width: 360px !important;
+      max-width: 360px !important;
+      margin: 0 auto;
+      border: 10px solid #e2e8f0;
+      border-radius: 40px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      position: relative;
+    }
+    .touch-target { min-height: 44px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-4 font-sans">
+  <div class="max-w-xl mx-auto space-y-3">
+    <div class="flex justify-between items-center bg-white border border-slate-200 rounded-xl p-3 text-xs shadow-sm">
+      <div>
+        <span class="font-extrabold text-indigo-700">SCRUM-24: Phân quyền đa vai trò & Mobile 360px</span>
+      </div>
+      <button id="btn360" onclick="toggle360()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm cursor-pointer">
+        📱 Co giãn 360px
+      </button>
+    </div>
+
+    <div id="p2Frame" class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl text-slate-800 transition-all">
+      <header class="bg-slate-50 p-3.5 flex items-center justify-between border-b border-slate-200">
+        <div class="flex items-center gap-2.5">
+          <div id="p2Avatar" class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 font-black text-xs flex items-center justify-center text-white shadow-sm">
+            AN
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span id="p2Name" class="font-bold text-xs text-slate-900">Thầy Trần Văn An</span>
+              <span id="p2Badges" class="flex gap-1"></span>
+            </div>
+            <div class="text-[11px] text-slate-500">Tài khoản: <span id="p2Login" class="text-indigo-600 font-mono font-semibold">admin_an</span></div>
+          </div>
+        </div>
+
+        <button onclick="toggleMenu()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold shadow-sm cursor-pointer">
+          <span>☰</span> Menu
+        </button>
+      </header>
+
+      <nav id="p2Menu" class="bg-slate-50/80 p-3.5 border-b border-slate-200 space-y-1.5">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 py-0.5 flex justify-between">
+          <span>DANH MỤC THUỘC QUYỀN ĐÀO TẠO</span>
+          <span class="text-emerald-700 font-extrabold text-[9px] bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">✓ ĐÃ LỌC RBAC</span>
+        </div>
+        <div id="menuItems" class="space-y-1.5"></div>
+      </nav>
+
+      <div class="p-4 space-y-3.5">
+        <div id="p2Alert" class="hidden p-3 rounded-xl text-xs border font-medium"></div>
+
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs">
+          <span class="font-bold text-slate-700 block">Chọn nhanh người dùng để test menu tự lọc:</span>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="switchRole('admin_an')" id="btn-admin_an" class="p-2 rounded-lg border text-left bg-indigo-50 border-indigo-300 text-indigo-800 font-bold text-[10px] cursor-pointer">⚡ Quản trị & GV</button>
+            <button onclick="switchRole('gv_ha')" id="btn-gv_ha" class="p-2 rounded-lg border text-left bg-white border-slate-200 text-slate-600 font-medium text-[10px] cursor-pointer">👨‍🏫 Giảng viên</button>
+            <button onclick="switchRole('hs_nam')" id="btn-hs_nam" class="p-2 rounded-lg border text-left bg-white border-slate-200 text-slate-600 font-medium text-[10px] cursor-pointer">🎓 Học viên</button>
+          </div>
+        </div>
+
+        <div id="pageRoles" class="hidden space-y-2.5 text-xs">
+          <h3 class="font-bold text-xs text-indigo-900">⚙️ Trung Tâm Phân Quyền & Anti-Lockout</h3>
+          <div id="rolesList" class="space-y-2"></div>
+        </div>
+
+        <div id="pageHome" class="p-4 bg-white border border-slate-200 rounded-xl text-xs space-y-1.5 shadow-sm">
+          <h4 class="font-bold text-indigo-700 text-sm">Cổng Thông Tin Đào Tạo</h4>
+          <p class="text-slate-600 text-[11px] leading-relaxed">
+            Hệ thống hỗ trợ hoàn hảo trên màn hình chuẩn <b>360px</b>. Mọi nút bấm menu đều có chiều cao $\ge 44$px để thao tác cảm ứng không bị bấm nhầm.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let is360 = false;
+    let isMenuOpen = true;
+
+    const USERS = {
+      admin_an: { name: "Thầy Trần Văn An", roles: ["admin", "teacher"] },
+      gv_ha: { name: "Cô Thu Hà", roles: ["teacher"] },
+      hs_nam: { name: "Lê Hoàng Nam", roles: ["student"] }
+    };
+
+    const MENUS = [
+      { id: "home", name: "Trang chủ đào tạo", icon: "🏠", roles: ["admin", "teacher", "student"] },
+      { id: "results", name: "Xem kết quả chuyên cần", icon: "📊", roles: ["admin", "teacher", "student"] },
+      { id: "diemdanh", name: "Điểm danh học viên", icon: "📝", roles: ["admin", "teacher"] },
+      { id: "roles", name: "Cấu hình phân quyền", icon: "⚙️", roles: ["admin"] }
+    ];
+
+    let current = "admin_an";
+
+    function switchRole(k) {
+      current = k;
+      ['admin_an', 'gv_ha', 'hs_nam'].forEach(u => {
+        document.getElementById('btn-' + u).className = u === k 
+          ? "p-2 rounded-lg border text-left bg-indigo-50 border-indigo-300 text-indigo-800 font-bold text-[10px] cursor-pointer"
+          : "p-2 rounded-lg border text-left bg-white border-slate-200 text-slate-600 font-medium text-[10px] cursor-pointer";
+      });
+      render();
+    }
+
+    function render() {
+      const u = USERS[current];
+      document.getElementById('p2Name').innerText = u.name;
+      document.getElementById('p2Login').innerText = current;
+      document.getElementById('p2Avatar').innerText = u.name.split(' ').pop().substring(0, 2).toUpperCase();
+
+      const badges = document.getElementById('p2Badges');
+      badges.innerHTML = u.roles.map(r => {
+        if (r === 'admin') return '<span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700 border border-purple-200">Quản trị</span>';
+        if (r === 'teacher') return '<span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-700 border border-blue-200">Giảng viên</span>';
+        return '<span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Học viên</span>';
+      }).join('');
+
+      const allowed = MENUS.filter(m => m.roles.some(r => u.roles.includes(r)));
+      const menuBox = document.getElementById('menuItems');
+      menuBox.innerHTML = allowed.map(m => `
+        <button onclick="nav('${m.id}')" class="touch-target w-full text-left px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 text-xs flex items-center justify-between shadow-sm cursor-pointer">
+          <div class="flex items-center gap-2.5"><span class="text-base">${m.icon}</span><span class="font-semibold">${m.name}</span></div>
+          <span class="text-[11px] text-slate-400">Mở →</span>
+        </button>
+      `).join('');
+
+      renderRolesUI();
+    }
+
+    function nav(id) {
+      if (id === 'roles') {
+        document.getElementById('pageRoles').classList.remove('hidden');
+        document.getElementById('pageHome').classList.add('hidden');
+      } else {
+        document.getElementById('pageRoles').classList.add('hidden');
+        document.getElementById('pageHome').classList.remove('hidden');
+      }
+    }
+
+    function toggleMenu() {
+      isMenuOpen = !isMenuOpen;
+      document.getElementById('p2Menu').classList.toggle('hidden', !isMenuOpen);
+    }
+
+    function toggle360() {
+      is360 = !is360;
+      const f = document.getElementById('p2Frame');
+      const b = document.getElementById('btn360');
+      if (is360) {
+        f.classList.add('screen-360-container');
+        b.innerHTML = "🖥️ Thoát 360px";
+      } else {
+        f.classList.remove('screen-360-container');
+        b.innerHTML = "📱 Co giãn 360px";
+      }
+    }
+
+    function renderRolesUI() {
+      const box = document.getElementById('rolesList');
+      box.innerHTML = Object.keys(USERS).map(k => {
+        const u = USERS[k];
+        const isSelf = k === current;
+        return `
+          <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-sm">
+            <div class="flex justify-between items-center font-bold text-slate-800 text-[11px]">
+              <span>${u.name} (<code class="text-indigo-600">${k}</code>)</span>
+              ${isSelf ? '<span class="text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-bold">Tài khoản của bạn</span>' : ''}
+            </div>
+            <div class="flex gap-3 text-[11px] text-slate-700">
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="role-${k}-admin" ${u.roles.includes('admin') ? 'checked' : ''} class="rounded text-indigo-600"> Quản trị</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="role-${k}-teacher" ${u.roles.includes('teacher') ? 'checked' : ''} class="rounded text-blue-600"> Giảng viên</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="role-${k}-student" ${u.roles.includes('student') ? 'checked' : ''} class="rounded text-emerald-600"> Học viên</label>
+            </div>
+            <button onclick="saveRole('${k}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shadow-sm cursor-pointer">Lưu thay đổi</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveRole(k) {
+      const isSelf = k === current;
+      const isAdmin = document.getElementById(`role-${k}-admin`).checked;
+      const isTeacher = document.getElementById(`role-${k}-teacher`).checked;
+      const isStudent = document.getElementById(`role-${k}-student`).checked;
+
+      // ANTI-LOCKOUT
+      if (isSelf && !isAdmin) {
+        showP2Alert("🚫 <b>Quy tắc an toàn (Anti-Lockout):</b> Bạn KHÔNG THỂ tự thu hồi vai trò Quản trị viên của chính mình!", "danger");
+        document.getElementById(`role-${k}-admin`).checked = true;
+        return;
+      }
+
+      const newRoles = [];
+      if (isAdmin) newRoles.push('admin');
+      if (isTeacher) newRoles.push('teacher');
+      if (isStudent) newRoles.push('student');
+
+      USERS[k].roles = newRoles;
+      showP2Alert(`✓ Đã cập nhật vai trò cho <b>${USERS[k].name}</b> thành công (Hiệu lực ngay lập tức)!`, "success");
+      if (isSelf) render();
+    }
+
+    function showP2Alert(msg, type) {
+      const b = document.getElementById('p2Alert');
+      b.innerHTML = msg;
+      b.className = "p-3 rounded-xl text-xs border font-medium block";
+      if (type === 'danger') b.classList.add("bg-rose-50", "border-rose-300", "text-rose-900");
+      else b.classList.add("bg-emerald-50", "border-emerald-300", "text-emerald-900");
+    }
+
+    render();
+  </script>
+</body>
+</html>

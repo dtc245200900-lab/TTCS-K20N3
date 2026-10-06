@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>SCRUM-20: Quản lý phiên làm việc & Đăng xuất an toàn</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-4 font-sans">
+  <div class="max-w-xl mx-auto bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl text-slate-800">
+    <div class="bg-slate-50 p-4 border-b border-slate-200">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+        <h1 class="text-xs font-black tracking-wide uppercase text-blue-900">
+          HỆ THỐNG QUẢN LÝ ĐÀO TẠO
+        </h1>
+      </div>
+      <p class="text-[11px] text-slate-500 font-medium">SCRUM-20 · Duy trì phiên đăng nhập & Đăng xuất an toàn</p>
+    </div>
+
+    <div class="bg-blue-50/60 px-4 py-2.5 border-b border-blue-100 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <span class="text-slate-700 font-medium">Thời hạn phiên: <b id="timer" class="text-blue-700 font-mono text-base font-bold">60</b>s</span>
+        <span class="text-[10px] text-slate-500 hidden sm:inline">(Tự gia hạn khi gõ)</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="expireSession()" class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-[11px] font-bold border border-amber-300 cursor-pointer">
+          ⚠️ Thử hết hạn
+        </button>
+        <button onclick="logoutSafe()" class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 hover:bg-rose-200 text-[11px] font-bold border border-rose-300 cursor-pointer">
+          🚪 Đăng xuất
+        </button>
+      </div>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <div id="alertBox" class="hidden p-3 rounded-xl text-xs border font-medium"></div>
+
+      <div class="p-4 bg-slate-50/70 border border-slate-200 rounded-xl space-y-3.5">
+        <div class="flex justify-between items-center">
+          <h2 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+            <span>📝</span> Nhập Điểm Danh Lớp Học Phần Đào Tạo
+          </h2>
+          <span id="draftBadge" class="hidden text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+            ✓ Đã tự lưu nháp (React State)
+          </span>
+        </div>
+
+        <form onsubmit="submitAttendance(event)" class="space-y-3 text-xs">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Lớp học phần / Ca đào tạo:</label>
+            <input type="text" id="inpClass" oninput="onType()" placeholder="Ví dụ: Lớp Lập trình Web - Ca sáng (Phòng LAB 3)" required class="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:border-blue-600">
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Danh sách học viên / sinh viên vắng:</label>
+            <textarea id="inpAbsent" oninput="onType()" rows="2" placeholder="Ví dụ: HV001 - Nguyễn Văn An (có phép)..." class="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:border-blue-600"></textarea>
+          </div>
+
+          <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl text-white shadow-sm transition cursor-pointer">
+            💾 Xác nhận lưu kết quả điểm danh
+          </button>
+        </form>
+      </div>
+
+      <div class="space-y-2">
+        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">📋 Nhật ký điểm danh vừa lưu:</span>
+        <div id="logsContainer" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let timerSec = 60;
+    let logs = [
+      { cls: "Lớp Lập trình Web - Ca sáng", absent: "HV002 - Nguyễn Văn An (Có phép)", time: "Hôm nay" },
+      { cls: "Lớp Cơ sở dữ liệu - Ca chiều", absent: "HV015 - Trần Bình (K phép)", time: "Hôm qua" }
+    ];
+
+    let timerInterval = setInterval(() => {
+      if (timerSec > 0) {
+        timerSec--;
+        document.getElementById('timer').innerText = timerSec;
+        if (timerSec === 0) expireSession();
+      }
+    }, 1000);
+
+    function onType() {
+      timerSec = 60;
+      document.getElementById('timer').innerText = timerSec;
+      const draft = { cls: document.getElementById('inpClass').value, abs: document.getElementById('inpAbsent').value };
+      localStorage.setItem('scrum20_draft', JSON.stringify(draft));
+      const badge = document.getElementById('draftBadge');
+      badge.innerText = "✓ Đã tự lưu nháp (Autosave)";
+      badge.classList.remove('hidden');
+    }
+
+    function restoreDraft() {
+      const saved = localStorage.getItem('scrum20_draft');
+      if (saved) {
+        try {
+          const d = JSON.parse(saved);
+          if (d.cls) document.getElementById('inpClass').value = d.cls;
+          if (d.abs) document.getElementById('inpAbsent').value = d.abs;
+          const badge = document.getElementById('draftBadge');
+          badge.innerText = "✓ Đã tự khôi phục dữ liệu nháp";
+          badge.classList.remove('hidden');
+        } catch(e) {}
+      }
+    }
+
+    function submitAttendance(e) {
+      e.preventDefault();
+      const cls = document.getElementById('inpClass').value.trim();
+      const abs = document.getElementById('inpAbsent').value.trim();
+      logs.unshift({ cls: cls, absent: abs || "Không có (Đầy đủ)", time: "Vừa xong" });
+      localStorage.removeItem('scrum20_draft');
+      document.getElementById('inpClass').value = "";
+      document.getElementById('inpAbsent').value = "";
+      document.getElementById('draftBadge').classList.add('hidden');
+      showAlert(`✓ Đã lưu thành công phiếu điểm danh cho <b>${cls}</b>!`, "success");
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const c = document.getElementById('logsContainer');
+      c.innerHTML = logs.map(l => `
+        <div class="p-3 bg-white border border-slate-200 rounded-xl text-xs flex justify-between items-center shadow-sm">
+          <div><div class="font-bold text-slate-800">${l.cls}</div><div class="text-[11px] text-slate-500">Vắng: <b class="text-rose-600">${l.absent}</b></div></div>
+          <span class="text-[10px] text-slate-400">${l.time}</span>
+        </div>
+      `).join('');
+    }
+
+    function expireSession() {
+      timerSec = 0;
+      document.getElementById('timer').innerText = "0";
+      showAlert("⚠️ <b>Phiên đăng nhập đã hết hạn!</b> Thông báo rõ ràng đã hiển thị. Dữ liệu đang gõ dở được bảo toàn 100%.", "warning");
+      setTimeout(restoreDraft, 300);
+    }
+
+    function logoutSafe() {
+      clearInterval(timerInterval);
+      showAlert("🔒 <b>Đã đăng xuất an toàn!</b> Phiên làm việc đã bị hủy vĩnh viễn trên máy chủ Python (Blacklist Token).", "info");
+      document.getElementById('timer').innerText = "--";
+    }
+
+    function showAlert(msg, type) {
+      const b = document.getElementById('alertBox');
+      b.innerHTML = msg;
+      b.className = "p-3 rounded-xl text-xs border font-medium block";
+      if (type === 'warning') b.classList.add("bg-amber-50", "border-amber-300", "text-amber-900");
+      else if (type === 'success') b.classList.add("bg-emerald-50", "border-emerald-300", "text-emerald-900");
+      else b.classList.add("bg-blue-50", "border-blue-300", "text-blue-900");
+    }
+
+    renderLogs();
+    restoreDraft();
+  </script>
+</body>
+</html>
