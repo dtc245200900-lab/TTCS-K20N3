@@ -1008,6 +1008,7 @@ if (roomForm) {
   const roomViews = {
     overview: document.querySelector('#overview-view'),
     list: document.querySelector('#room-list-view'),
+    customers: document.querySelector('#customer-view'),
     checkout: document.querySelector('#room-checkout-view'),
     add: document.querySelector('#room-add-view'),
     types: document.querySelector('#room-types-view')
@@ -1036,7 +1037,14 @@ if (roomForm) {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', types: 'Thể loại phòng' }[viewName];
+    document.querySelector('#page-title').textContent = {
+      overview: 'Tổng quan',
+      list: 'Phòng',
+      customers: 'Khách hàng',
+      checkout: 'Trả phòng',
+      add: 'Thông tin phòng',
+      types: 'Thể loại phòng'
+    }[viewName];
     if (viewName === 'add') document.querySelector('#room-code').focus();
   };
 

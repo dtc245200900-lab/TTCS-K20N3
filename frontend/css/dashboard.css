@@ -556,6 +556,22 @@
 .dashboard-page .room-grid.list-layout .room-card-media { height: 100%; min-height: 190px; }
 .dashboard-page .room-grid.list-layout .room-card-content { min-height: 0; }
 .dashboard-page .room-view { max-width: 1180px; margin: 0 auto; padding-top: 8px; }
+.dashboard-page .empty-state-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  margin-top: 18px;
+  padding: 2rem;
+  border: 1px solid rgba(157, 93, 117, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 28px rgba(94, 49, 62, 0.06);
+  color: #4a3a3f;
+  font-weight: 600;
+  text-align: center;
+}
+.dashboard-page .empty-state-panel p { margin: 0; }
 .dashboard-page .view-heading { max-width: none; margin-bottom: 18px; padding-top: 12px; }
 .dashboard-page .view-heading h2 { font-size: clamp(2.2rem, 3vw, 3.4rem); }
 .dashboard-page .view-heading .eyebrow { letter-spacing: .12em; }
