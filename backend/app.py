@@ -3,7 +3,7 @@ import os
 import re
 import sys
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
@@ -25,7 +25,18 @@ ROOMS_FILE = DATA_DIR / "rooms.json"
 ROOM_TYPES_FILE = DATA_DIR / "room-types.json"
 USERS_FILE = DATA_DIR / "users.json"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ROOM_STATUSES = {"Phòng trống", "Đã thuê", "Bảo trì"}
+ROOM_STATUSES = {"Phòng trống", "Đã đặt", "Đã thuê", "Đang dọn phòng", "Bảo trì"}
+ROOM_AVAILABLE_STATUS = "Phòng trống"
+ROOM_RESERVED_STATUS = "Đã đặt"
+ROOM_OCCUPIED_STATUS = "Đã thuê"
+ROOM_CLEANING_STATUS = "Đang dọn phòng"
+ROOM_MAINTENANCE_STATUS = "Bảo trì"
+BOOKING_PENDING_STATUS = "pending"
+BOOKING_CHECKED_IN_STATUS = "checked_in"
+BOOKING_CHECKED_OUT_STATUS = "checked_out"
+BOOKING_CANCELLED_STATUS = "cancelled"
+CLEANING_TIMEOUT_MINUTES = 30
+BOOKINGS_FILE = DATA_DIR / "bookings.json"
 
 load_dotenv(BASE_DIR / ".env")
 
@@ -100,7 +111,8 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", ""),
     "database": os.getenv("DB_NAME", "hotel_management"),
     "charset": "utf8mb4",
-    "connection_timeout": 2,
+    "connection_timeout": 1,
+    "connect_timeout": 1,
 }
 
 
@@ -143,7 +155,7 @@ def initialize_database():
                 image_path VARCHAR(255) NULL,
                 room_type VARCHAR(80) NOT NULL,
                 nightly_rate DECIMAL(12,2) NOT NULL,
-                status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
+                status ENUM('Phòng trống', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 checked_in_at DATETIME NULL,
                 checked_out_at DATETIME NULL,
@@ -151,6 +163,8 @@ def initialize_database():
                 rental_duration_minutes BIGINT UNSIGNED NULL,
                 rental_days INT NULL,
                 rental_total DECIMAL(14,2) NULL,
+                last_cleaning_started_at DATETIME NULL,
+                cleaning_started_at DATETIME NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_rooms_code (room_code),
                 CHECK (nightly_rate > 0)
@@ -182,16 +196,44 @@ def initialize_database():
             cursor.execute("ALTER TABLE rooms ADD COLUMN rental_total DECIMAL(14,2) NULL")
         else:
             cursor.execute("ALTER TABLE rooms MODIFY rental_total DECIMAL(14,2) NULL")
+        if "last_cleaning_started_at" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN last_cleaning_started_at DATETIME NULL")
+        if "cleaning_started_at" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN cleaning_started_at DATETIME NULL")
         cursor.execute("ALTER TABLE rooms MODIFY room_type VARCHAR(80) NOT NULL")
         cursor.execute("ALTER TABLE rooms MODIFY status VARCHAR(30) NOT NULL DEFAULT 'Phòng trống'")
         cursor.execute("""
             UPDATE rooms SET status = CASE LOWER(status)
                 WHEN 'available' THEN 'Phòng trống'
+                WHEN 'reserved' THEN 'Đã đặt'
                 WHEN 'occupied' THEN 'Đã thuê'
                 WHEN 'maintenance' THEN 'Bảo trì'
+                WHEN 'cleaning' THEN 'Đang dọn phòng'
+                WHEN 'dang dọn phòng' THEN 'Đang dọn phòng'
                 ELSE status END
         """)
-        cursor.execute("ALTER TABLE rooms MODIFY status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống'")
+        cursor.execute("ALTER TABLE rooms MODIFY status ENUM('Phòng trống', 'Đã đặt', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống'")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                room_id BIGINT UNSIGNED NOT NULL,
+                scheduled_check_in_at DATETIME NOT NULL,
+                scheduled_check_out_at DATETIME NOT NULL,
+                status ENUM('pending', 'checked_in', 'checked_out', 'cancelled') NOT NULL DEFAULT 'pending',
+                actual_check_in_at DATETIME NULL,
+                actual_check_out_at DATETIME NULL,
+                cleaning_until DATETIME NULL,
+                duration_minutes BIGINT UNSIGNED NULL,
+                rental_total DECIMAL(14,2) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                cancelled_at DATETIME NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_bookings_room_status (room_id, status, scheduled_check_in_at),
+                KEY idx_bookings_cleaning_until (cleaning_until),
+                CONSTRAINT fk_bookings_room FOREIGN KEY (room_id) REFERENCES rooms(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS room_types (
                 code VARCHAR(16) NOT NULL,
@@ -279,12 +321,214 @@ def find_user(email):
 def normalized_status(value):
     status = str(value or "").strip().lower()
     aliases = {
-        "available": "Phòng trống", "phòng trống": "Phòng trống",
-        "occupied": "Đã thuê", "rented": "Đã thuê", "đã thuê": "Đã thuê",
-        "đã cho thuê": "Đã thuê", "đang thuê": "Đã thuê", "đang cho thuê": "Đã thuê",
-        "maintenance": "Bảo trì", "bảo trì": "Bảo trì",
+        "available": ROOM_AVAILABLE_STATUS,
+        "phong-trong": ROOM_AVAILABLE_STATUS,
+        "phòng trống": ROOM_AVAILABLE_STATUS,
+        "reserved": ROOM_RESERVED_STATUS,
+        "đã đặt": ROOM_RESERVED_STATUS,
+        "occupied": ROOM_OCCUPIED_STATUS,
+        "rented": ROOM_OCCUPIED_STATUS,
+        "đã thuê": ROOM_OCCUPIED_STATUS,
+        "đã cho thuê": ROOM_OCCUPIED_STATUS,
+        "đang thuê": ROOM_OCCUPIED_STATUS,
+        "đang cho thuê": ROOM_OCCUPIED_STATUS,
+        "cleaning": ROOM_CLEANING_STATUS,
+        "dang-don-phong": ROOM_CLEANING_STATUS,
+        "dang don phong": ROOM_CLEANING_STATUS,
+        "đang dọn phòng": ROOM_CLEANING_STATUS,
+        "đang-don-phong": ROOM_CLEANING_STATUS,
+        "maintenance": ROOM_MAINTENANCE_STATUS,
+        "bao-tri": ROOM_MAINTENANCE_STATUS,
+        "bảo trì": ROOM_MAINTENANCE_STATUS,
     }
     return aliases.get(status, str(value or "").strip())
+
+
+def normalize_booking(booking):
+    if not booking:
+        return None
+    return {
+        "id": booking.get("id"),
+        "roomId": booking.get("room_id", booking.get("roomId")),
+        "roomCode": booking.get("roomCode", booking.get("room_code", "")),
+        "scheduledCheckInAt": iso_value(booking.get("scheduled_check_in_at", booking.get("scheduledCheckInAt"))),
+        "scheduledCheckOutAt": iso_value(booking.get("scheduled_check_out_at", booking.get("scheduledCheckOutAt"))),
+        "status": booking.get("status", BOOKING_PENDING_STATUS),
+        "actualCheckInAt": iso_value(booking.get("actual_check_in_at", booking.get("actualCheckInAt"))),
+        "actualCheckOutAt": iso_value(booking.get("actual_check_out_at", booking.get("actualCheckOutAt"))),
+        "cleaningUntil": iso_value(booking.get("cleaning_until", booking.get("cleaningUntil"))),
+        "durationMinutes": booking.get("duration_minutes", booking.get("durationMinutes")),
+        "rentalTotal": float(booking.get("rental_total", booking.get("rentalTotal"))) if booking.get("rental_total", booking.get("rentalTotal")) is not None else None,
+        "createdAt": iso_value(booking.get("created_at", booking.get("createdAt"))),
+        "cancelledAt": iso_value(booking.get("cancelled_at", booking.get("cancelledAt"))),
+        "updatedAt": iso_value(booking.get("updated_at", booking.get("updatedAt"))),
+    }
+
+
+def apply_booking_lifecycle(booking, now=None):
+    if not booking or booking.get("status") != BOOKING_PENDING_STATUS:
+        return booking
+    scheduled_check_in = parse_datetime_value(booking.get("scheduledCheckInAt"))
+    current_time = now or datetime.now()
+    if scheduled_check_in is None or scheduled_check_in > current_time:
+        return booking
+    booking["status"] = BOOKING_CHECKED_IN_STATUS
+    booking["actualCheckInAt"] = current_time.isoformat(timespec="seconds")
+    return booking
+
+
+def refresh_booking_lifecycles(now=None):
+    current_time = now or datetime.now()
+    if db_available():
+        rows = query(
+            "SELECT * FROM bookings WHERE status = %s ORDER BY id DESC",
+            (BOOKING_PENDING_STATUS,),
+            fetch=True,
+        )["rows"]
+        for row in rows:
+            booking = normalize_booking(row)
+            scheduled_check_in = parse_datetime_value(booking["scheduledCheckInAt"])
+            if scheduled_check_in is not None and scheduled_check_in <= current_time:
+                query(
+                    "UPDATE bookings SET status = %s, actual_check_in_at = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                    (BOOKING_CHECKED_IN_STATUS, current_time, booking["id"]),
+                )
+        return
+
+    bookings = read_json(BOOKINGS_FILE, [])
+    changed = False
+    for booking in bookings:
+        normalized = normalize_booking(booking)
+        scheduled_check_in = parse_datetime_value(normalized["scheduledCheckInAt"])
+        if normalized["status"] == BOOKING_PENDING_STATUS and scheduled_check_in is not None and scheduled_check_in <= current_time:
+            apply_booking_lifecycle(normalized, current_time)
+            booking.update({
+                "status": normalized["status"],
+                "actual_check_in_at": normalized["actualCheckInAt"],
+                "updated_at": current_time.isoformat(timespec="seconds"),
+            })
+            changed = True
+    if changed:
+        write_json(BOOKINGS_FILE, bookings)
+
+
+def booking_rows_for_room(room_id):
+    refresh_booking_lifecycles()
+    if db_available():
+        rows = query(
+            "SELECT * FROM bookings WHERE room_id = %s ORDER BY created_at DESC, id DESC",
+            (room_id,),
+            fetch=True,
+        )["rows"]
+        return [normalize_booking(row) for row in rows]
+    bookings = read_json(BOOKINGS_FILE, [])
+    return [normalize_booking(row) for row in bookings if str(row.get("room_id", row.get("roomId"))) == str(room_id)]
+
+
+def latest_booking_for_room(room_id, now=None):
+    bookings = booking_rows_for_room(room_id)
+    if not bookings:
+        return None
+    return max(bookings, key=lambda booking: (booking["id"] or 0))
+
+
+def derived_room_status(room, booking=None, now=None):
+    if normalized_status(room.get("status")) == ROOM_MAINTENANCE_STATUS:
+        return ROOM_MAINTENANCE_STATUS
+    if booking is None:
+        return normalized_status(room.get("status"))
+    if booking["status"] == BOOKING_PENDING_STATUS:
+        return ROOM_RESERVED_STATUS
+    if booking["status"] == BOOKING_CHECKED_IN_STATUS:
+        return ROOM_OCCUPIED_STATUS
+    if booking["status"] == BOOKING_CHECKED_OUT_STATUS:
+        cleaning_until = parse_datetime_value(booking["cleaningUntil"])
+        if cleaning_until is not None and normalize_datetime_to_minute(now or datetime.now()) >= normalize_datetime_to_minute(cleaning_until):
+            return ROOM_AVAILABLE_STATUS
+        return ROOM_CLEANING_STATUS
+    if booking["status"] == BOOKING_CANCELLED_STATUS:
+        return ROOM_AVAILABLE_STATUS
+    return normalized_status(room.get("status"))
+
+
+def set_room_cleaning(room):
+    room["status"] = ROOM_CLEANING_STATUS
+    started_at = datetime.now()
+    started_at_value = started_at.isoformat(timespec="seconds")
+    room["last_cleaning_started_at"] = started_at_value
+    room["cleaning_started_at"] = started_at_value
+    room["checked_in_at"] = None
+    room["checked_out_at"] = None
+    room["checkInAt"] = None
+    room["checkOutAt"] = None
+    room["rental_duration_seconds"] = None
+    room["rental_duration_minutes"] = None
+    room["rental_days"] = None
+    room["rental_total"] = None
+    return room
+
+
+def apply_room_cleaning_transition(room):
+    status = normalized_status(room.get("status"))
+    if status != ROOM_OCCUPIED_STATUS:
+        return room
+
+    check_in_time = parse_datetime_value(room.get("checked_in_at", room.get("checkInAt")))
+    if check_in_time is None:
+        return room
+
+    check_out_time = parse_datetime_value(room.get("checked_out_at", room.get("checkOutAt")))
+    started_at = datetime.now()
+    if check_out_time is not None and check_out_time > check_in_time:
+        started_at = check_out_time
+    room["status"] = ROOM_CLEANING_STATUS
+    started_at_value = started_at.isoformat(timespec="seconds")
+    room["last_cleaning_started_at"] = started_at_value
+    room["cleaning_started_at"] = started_at_value
+    room["checked_in_at"] = None
+    room["checked_out_at"] = None
+    room["checkInAt"] = None
+    room["checkOutAt"] = None
+    room["rental_duration_seconds"] = None
+    room["rental_duration_minutes"] = None
+    room["rental_days"] = None
+    room["rental_total"] = None
+    return room
+
+
+def finalize_cleaning_rooms(rooms):
+    updated = False
+    for room in rooms:
+        status = normalized_status(room.get("status"))
+        if status != ROOM_CLEANING_STATUS:
+            continue
+        started_at_raw = room.get("last_cleaning_started_at") or room.get("cleaning_started_at")
+        started_at = parse_datetime_value(started_at_raw)
+        if started_at is None:
+            room["status"] = ROOM_AVAILABLE_STATUS
+            room["last_cleaning_started_at"] = None
+            room["cleaning_started_at"] = None
+            updated = True
+            continue
+        elapsed_minutes = max(0, int((datetime.now() - started_at).total_seconds() // 60))
+        if elapsed_minutes >= CLEANING_TIMEOUT_MINUTES:
+            room["status"] = ROOM_AVAILABLE_STATUS
+            room["last_cleaning_started_at"] = None
+            room["cleaning_started_at"] = None
+            updated = True
+    return updated
+
+
+def ensure_room_cleaning_transition(room):
+    status = normalized_status(room.get("status"))
+    if status == ROOM_CLEANING_STATUS:
+        started_at_raw = room.get("last_cleaning_started_at") or room.get("cleaning_started_at")
+        started_at = parse_datetime_value(started_at_raw)
+        if started_at is not None and datetime.now() >= started_at + timedelta(minutes=CLEANING_TIMEOUT_MINUTES):
+            room["status"] = ROOM_AVAILABLE_STATUS
+            room["last_cleaning_started_at"] = None
+            room["cleaning_started_at"] = None
+    return room
 
 
 def current_room_rental_total(room):
@@ -313,6 +557,10 @@ def current_room_rental_total(room):
 
 
 def normalize_room(room):
+    if room is None:
+        return None
+    room = ensure_room_cleaning_transition(room)
+
     def get(*keys, default=None):
         for key in keys:
             if room.get(key) is not None:
@@ -349,6 +597,64 @@ def parse_datetime_value(value):
     if isinstance(value, datetime):
         return value
     return datetime.fromisoformat(str(value)) if value else None
+
+
+def normalize_datetime_to_minute(value):
+    return value.replace(second=0, microsecond=0)
+
+
+def validate_booking_window(check_in, check_out, now=None):
+    if isinstance(check_in, str):
+        check_in = parse_datetime_value(check_in)
+    if isinstance(check_out, str):
+        check_out = parse_datetime_value(check_out)
+    if check_in is None or check_out is None:
+        raise ValueError("Vui lòng chọn thời gian nhận phòng và trả phòng hợp lệ.")
+    if check_in.tzinfo is not None:
+        check_in = check_in.astimezone().replace(tzinfo=None)
+    if check_out.tzinfo is not None:
+        check_out = check_out.astimezone().replace(tzinfo=None)
+    check_in = normalize_datetime_to_minute(check_in)
+    check_out = normalize_datetime_to_minute(check_out)
+    if now is None:
+        now = datetime.now()
+    if now.tzinfo is not None:
+        now = now.astimezone().replace(tzinfo=None)
+    now = normalize_datetime_to_minute(now)
+    if check_in < now:
+        raise ValueError("Thời gian nhận phòng không được ở quá khứ. Vui lòng chọn thời điểm hiện tại hoặc thời gian trong tương lai.")
+    if check_out <= check_in:
+        raise ValueError("Giờ trả phòng phải sau giờ nhận phòng.")
+    return check_in, check_out
+
+
+def booking_conflicts(existing_bookings, check_in, check_out, now=None):
+    try:
+        start, end = validate_booking_window(check_in, check_out, now=now)
+    except ValueError:
+        return True
+
+    for booking in existing_bookings or []:
+        if isinstance(booking, dict):
+            booking_start = booking.get("check_in") or booking.get("checkInAt") or booking.get("checked_in_at") or booking.get("start")
+            booking_end = booking.get("check_out") or booking.get("checkOutAt") or booking.get("checked_out_at") or booking.get("end")
+        elif isinstance(booking, (tuple, list)) and len(booking) >= 2:
+            booking_start, booking_end = booking[0], booking[1]
+        else:
+            continue
+        if booking_start is None or booking_end is None:
+            continue
+        booking_start = parse_datetime_value(booking_start)
+        booking_end = parse_datetime_value(booking_end)
+        if booking_start is None or booking_end is None:
+            continue
+        if booking_start.tzinfo is not None:
+            booking_start = booking_start.astimezone().replace(tzinfo=None)
+        if booking_end.tzinfo is not None:
+            booking_end = booking_end.astimezone().replace(tzinfo=None)
+        if start < booking_end and end > booking_start:
+            return True
+    return False
 
 
 def calculate_rental_total(nightly_rate, duration_minutes):
@@ -421,28 +727,64 @@ def find_room_type(name):
 
 
 def list_rooms():
+    refresh_booking_lifecycles()
     if db_available():
         rows = query("SELECT * FROM rooms ORDER BY created_at DESC, id DESC", fetch=True)["rows"]
-        if not rows:
-            json_rows = read_json(ROOMS_FILE, [])
-            if json_rows:
-                return [normalize_room(room) for room in json_rows]
+        if rows:
+            return [normalize_room(derive_room_with_booking(room)) for room in rows]
+        json_rows = read_json(ROOMS_FILE, [])
+        return [normalize_room(derive_room_with_booking(room)) for room in json_rows]
+    rows = read_json(ROOMS_FILE, [])
+    return [normalize_room(derive_room_with_booking(room)) for room in rows]
+
+
+def derive_room_with_booking(room):
+    booking = latest_booking_for_room(room["id"])
+    room = dict(room)
+    room["status"] = derived_room_status(room, booking)
+    room["bookingId"] = booking["id"] if booking else None
+    room["bookingStatus"] = booking["status"] if booking else None
+    room["cleaningUntil"] = booking["cleaningUntil"] if booking else None
+    if booking and booking["status"] == BOOKING_CHECKED_IN_STATUS:
+        room["checked_in_at"] = booking["actualCheckInAt"]
+        room["checkInAt"] = booking["actualCheckInAt"]
+        room["checked_out_at"] = booking["scheduledCheckOutAt"]
+        room["checkOutAt"] = booking["scheduledCheckOutAt"]
+        room["rental_duration_minutes"] = None
+        room["rental_total"] = None
+    return room
+
+
+def save_booking(booking):
+    bookings = read_json(BOOKINGS_FILE, [])
+    existing = next((item for item in bookings if str(item.get("id")) == str(booking["id"])), None)
+    if existing:
+        existing.update(booking)
     else:
-        rows = read_json(ROOMS_FILE, [])
-    return [normalize_room(room) for room in rows]
+        bookings.insert(0, booking)
+    write_json(BOOKINGS_FILE, bookings)
+
+
+@app.get("/api/rooms")
+def rooms_api():
+    denied = require_auth()
+    if denied:
+        return denied
+    return jsonify(rooms=list_rooms())
 
 
 def room_by_id(room_id):
+    refresh_booking_lifecycles()
     if db_available():
         rows = query("SELECT * FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
         if rows:
-            return normalize_room(rows[0])
+            return normalize_room(derive_room_with_booking(rows[0]))
         json_rows = read_json(ROOMS_FILE, [])
         room = next((item for item in json_rows if str(item.get("id")) == str(room_id)), None)
-        return normalize_room(room) if room else None
+        return normalize_room(derive_room_with_booking(room)) if room else None
     rows = read_json(ROOMS_FILE, [])
     room = next((item for item in rows if str(item.get("id")) == str(room_id)), None)
-    return normalize_room(room) if room else None
+    return normalize_room(derive_room_with_booking(room)) if room else None
 
 
 def require_auth():
@@ -453,6 +795,246 @@ def require_auth():
 
 def request_data():
     return request.get_json(silent=True) or request.form
+
+
+def booking_exists_conflict(room_id, check_in, check_out, exclude_id=None):
+    if db_available():
+        sql = """
+            SELECT id FROM bookings
+            WHERE room_id = %s AND status IN (%s, %s, %s)
+              AND scheduled_check_in_at < %s AND scheduled_check_out_at > %s
+        """
+        params = (room_id, BOOKING_PENDING_STATUS, BOOKING_CHECKED_IN_STATUS, BOOKING_CHECKED_OUT_STATUS, check_out, check_in)
+        if exclude_id is not None:
+            sql += " AND id <> %s"
+            params += (exclude_id,)
+        rows = query(sql, params, fetch=True)["rows"]
+        return bool(rows)
+    bookings = booking_rows_for_room(room_id)
+    return any(
+        booking["status"] in {BOOKING_PENDING_STATUS, BOOKING_CHECKED_IN_STATUS, BOOKING_CHECKED_OUT_STATUS}
+        and booking["id"] != exclude_id
+        and parse_datetime_value(booking["scheduledCheckInAt"]) < check_out
+        and parse_datetime_value(booking["scheduledCheckOutAt"]) > check_in
+        for booking in bookings
+    )
+
+
+@app.get("/api/bookings")
+def list_bookings_api():
+    denied = require_auth()
+    if denied:
+        return denied
+    refresh_booking_lifecycles()
+    room_id = request.args.get("roomId") or request.args.get("room_id")
+    if room_id is not None:
+        return jsonify(bookings=booking_rows_for_room(int(room_id)))
+    if db_available():
+        rows = query("SELECT b.*, r.room_code FROM bookings b JOIN rooms r ON r.id = b.room_id ORDER BY b.scheduled_check_in_at ASC, b.id DESC", fetch=True)["rows"]
+        return jsonify(bookings=[normalize_booking(row) | {"roomCode": row.get("room_code")} for row in rows])
+    return jsonify(bookings=[normalize_booking(row) for row in read_json(BOOKINGS_FILE, [])])
+
+
+@app.post("/api/bookings")
+def create_booking_api():
+    denied = require_auth()
+    if denied:
+        return denied
+    data = request_data()
+    try:
+        room_id = int(data.get("roomId", data.get("room_id")))
+        check_in, check_out = validate_booking_window(data.get("checkInAt", data.get("check_in_at")), data.get("checkOutAt", data.get("check_out_at")))
+    except (TypeError, ValueError, OverflowError):
+        return jsonify(message="Vui lòng chọn thời gian nhận phòng và trả phòng hợp lệ."), 400
+    if booking_exists_conflict(room_id, check_in, check_out):
+        return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian khác."), 409
+    if db_available():
+        cursor = None
+        connection = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("SELECT id, room_code, status FROM rooms WHERE id = %s FOR UPDATE", (room_id,))
+            room = cursor.fetchone()
+            if not room:
+                return jsonify(message="Không tìm thấy phòng."), 404
+            if normalized_status(room["status"]) == ROOM_MAINTENANCE_STATUS:
+                return jsonify(message="Phòng đang bảo trì, không thể đặt."), 409
+            if booking_exists_conflict(room_id, check_in, check_out):
+                return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian khác."), 409
+            cursor.execute(
+                "INSERT INTO bookings (room_id, scheduled_check_in_at, scheduled_check_out_at, status) VALUES (%s, %s, %s, %s)",
+                (room_id, check_in, check_out, BOOKING_PENDING_STATUS),
+            )
+            booking_id = cursor.lastrowid
+            connection.commit()
+            booking = normalize_booking(query("SELECT * FROM bookings WHERE id = %s", (booking_id,), fetch=True)["rows"][0])
+            room_data = normalize_room(room_by_id(room_id))
+            return jsonify(message="Đặt phòng thành công.", booking=booking, room=room_data), 201
+        except mysql.connector.Error as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể đặt phòng."), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+    room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(room_id)), None)
+    if not room:
+        return jsonify(message="Không tìm thấy phòng."), 404
+    booking = {
+        "id": max((int(item.get("id", 0)) for item in read_json(BOOKINGS_FILE, [])), default=0) + 1,
+        "room_id": room_id,
+        "scheduled_check_in_at": check_in.isoformat(),
+        "scheduled_check_out_at": check_out.isoformat(),
+        "status": BOOKING_PENDING_STATUS,
+        "actual_check_in_at": None,
+        "actual_check_out_at": None,
+        "cleaning_until": None,
+        "duration_minutes": None,
+        "rental_total": None,
+        "created_at": datetime.now().isoformat(),
+        "cancelled_at": None,
+        "updated_at": datetime.now().isoformat(),
+    }
+    save_booking(booking)
+    return jsonify(message="Đặt phòng thành công.", booking=normalize_booking(booking), room=normalize_room(derive_room_with_booking(room))), 201
+
+
+@app.patch("/api/bookings/<int:booking_id>/check-in")
+def check_in_booking_api(booking_id):
+    denied = require_auth()
+    if denied:
+        return denied
+    now = datetime.now()
+    if db_available():
+        connection = None
+        cursor = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM bookings WHERE id = %s FOR UPDATE", (booking_id,))
+            booking = cursor.fetchone()
+            if not booking:
+                return jsonify(message="Không tìm thấy đặt phòng."), 404
+            if booking["status"] != BOOKING_PENDING_STATUS:
+                return jsonify(message="Đặt phòng không còn mở để kiểm tra vào."), 409
+            if parse_datetime_value(booking["scheduled_check_in_at"]) > now:
+                return jsonify(message="Chưa đến thời điểm nhận phòng."), 409
+            cursor.execute("UPDATE bookings SET status = %s, actual_check_in_at = %s, duration_minutes = NULL, rental_total = NULL WHERE id = %s", (
+                BOOKING_CHECKED_IN_STATUS,
+                now,
+                booking_id,
+            ))
+            connection.commit()
+            return jsonify(message="Khách đã kiểm tra vào.", booking=normalize_booking(query("SELECT * FROM bookings WHERE id = %s", (booking_id,), fetch=True)["rows"][0]))
+        except (mysql.connector.Error, ValueError, TypeError) as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể kiểm tra vào."), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+    booking = next((item for item in read_json(BOOKINGS_FILE, []) if str(item.get("id")) == str(booking_id)), None)
+    if not booking:
+        return jsonify(message="Không tìm thấy đặt phòng."), 404
+    booking.update({"status": BOOKING_CHECKED_IN_STATUS, "actual_check_in_at": now.isoformat(), "updated_at": now.isoformat()})
+    save_booking(booking)
+    return jsonify(message="Khách đã kiểm tra vào.", booking=normalize_booking(booking))
+
+
+@app.patch("/api/bookings/<int:booking_id>/check-out")
+def check_out_booking_api(booking_id):
+    denied = require_auth()
+    if denied:
+        return denied
+    now = datetime.now()
+    if db_available():
+        connection = None
+        cursor = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM bookings WHERE id = %s FOR UPDATE", (booking_id,))
+            booking = cursor.fetchone()
+            if not booking:
+                return jsonify(message="Không tìm thấy đặt phòng."), 404
+            if booking["status"] != BOOKING_CHECKED_IN_STATUS:
+                return jsonify(message="Đặt phòng không còn đang được thuê."), 409
+            room = room_by_id(booking["room_id"])
+            duration = max(0, int((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() // 60))
+            total = calculate_rental_total(room["nightlyRate"], duration)
+            cleaning_until = now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)
+            cursor.execute("INSERT INTO rental_history (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total) VALUES (%s, %s, %s, %s, %s, %s)", (
+                booking["room_id"], booking["actual_check_in_at"], booking["scheduled_check_out_at"], now, duration, total,
+            ))
+            cursor.execute("UPDATE bookings SET status = %s, actual_check_out_at = %s, cleaning_until = %s, duration_minutes = %s, rental_total = %s WHERE id = %s", (
+                BOOKING_CHECKED_OUT_STATUS, now, cleaning_until, duration, total, booking_id,
+            ))
+            connection.commit()
+            updated = normalize_booking(query("SELECT * FROM bookings WHERE id = %s", (booking_id,), fetch=True)["rows"][0])
+            return jsonify(message="Trả phòng thành công. Đang dọn phòng trong 30 phút.", booking=updated, room=normalize_room(room_by_id(booking["room_id"])))
+        except (mysql.connector.Error, ValueError, TypeError) as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể trả phòng."), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+    booking = next((item for item in read_json(BOOKINGS_FILE, []) if str(item.get("id")) == str(booking_id)), None)
+    if not booking:
+        return jsonify(message="Không tìm thấy đặt phòng."), 404
+    room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(booking["room_id"])), None)
+    duration = max(0, int((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() // 60))
+    total = calculate_rental_total(room["nightlyRate"], duration)
+    booking.update({"status": BOOKING_CHECKED_OUT_STATUS, "actual_check_out_at": now.isoformat(), "cleaning_until": (now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)).isoformat(), "duration_minutes": duration, "rental_total": total, "updated_at": now.isoformat()})
+    save_booking(booking)
+    return jsonify(message="Trả phòng thành công. Đang dọn phòng trong 30 phút.", booking=normalize_booking(booking), room=normalize_room(derive_room_with_booking(room)))
+
+
+@app.patch("/api/bookings/<int:booking_id>/cancel")
+def cancel_booking_api(booking_id):
+    denied = require_auth()
+    if denied:
+        return denied
+    if db_available():
+        connection = None
+        cursor = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM bookings WHERE id = %s FOR UPDATE", (booking_id,))
+            booking = cursor.fetchone()
+            if not booking:
+                return jsonify(message="Không tìm thấy đặt phòng."), 404
+            if booking["status"] not in {BOOKING_PENDING_STATUS, BOOKING_CHECKED_IN_STATUS}:
+                return jsonify(message="Đặt phòng đã kết thúc hoặc đã hủy."), 409
+            cancelled_at = datetime.now()
+            cursor.execute("UPDATE bookings SET status = %s, cancelled_at = %s WHERE id = %s", (BOOKING_CANCELLED_STATUS, cancelled_at, booking_id))
+            connection.commit()
+            return jsonify(message="Đặt phòng đã hủy.", booking=normalize_booking(query("SELECT * FROM bookings WHERE id = %s", (booking_id,), fetch=True)["rows"][0]))
+        except mysql.connector.Error as error:
+            if connection:
+                connection.rollback()
+            return jsonify(message=str(error) or "Không thể hủy đặt phòng."), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+    booking = next((item for item in read_json(BOOKINGS_FILE, []) if str(item.get("id")) == str(booking_id)), None)
+    if not booking:
+        return jsonify(message="Không tìm thấy đặt phòng."), 404
+    if booking["status"] not in {BOOKING_PENDING_STATUS, BOOKING_CHECKED_IN_STATUS}:
+        return jsonify(message="Đặt phòng đã kết thúc hoặc đã hủy."), 409
+    booking.update({"status": BOOKING_CANCELLED_STATUS, "cancelled_at": datetime.now().isoformat(), "updated_at": datetime.now().isoformat()})
+    save_booking(booking)
+    return jsonify(message="Đặt phòng đã hủy.", booking=normalize_booking(booking))
 
 
 @app.get("/health")
@@ -825,28 +1407,25 @@ def update_room_status(room_id):
         return denied
     data = request_data()
     requested = normalized_status(data.get("status"))
-    if requested not in {"Phòng trống", "Đã thuê"}:
+    if requested not in {"Phòng trống", "Đã thuê", ROOM_CLEANING_STATUS}:
         return jsonify(message="Trạng thái phòng không hợp lệ."), 409
+    if requested in {"Đã thuê", ROOM_CLEANING_STATUS}:
+        return jsonify(message="Trạng thái phòng phải được cập nhật qua đặt phòng và trả phòng."), 409
     is_check_in = requested == "Đã thuê"
+    is_cleaning = requested == ROOM_CLEANING_STATUS
     check_in = None
     check_out = None
     duration_minutes = None
     duration_seconds = None
     if is_check_in:
         try:
-            check_in = datetime.fromisoformat(str(data.get("checkInAt", "")).strip())
-            check_out = datetime.fromisoformat(str(data.get("checkOutAt", "")).strip())
-        except ValueError:
-            return jsonify(message="Vui lòng nhập giờ vào và thời gian trả phòng hợp lệ."), 400
-        if check_in.tzinfo is not None:
-            check_in = check_in.astimezone().replace(tzinfo=None)
-        if check_out.tzinfo is not None:
-            check_out = check_out.astimezone().replace(tzinfo=None)
-        now = datetime.now()
-        if check_in > now:
-            return jsonify(message="Giờ vào không được sau thời gian hiện tại."), 400
-        if check_out <= check_in:
-            return jsonify(message="Thời gian trả phòng phải sau thời gian vào."), 400
+            check_in = parse_datetime_value(data.get("checkInAt"))
+            check_out = parse_datetime_value(data.get("checkOutAt"))
+            if check_in is None or check_out is None:
+                raise ValueError
+            check_in, check_out = validate_booking_window(check_in, check_out)
+        except (TypeError, ValueError):
+            return jsonify(message="Vui lòng nhập giờ nhận phòng hiện tại hoặc trong tương lai và thời gian trả phòng hợp lệ."), 400
         duration_seconds = int((check_out - check_in).total_seconds())
         duration_minutes = duration_seconds // 60
         if duration_minutes <= 0:
@@ -877,6 +1456,14 @@ def update_room_status(room_id):
                 if current != "Phòng trống":
                     connection.rollback()
                     return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
+                cursor.execute(
+                    "SELECT checked_in_at, checked_out_at FROM rooms WHERE id = %s AND checked_in_at IS NOT NULL AND checked_out_at IS NOT NULL LIMIT 1",
+                    (room_id,),
+                )
+                existing_booking = cursor.fetchone()
+                if existing_booking and booking_conflicts([existing_booking], check_in, check_out):
+                    connection.rollback()
+                    return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian nhận phòng hoặc trả phòng khác."), 409
                 try:
                     rental_total = calculate_rental_total(room["nightly_rate"], duration_minutes)
                 except ValueError as error:
@@ -929,21 +1516,23 @@ def update_room_status(room_id):
                     (room_id, checked_in_at, scheduled_check_out, returned_at, stored_minutes, rental_total),
                 )
                 cursor.execute(
-                    "UPDATE rooms SET status = %s, checked_in_at = NULL, checked_out_at = NULL, rental_duration_seconds = NULL, rental_duration_minutes = NULL, rental_days = NULL, rental_total = NULL WHERE id = %s AND status = %s",
-                    (requested, room_id, "Đã thuê"),
+                    "UPDATE rooms SET status = %s, checked_in_at = NULL, checked_out_at = NULL, rental_duration_seconds = NULL, rental_duration_minutes = NULL, rental_days = NULL, rental_total = NULL, last_cleaning_started_at = NOW(), cleaning_started_at = NOW() WHERE id = %s AND status = %s",
+                    (ROOM_CLEANING_STATUS, room_id, "Đã thuê"),
                 )
                 if not cursor.rowcount:
                     connection.rollback()
                     return jsonify(message="Không thể trả phòng do trạng thái phòng đã thay đổi."), 409
-                success_message = "Trả phòng thành công!"
+                success_message = "Trả phòng thành công! Đang dọn phòng trong 30 phút."
                 room.update({
-                    "status": requested,
+                    "status": ROOM_CLEANING_STATUS,
                     "checked_in_at": None,
                     "checked_out_at": None,
                     "rental_duration_seconds": None,
                     "rental_duration_minutes": None,
                     "rental_days": None,
                     "rental_total": None,
+                    "last_cleaning_started_at": datetime.now().isoformat(timespec="seconds"),
+                    "cleaning_started_at": datetime.now().isoformat(timespec="seconds"),
                 })
             connection.commit()
             return jsonify(message=success_message, room=normalize_room(room))
@@ -969,6 +1558,17 @@ def update_room_status(room_id):
         if is_check_in:
             if current != "Phòng trống":
                 return jsonify(message="Không thể cho thuê phòng đang được sử dụng."), 409
+            existing_bookings = []
+            for item in rooms:
+                if int(item.get("id", 0)) != room_id:
+                    continue
+                for field in ("checkInAt", "check_in_at", "checked_in_at"):
+                    check_in_value = item.get(field)
+                    check_out_value = item.get("checkOutAt") or item.get("check_out_at") or item.get("checked_out_at")
+                    if check_in_value and check_out_value:
+                        existing_bookings.append({"check_in": check_in_value, "check_out": check_out_value})
+            if booking_conflicts(existing_bookings, check_in, check_out):
+                return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian nhận phòng hoặc trả phòng khác."), 409
             try:
                 rental_total = calculate_rental_total(
                     room.get("nightlyRate", room.get("nightly_rate", 0)), duration_minutes
@@ -1023,8 +1623,10 @@ def update_room_status(room_id):
             room["rental_duration_minutes"] = None
             room["rental_days"] = None
             room["rental_total"] = None
-            success_message = "Trả phòng thành công!"
-        room["status"] = requested
+            room["last_cleaning_started_at"] = datetime.now().isoformat(timespec="seconds")
+            room["cleaning_started_at"] = room["last_cleaning_started_at"]
+            success_message = "Trả phòng thành công! Đang dọn phòng trong 30 phút."
+        room["status"] = ROOM_CLEANING_STATUS if not is_check_in else requested
         try:
             write_json(ROOMS_FILE, rooms)
         except OSError as error:
@@ -1200,6 +1802,16 @@ def frontend_file(filename):
 @app.errorhandler(413)
 def file_too_large(_error):
     return jsonify(message="Tệp ảnh không được vượt quá 5MB."), 413
+
+
+@app.errorhandler(404)
+def not_found(_error):
+    return jsonify(message="Không tìm thấy endpoint."), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(_error):
+    return jsonify(message="Phương thức HTTP không được phép cho endpoint này."), 405
 
 
 if __name__ == "__main__":

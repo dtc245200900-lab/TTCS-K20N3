@@ -43,7 +43,18 @@
     "imagePath": "/uploads/1791127277593-OIP_3.jpg",
     "roomType": "mới",
     "nightlyRate": 2310000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "bookings": [
+      {
+        "id": 2,
+        "checkInAt": "2026-10-07T22:31",
+        "checkOutAt": "2026-10-07T23:31",
+        "status": "booked",
+        "durationMinutes": 60,
+        "rentalTotal": 96250.0,
+        "customer": null
+      }
+    ]
   },
   {
     "id": 18,
@@ -52,7 +63,18 @@
     "imagePath": "/uploads/1791127207242-OIP.jpg",
     "roomType": "phòng gia đình",
     "nightlyRate": 2300000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "bookings": [
+      {
+        "id": 3,
+        "checkInAt": "2026-10-07T22:37",
+        "checkOutAt": "2026-10-07T23:37",
+        "status": "booked",
+        "durationMinutes": 60,
+        "rentalTotal": 95833.33,
+        "customer": null
+      }
+    ]
   },
   {
     "id": 17,
@@ -70,7 +92,18 @@
     "imagePath": "/uploads/1791127084663-OIP_4.jpg",
     "roomType": "VIP",
     "nightlyRate": 4500000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "bookings": [
+      {
+        "id": 1,
+        "checkInAt": "2026-10-07T22:30",
+        "checkOutAt": "2026-10-08T12:33",
+        "status": "booked",
+        "durationMinutes": 843,
+        "rentalTotal": 2634375.0,
+        "customer": null
+      }
+    ]
   },
   {
     "id": 15,

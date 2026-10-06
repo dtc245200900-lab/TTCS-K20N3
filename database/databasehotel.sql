@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   image_path VARCHAR(255) NULL,
   room_type VARCHAR(80) NOT NULL,
   nightly_rate DECIMAL(12, 2) NOT NULL CHECK (nightly_rate > 0),
-  status ENUM('Phòng trống', 'Đã thuê', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
+  status ENUM('Phòng trống', 'Đã đặt', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
   checked_in_at DATETIME NULL,
   checked_out_at DATETIME NULL,
   rental_duration_seconds BIGINT UNSIGNED NULL,
@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS rooms (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_rooms_code (room_code)
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  room_id BIGINT UNSIGNED NOT NULL,
+  scheduled_check_in_at DATETIME NOT NULL,
+  scheduled_check_out_at DATETIME NOT NULL,
+  status ENUM('pending', 'checked_in', 'checked_out', 'cancelled') NOT NULL DEFAULT 'pending',
+  actual_check_in_at DATETIME NULL,
+  actual_check_out_at DATETIME NULL,
+  cleaning_until DATETIME NULL,
+  duration_minutes BIGINT UNSIGNED NULL,
+  rental_total DECIMAL(14, 2) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  cancelled_at DATETIME NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_bookings_room_status (room_id, status, scheduled_check_in_at),
+  KEY idx_bookings_cleaning_until (cleaning_until),
+  CONSTRAINT fk_bookings_room FOREIGN KEY (room_id) REFERENCES rooms(id)
 );
 
 CREATE TABLE IF NOT EXISTS rental_history (

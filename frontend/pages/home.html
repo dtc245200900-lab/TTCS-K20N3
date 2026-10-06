@@ -407,6 +407,16 @@
             </article>
           </div>
         </section>
+        <section id="room-booking-view" class="room-view hidden-view">
+          <div class="view-heading room-view-heading rooms-header">
+            <div>
+              <p class="eyebrow">QUẢN LÝ PHÒNG</p>
+              <h2>Đặt phòng</h2>
+              <p class="muted">Danh sách đặt phòng đang chờ kiểm tra vào, đang thuê và đang dọn phòng.</p>
+            </div>
+          </div>
+          <div id="booking-list" class="booking-list" aria-live="polite"></div>
+        </section>
         <section id="room-checkout-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">
             <div>
@@ -469,6 +479,7 @@
                 <option value="">Tất cả trạng thái</option>
                 <option value="available">Phòng trống</option>
                 <option value="occupied">Đang cho thuê</option>
+                <option value="cleaning">Đang dọn phòng</option>
                 <option value="maintenance">Bảo trì / khác</option>
               </select></label
             >
@@ -587,7 +598,7 @@
             <div class="rent-room-fields">
               <label for="rent-check-in"
                 >Giờ vào
-                <input id="rent-check-in" type="text" readonly required />
+                <input id="rent-check-in" type="datetime-local" step="60" required />
               </label>
               <label for="rent-check-out"
                 >Thời gian trả phòng
