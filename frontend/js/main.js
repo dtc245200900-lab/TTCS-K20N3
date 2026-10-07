@@ -602,13 +602,11 @@ function renderCustomerList() {
 }
 
 function updateBookingCustomerOptions() {
-  const customerSelect = document.querySelector('#booking-customer');
-  if (!customerSelect) return;
-  const selectedId = customerSelect.value;
-  customerSelect.innerHTML = '<option value="">Chọn khách hàng</option>' + customerCache
-    .map(customer => `<option value="${escapeHtml(customer.id)}">${escapeHtml(customer.fullName)} · ${escapeHtml(customer.phone)}</option>`)
+  const customerOptions = document.querySelector('#booking-customer-options');
+  if (!customerOptions) return;
+  customerOptions.innerHTML = customerCache
+    .map(customer => `<option value="${escapeHtml(customer.fullName)}" label="${escapeHtml(customer.phone || '')}"></option>`)
     .join('');
-  customerSelect.value = selectedId;
 }
 
 function updateBookingRoomOptions() {
@@ -642,6 +640,80 @@ async function loadCustomers() {
 const bookingForm = document.querySelector('#booking-form');
 const bookingFormCard = document.querySelector('#booking-form-card');
 if (bookingForm && bookingFormCard) {
+  const bookingSuccessDialog = document.querySelector('#booking-success-dialog');
+  let successfulBookingId = null;
+  const showBookingSuccess = booking => {
+    if (!bookingSuccessDialog) {
+      showRoomFeedback('Đặt phòng thành công.');
+      return;
+    }
+    const room = roomCache.find(item => String(item.id) === String(booking.roomId));
+    const customer = customerCache.find(item => String(item.id) === String(booking.customerId));
+    const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+    const checkIn = new Date(booking.scheduledCheckInAt);
+    const checkOut = new Date(booking.scheduledCheckOutAt);
+    const estimatedTotal = Number.isFinite(nightlyRate) && checkOut > checkIn
+      ? nightlyRate * (checkOut - checkIn) / 86400000
+      : null;
+    const total = booking.rentalTotal ?? estimatedTotal;
+    const statusLabel = { pending: 'Đã đặt', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' }[booking.status] || booking.status || 'Đã đặt';
+    successfulBookingId = booking.id;
+    document.querySelector('#booking-success-code').textContent = `DP${String(booking.id).padStart(3, '0')}`;
+    document.querySelector('#booking-success-customer').textContent = booking.customerName || customer?.fullName || '—';
+    document.querySelector('#booking-success-room').textContent = `Phòng ${booking.roomCode || room?.roomCode || room?.room_code || '—'} · ${roomTypeLabel(room?.roomType || room?.room_type || '') || 'Phòng lưu trú'}`;
+    document.querySelector('#booking-success-check-in').textContent = formatBookingDateTime(booking.scheduledCheckInAt);
+    document.querySelector('#booking-success-check-out').textContent = formatBookingDateTime(booking.scheduledCheckOutAt);
+    document.querySelector('#booking-success-total').textContent = total === null ? '—' : `${Number(total).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`;
+    document.querySelector('#booking-success-status').textContent = statusLabel;
+    bookingSuccessDialog.showModal();
+  };
+  const syncBookingCustomerDetails = () => {
+    const normalizeName = value => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
+    const fullName = normalizeName(document.querySelector('#booking-customer-name').value);
+    const matchingCustomers = customerCache.filter(customer => normalizeName(customer.fullName) === fullName);
+    if (matchingCustomers.length !== 1) return;
+    const customer = matchingCustomers[0];
+    document.querySelector('#booking-customer-phone').value = customer.phone || '';
+    document.querySelector('#booking-customer-identity').value = customer.identityNumber || '';
+    document.querySelector('#booking-customer-email').value = customer.email || '';
+    document.querySelector('#booking-customer-address').value = customer.address || '';
+  };
+  const updateBookingSummary = () => {
+    const room = roomCache.find(item => String(item.id) === document.querySelector('#booking-room').value);
+    const image = document.querySelector('#booking-room-image');
+    const rateElement = document.querySelector('#booking-room-rate');
+    const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+    image.src = room?.imagePath || room?.image_path || '/assets/room-placeholder.svg';
+    rateElement.textContent = room && Number.isFinite(nightlyRate)
+      ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
+      : 'Đơn giá sẽ hiển thị khi chọn phòng';
+    const checkIn = new Date(document.querySelector('#booking-check-in').value);
+    const checkOut = new Date(document.querySelector('#booking-check-out').value);
+    const durationDays = checkOut > checkIn ? (checkOut - checkIn) / 86400000 : null;
+    document.querySelector('#booking-night-count').textContent = durationDays === null
+      ? '—'
+      : `${Number.isInteger(durationDays) ? durationDays : durationDays.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} đêm`;
+    document.querySelector('#booking-total').textContent = durationDays !== null && Number.isFinite(nightlyRate)
+      ? `${(nightlyRate * durationDays).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
+      : '—';
+  };
+  bookingSuccessDialog?.querySelectorAll('[data-booking-success-close]').forEach(button => {
+    button.addEventListener('click', () => bookingSuccessDialog.close());
+  });
+  bookingSuccessDialog?.querySelector('[data-booking-success-details]')?.addEventListener('click', () => {
+    if (successfulBookingId === null) return;
+    selectedBookingId = successfulBookingId;
+    bookingPage = 1;
+    document.querySelector('#booking-search').value = '';
+    document.querySelector('#booking-from-date').value = '';
+    document.querySelector('#booking-to-date').value = '';
+    document.querySelector('#booking-status-select').value = '';
+    document.querySelectorAll('[data-booking-status]').forEach(button => {
+      button.classList.toggle('active', button.dataset.bookingStatus === '');
+    });
+    bookingSuccessDialog.close();
+    document.querySelector('[data-room-view="booking"]').click();
+  });
   const setDefaultBookingDates = () => {
     const now = new Date();
     now.setSeconds(0, 0);
@@ -660,17 +732,34 @@ if (bookingForm && bookingFormCard) {
     updateBookingCustomerOptions();
     updateBookingRoomOptions();
     setDefaultBookingDates();
+    updateBookingSummary();
     bookingFormCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.querySelector('#booking-customer').focus();
+    document.querySelector('#booking-customer-name').focus();
   };
   setDefaultBookingDates();
   const resetBookingForm = () => {
     bookingForm.reset();
     setDefaultBookingDates();
     document.querySelector('#booking-form-error').textContent = '';
+    updateBookingSummary();
   };
   document.querySelector('#booking-form-toggle')?.addEventListener('click', showBookingForm);
   document.querySelector('#booking-form-dismiss')?.addEventListener('click', resetBookingForm);
+  document.querySelector('#booking-customer-name')?.addEventListener('change', syncBookingCustomerDetails);
+  document.querySelector('#booking-room')?.addEventListener('change', updateBookingSummary);
+  document.querySelector('#booking-check-in')?.addEventListener('change', updateBookingSummary);
+  document.querySelector('#booking-check-out')?.addEventListener('change', updateBookingSummary);
+  document.querySelector('#booking-guest-count')?.addEventListener('change', event => {
+    const guestCount = Number(event.currentTarget.value);
+    event.currentTarget.value = String(Math.min(20, Math.max(1, Number.isFinite(guestCount) ? guestCount : 1)));
+  });
+  bookingForm.querySelectorAll('[data-guest-step]').forEach(button => {
+    button.addEventListener('click', () => {
+      const guestCount = document.querySelector('#booking-guest-count');
+      guestCount.value = String(Math.min(20, Math.max(1, Number(guestCount.value) + Number(button.dataset.guestStep))));
+      guestCount.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
   document.querySelector('#booking-check-in')?.addEventListener('change', event => {
     const checkIn = new Date(event.target.value);
     if (!Number.isFinite(checkIn.getTime())) return;
@@ -683,13 +772,45 @@ if (bookingForm && bookingFormCard) {
     if (!checkOut.value || new Date(checkOut.value) <= checkIn) {
       checkOut.value = localValue(new Date(checkIn.getTime() + 3600000));
     }
+    updateBookingSummary();
   });
   bookingForm.addEventListener('submit', async event => {
     event.preventDefault();
     const errorMessage = document.querySelector('#booking-form-error');
     errorMessage.textContent = '';
     if (!bookingForm.reportValidity()) return;
-    const payload = Object.fromEntries(new FormData(bookingForm).entries());
+    const formData = new FormData(bookingForm);
+    const customerData = {
+      fullName: String(formData.get('customerName') || '').trim(),
+      phone: String(formData.get('customerPhone') || '').trim(),
+      identityNumber: String(formData.get('customerIdentity') || '').trim(),
+      email: String(formData.get('customerEmail') || '').trim(),
+      address: String(formData.get('customerAddress') || '').trim()
+    };
+    const normalizedPhone = customerData.phone.replace(/\s+/g, '');
+    const existingCustomer = customerCache.find(customer => String(customer.phone || '').replace(/\s+/g, '') === normalizedPhone);
+    const identityNumber = customerData.identityNumber;
+    const identityCustomer = identityNumber
+      ? customerCache.find(customer => customer.identityNumber === identityNumber)
+      : null;
+    if (identityCustomer && String(identityCustomer.id) !== String(existingCustomer?.id)) {
+      errorMessage.textContent = 'Số CCCD/Căn cước này đã được sử dụng bởi khách hàng khác.';
+      return;
+    }
+    let customerId;
+    if (existingCustomer) {
+      if (existingCustomer.fullName.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi') !== customerData.fullName.replace(/\s+/g, ' ').toLocaleLowerCase('vi')) {
+        errorMessage.textContent = 'Số điện thoại này đã thuộc về khách hàng khác. Hãy kiểm tra lại thông tin.';
+        return;
+      }
+      customerId = existingCustomer.id;
+    }
+    const payload = Object.fromEntries(formData.entries());
+    delete payload.customerName;
+    delete payload.customerPhone;
+    delete payload.customerIdentity;
+    delete payload.customerEmail;
+    delete payload.customerAddress;
     payload.guestCount = Number(payload.guestCount);
     if (new Date(payload.checkOutAt) <= new Date(payload.checkInAt)) {
       errorMessage.textContent = 'Ngày trả phòng phải sau ngày nhận phòng.';
@@ -698,6 +819,18 @@ if (bookingForm && bookingFormCard) {
     const submitButton = bookingForm.querySelector('[type="submit"]');
     submitButton.disabled = true;
     try {
+      if (customerId === undefined) {
+        const customerResponse = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerData)
+        });
+        const customerResult = await customerResponse.json();
+        if (!customerResponse.ok) throw new Error(customerResult.message || 'Không thể lưu thông tin khách hàng.');
+        customerCache = [...customerCache, customerResult.customer];
+        customerId = customerResult.customer.id;
+      }
+      payload.customerId = customerId;
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -713,7 +846,8 @@ if (bookingForm && bookingFormCard) {
       updateBookingRoomOptions();
       await loadCustomers();
       document.dispatchEvent(new Event('rooms-updated'));
-      showRoomFeedback(result.message || 'Đặt phòng thành công.');
+      if (result.booking) showBookingSuccess(result.booking);
+      else showRoomFeedback(result.message || 'Đặt phòng thành công.');
     } catch (error) {
       errorMessage.textContent = error.message || 'Không thể tạo đặt phòng.';
     } finally {
@@ -880,8 +1014,16 @@ if (checkoutRoomDialog) {
     checkoutRoomDialog.querySelectorAll('[data-close-checkout]').forEach(button => { button.disabled = true; });
     setCheckoutStep('loading');
     const bookingId = room.bookingId || room.booking_id;
-    if (!bookingId) throw new Error('Không tìm thấy đặt phòng đang hoạt động cho phòng này.');
-    const response = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/check-out`, { method: 'PATCH' });
+    let response = bookingId
+      ? await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/check-out`, { method: 'PATCH' })
+      : null;
+    if (!response || [404, 409].includes(response.status)) {
+      response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Phòng trống' })
+      });
+    }
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || 'Không thể trả phòng.');
     if (!result.room) throw new Error('Máy chủ không trả về thông tin phòng đã cập nhật.');
@@ -891,7 +1033,7 @@ if (checkoutRoomDialog) {
     renderBookingList();
     renderRoomList();
     document.dispatchEvent(new Event('rooms-updated'));
-    checkoutRoomDialog.querySelector('#checkout-success-message').textContent = `Phòng ${room.roomCode || room.room_code || room.roomNumber || ''} đã được trả và đang dọn phòng trong 30 phút.`;
+    checkoutRoomDialog.querySelector('#checkout-success-message').textContent = `Trả phòng thành công! Phòng ${room.roomCode || room.room_code || room.roomNumber || ''} đang được dọn trong 30 phút.`;
     checkoutRoomDialog.dataset.step = 'success';
     setCheckoutStep('success');
   } catch (error) {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | Hotel Manager</title>
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/dashboard.css?v=20261007-checkout-heading" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=20261007-checkout-button-wide" />
   </head>
   <body class="dashboard-page">
     <header class="topbar">
@@ -454,21 +454,44 @@
           <div class="booking-workspace">
           <article id="booking-form-card" class="management-form-card booking-form-card">
             <div class="management-form-heading">
-              <div><p class="eyebrow"><span aria-hidden="true">⊕</span> ĐẶT CHỖ</p><h3>Đặt phòng mới</h3></div>
+              <div><p class="eyebrow"><span aria-hidden="true">♙</span> ĐẶT CHỖ</p><h3>Đặt phòng mới</h3></div>
             </div>
-            <form id="booking-form" class="management-form" novalidate>
-              <label>Khách hàng <span class="required-mark">*</span>
-                <select id="booking-customer" name="customerId" required><option value="">⌕  Tìm hoặc chọn khách hàng</option></select>
-              </label>
-              <label>Phòng <span class="required-mark">*</span>
-                <select id="booking-room" name="roomId" required><option value="">Chọn phòng trống</option></select>
-              </label>
-              <label>Ngày nhận phòng <span class="required-mark">*</span><input id="booking-check-in" name="checkInAt" type="datetime-local" required /></label>
-              <label>Ngày trả phòng <span class="required-mark">*</span><input id="booking-check-out" name="checkOutAt" type="datetime-local" required /></label>
-              <label>Số khách <span class="required-mark">*</span><input id="booking-guest-count" name="guestCount" type="number" min="1" max="20" value="1" required /></label>
-              <label class="wide-field">Ghi chú<textarea id="booking-notes" name="notes" maxlength="1000" rows="3" placeholder="Yêu cầu đặc biệt của khách..."></textarea></label>
-              <p id="booking-form-error" class="error wide-field" role="alert" aria-live="polite"></p>
-              <div class="management-form-actions wide-field">
+            <form id="booking-form" class="booking-form-layout" novalidate>
+              <section class="booking-form-section">
+                <h4><span aria-hidden="true">♙</span> Thông tin khách hàng</h4>
+                <label>Họ và tên <span class="required-mark">*</span>
+                  <input id="booking-customer-name" name="customerName" type="text" maxlength="150" list="booking-customer-options" autocomplete="name" placeholder="Nhập hoặc chọn khách hàng" required />
+                  <datalist id="booking-customer-options"></datalist>
+                </label>
+                <label>Số điện thoại <span class="required-mark">*</span><input id="booking-customer-phone" name="customerPhone" type="tel" maxlength="30" pattern="[+0-9() -]{7,30}" autocomplete="tel" placeholder="Nhập số điện thoại" required /></label>
+                <label>CCCD/Căn cước<input id="booking-customer-identity" name="customerIdentity" type="text" maxlength="40" placeholder="Nhập số CCCD/Căn cước" /></label>
+                <label>Email<input id="booking-customer-email" name="customerEmail" type="email" maxlength="254" autocomplete="email" placeholder="Nhập email" /></label>
+                <label>Địa chỉ<input id="booking-customer-address" name="customerAddress" type="text" maxlength="255" autocomplete="street-address" placeholder="Nhập địa chỉ" /></label>
+              </section>
+              <section class="booking-form-section">
+                <h4><span aria-hidden="true">▣</span> Thông tin đặt phòng</h4>
+                <label>Phòng <span class="required-mark">*</span>
+                  <select id="booking-room" name="roomId" required><option value="">Chọn phòng trống</option></select>
+                </label>
+                <div class="booking-form-room-preview">
+                  <img id="booking-room-image" src="/assets/room-placeholder.svg" alt="" />
+                  <span id="booking-room-rate">Đơn giá sẽ hiển thị khi chọn phòng</span>
+                </div>
+                <div class="booking-form-dates">
+                  <label>Ngày nhận phòng <span class="required-mark">*</span><input id="booking-check-in" name="checkInAt" type="datetime-local" required /></label>
+                  <label>Ngày trả phòng <span class="required-mark">*</span><input id="booking-check-out" name="checkOutAt" type="datetime-local" required /></label>
+                </div>
+                <div class="booking-form-summary">
+                  <label>Số khách <span class="required-mark">*</span>
+                    <span class="booking-guest-counter"><button type="button" data-guest-step="-1" aria-label="Giảm số khách">−</button><input id="booking-guest-count" name="guestCount" type="number" min="1" max="20" value="1" required /><button type="button" data-guest-step="1" aria-label="Tăng số khách">＋</button></span>
+                  </label>
+                  <div class="booking-summary-value"><span>Số đêm</span><strong id="booking-night-count">—</strong></div>
+                  <div class="booking-summary-value"><span>Tổng tiền</span><strong id="booking-total">—</strong></div>
+                </div>
+                <label class="booking-form-notes">Ghi chú<textarea id="booking-notes" name="notes" maxlength="1000" rows="2" placeholder="Yêu cầu đặc biệt của khách..."></textarea></label>
+              </section>
+              <p id="booking-form-error" class="error booking-form-error" role="alert" aria-live="polite"></p>
+              <div class="booking-form-actions">
                 <button type="button" class="cancel-button" id="booking-form-dismiss">Hủy</button>
                 <button type="submit" class="primary-button">Xác nhận đặt phòng</button>
               </div>
@@ -771,6 +794,25 @@
               <button type="button" class="primary-button" data-checkout-view-list>Xem danh sách phòng</button>
             </div>
           </section>
+        </dialog>
+        <dialog id="booking-success-dialog" class="booking-success-dialog" aria-labelledby="booking-success-title">
+          <button type="button" class="booking-success-close" data-booking-success-close aria-label="Đóng">×</button>
+          <span class="booking-success-icon" aria-hidden="true">✓</span>
+          <h2 id="booking-success-title">Đặt phòng thành công!</h2>
+          <p class="booking-success-description">Thông tin khách hàng đã được lưu vào hệ thống và tạo đơn đặt phòng.</p>
+          <dl class="booking-success-details">
+            <div><dt>Mã đặt phòng</dt><dd id="booking-success-code"></dd></div>
+            <div><dt>Khách hàng</dt><dd id="booking-success-customer"></dd></div>
+            <div><dt>Phòng</dt><dd id="booking-success-room"></dd></div>
+            <div><dt>Ngày nhận</dt><dd id="booking-success-check-in"></dd></div>
+            <div><dt>Ngày trả</dt><dd id="booking-success-check-out"></dd></div>
+            <div><dt>Tổng tiền</dt><dd id="booking-success-total"></dd></div>
+            <div><dt>Trạng thái</dt><dd id="booking-success-status"></dd></div>
+          </dl>
+          <div class="booking-success-actions">
+            <button type="button" class="booking-success-details-button" data-booking-success-details>Xem chi tiết đặt phòng</button>
+            <button type="button" class="booking-success-dismiss" data-booking-success-close>Đóng</button>
+          </div>
         </dialog>
         <section id="room-add-view" class="room-view hidden-view">
           <div class="view-heading">
@@ -1109,7 +1151,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261007-bookings-customers" defer></script>
+    <script src="/js/main.js?v=20261007-customer-name-input" defer></script>
     <script src="/js/dashboard.js?v=20261007-checkout-actions" defer></script>
   </body>
 </html>
