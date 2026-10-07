@@ -54,6 +54,14 @@ app.config.update(
     MAX_CONTENT_LENGTH=5 * 1024 * 1024,
 )
 
+
+@app.after_request
+def prevent_stale_frontend_assets(response):
+    if request.path == "/home" or request.path.endswith((".html", ".js", ".css")):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    return response
+
+
 oauth = OAuth(app)
 oauth_clients = {}
 

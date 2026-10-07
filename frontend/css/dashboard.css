@@ -421,10 +421,12 @@
   .dashboard-page .sidebar-account { width: 100%; }
   .dashboard-page .account-menu { bottom: auto; top: calc(100% + 8px); }
 }
-.dashboard-page .checkout-room-meta { grid-template-columns: minmax(140px, 1fr) !important; max-width: 220px; margin-left: auto; }
-.dashboard-page .checkout-room-meta .room-status-toggle { min-height: 38px; padding: 9px 16px; font-size: 13px; }
+.dashboard-page .checkout-room-meta { width: 100%; grid-template-columns: minmax(0, 1fr) !important; max-width: none; margin-right: auto; margin-left: auto; }
+.dashboard-page .checkout-room-meta .room-status-toggle { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 38px; padding: 9px 16px; font-size: 13px; text-align: center; }
 .dashboard-page #room-checkout-view .view-heading { justify-content: center; text-align: center; }
 .dashboard-page #room-checkout-view .view-heading > div { width: 100%; }
+.dashboard-page #room-checkout-view .view-heading .eyebrow { text-align: left; }
+.dashboard-page #room-checkout-view .view-heading h2 { text-align: left; }
 .dashboard-page #room-checkout-view .room-count { margin-right: auto; margin-left: auto; text-align: center; }
 .dashboard-page .booking-status-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .dashboard-page .booking-status-filters button { min-height: 34px; padding: 7px 12px; border: 1px solid #ead5df; border-radius: 999px; color: #6d5362; background: #fff; font-size: 12px; font-weight: 700; }
@@ -541,7 +543,7 @@
 .dashboard-page .booking-pagination button { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid #ead5df; border-radius: 4px; color: #674354; background: #fff; font-size: 10px; }
 .dashboard-page .booking-pagination button.active { border-color: #d83d72; color: #fff; background: #d83d72; }
 .dashboard-page .booking-pagination button:disabled { opacity: .45; cursor: not-allowed; }
-.dashboard-page .booking-workspace { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); align-items: stretch; gap: 10px; margin-top: 12px; }
+.dashboard-page .booking-workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; margin-top: 12px; }
 .dashboard-page .booking-form-card, .dashboard-page .booking-detail-card { min-width: 0; margin: 0; padding: 13px; border: 1px solid #f0dfe7; border-radius: 8px; background: linear-gradient(135deg, #fff8fa, #fff); box-shadow: 0 3px 12px rgba(94,36,58,.035); }
 .dashboard-page .booking-form-card .management-form-heading { margin-bottom: 9px; }
 .dashboard-page .booking-form-card .management-form-heading .eyebrow { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: 10px; }
@@ -554,6 +556,38 @@
 .dashboard-page .booking-form-card .management-form-actions { margin-top: 1px; }
 .dashboard-page .booking-form-card .management-form-actions button { min-height: 32px; padding: 7px 11px; border-radius: 5px; font-size: 10px; }
 .dashboard-page .booking-form-card .management-form-actions .primary-button { box-shadow: none; }
+.dashboard-page .booking-form-card { padding: 16px; }
+.dashboard-page .booking-form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.dashboard-page .booking-form-section { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px; border: 1px solid #f0e4e9; border-radius: 7px; background: #fff; }
+.dashboard-page .booking-form-section h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 2px; padding-bottom: 9px; border-bottom: 1px solid #f5e7ed; color: #711b43; font-size: 14px; }
+.dashboard-page .booking-form-section h4 > span { color: #d83d72; font-size: 17px; }
+.dashboard-page .booking-form-section > label { display: grid; gap: 5px; min-width: 0; color: #5f3648; font-size: 11px; font-weight: 600; }
+.dashboard-page .booking-form-section input,
+.dashboard-page .booking-form-section select,
+.dashboard-page .booking-form-section textarea { width: 100%; min-width: 0; min-height: 36px; padding: 7px 9px; border: 1px solid #ead5df; border-radius: 5px; color: #412035; background: #fff; font: inherit; font-size: 12px; }
+.dashboard-page .booking-form-section input:read-only { color: #6d5362; background: #faf7f9; }
+.dashboard-page .booking-form-section textarea { min-height: 50px; resize: vertical; }
+.dashboard-page .booking-form-room-preview { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-top: -4px; color: #76656e; font-size: 11px; }
+.dashboard-page .booking-form-room-preview img { width: 76px; height: 48px; border-radius: 5px; background: #f6edf0; object-fit: cover; }
+.dashboard-page .booking-form-room-preview span { color: #b52055; font-weight: 700; }
+.dashboard-page .booking-form-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dashboard-page .booking-form-dates label { display: grid; gap: 5px; min-width: 0; color: #5f3648; font-size: 11px; font-weight: 600; }
+.dashboard-page .booking-form-dates input { width: 100%; min-width: 0; min-height: 36px; padding: 6px; border: 1px solid #ead5df; border-radius: 5px; color: #412035; background: #fff; font: inherit; font-size: 11px; }
+.dashboard-page .booking-form-summary { display: grid; grid-template-columns: 1.1fr .8fr 1fr; align-items: end; gap: 8px; }
+.dashboard-page .booking-form-summary > label { display: grid; gap: 5px; min-width: 0; color: #5f3648; font-size: 11px; font-weight: 600; }
+.dashboard-page .booking-guest-counter { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; min-height: 36px; border: 1px solid #ead5df; border-radius: 5px; overflow: hidden; }
+.dashboard-page .booking-guest-counter button { border: 0; color: #b52055; background: #fff8fa; font-size: 17px; cursor: pointer; }
+.dashboard-page .booking-guest-counter input { min-height: 34px; padding: 5px; border: 0; border-right: 1px solid #ead5df; border-left: 1px solid #ead5df; border-radius: 0; text-align: center; }
+.dashboard-page .booking-summary-value { display: grid; align-content: center; gap: 4px; min-width: 0; min-height: 36px; padding: 4px 8px; border-radius: 5px; background: #faf7f9; }
+.dashboard-page .booking-summary-value span { color: #806d79; font-size: 10px; }
+.dashboard-page .booking-summary-value strong { color: #5f3648; font-size: 12px; overflow-wrap: anywhere; }
+.dashboard-page .booking-summary-value:last-child { background: #fff0f4; }
+.dashboard-page .booking-summary-value:last-child strong { color: #b52055; }
+.dashboard-page .booking-form-notes { grid-column: 1 / -1; }
+.dashboard-page .booking-form-error { grid-column: 1 / -1; margin: 0; }
+.dashboard-page .booking-form-actions { display: flex; grid-column: 1 / -1; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+.dashboard-page .booking-form-actions button { min-height: 36px; padding: 8px 16px; border-radius: 5px; font-size: 12px; }
+.dashboard-page .booking-form-actions .primary-button { box-shadow: none; }
 .dashboard-page .booking-detail-card { display: flex; flex-direction: column; gap: 10px; }
 .dashboard-page .booking-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dashboard-page .booking-detail-heading h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: #4b1a2d; font-size: 13px; }
@@ -570,8 +604,11 @@
 .dashboard-page .booking-detail-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .dashboard-page .booking-detail-columns section { min-width: 0; }
 .dashboard-page .booking-detail-columns h4 { margin: 0 0 6px; color: #5e3b4e; font-size: 10px; }
+.dashboard-page .booking-detail-columns section:first-child h4 { font-size: 12px; }
 .dashboard-page .booking-detail-columns dl { display: grid; gap: 5px; margin: 0; }
 .dashboard-page .booking-detail-columns dl > div { display: grid; grid-template-columns: minmax(74px, .85fr) minmax(0, 1.15fr); gap: 5px; font-size: 9px; }
+.dashboard-page .booking-detail-columns section:first-child dl { gap: 7px; }
+.dashboard-page .booking-detail-columns section:first-child dl > div { font-size: 11px; }
 .dashboard-page .booking-detail-columns dt { color: #887783; }
 .dashboard-page .booking-detail-columns dd { min-width: 0; margin: 0; color: #4e2b3a; font-weight: 600; overflow-wrap: anywhere; }
 .dashboard-page .booking-detail-total { color: #b52055 !important; }
@@ -598,8 +635,8 @@
   .dashboard-page .booking-date-filters label { flex: 1 1 180px; }
   .dashboard-page .booking-date-filters input { flex: 1; width: auto; }
   .dashboard-page .booking-list-footer { align-items: flex-start; flex-direction: column; }
-  .dashboard-page .booking-form-card .management-form { grid-template-columns: 1fr; }
-  .dashboard-page .booking-form-card .management-form .wide-field { grid-column: 1; }
+  .dashboard-page .booking-form-layout { grid-template-columns: 1fr; }
+  .dashboard-page .booking-form-dates { grid-template-columns: 1fr; }
 }
 @media (max-width: 420px) {
   .dashboard-page #room-booking-view .view-heading { align-items: flex-start; flex-direction: column; }
@@ -865,6 +902,22 @@
 .dashboard-page .checkout-room-dialog.is-success .checkout-dialog-actions button { min-height: 36px; padding: 8px 12px; }
 .dashboard-page .checkout-room-dialog.is-success .cancel-button { min-width: 120px; }
 .dashboard-page .checkout-room-dialog.is-success [data-checkout-view-list] { min-width: 150px; }
+.dashboard-page .booking-success-dialog { position: relative; width: min(440px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 24px; overflow: auto; border: 1px solid #f0dfe7; border-radius: 12px; color: #392330; background: #fff; box-shadow: 0 18px 55px rgba(67,27,46,.24); text-align: center; }
+.dashboard-page .booking-success-dialog::backdrop { background: rgba(48,23,36,.5); backdrop-filter: blur(2px); }
+.dashboard-page .booking-success-close { position: absolute; top: 9px; right: 11px; width: 30px; height: 30px; border: 0; color: #806d79; background: transparent; font-size: 24px; cursor: pointer; }
+.dashboard-page .booking-success-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 2px auto 10px; border-radius: 50%; color: #fff; background: #2eae58; font-size: 28px; }
+.dashboard-page .booking-success-dialog h2 { margin: 0; color: #26734f; font-size: 20px; }
+.dashboard-page .booking-success-description { margin: 7px auto 14px; color: #68727d; font-size: 13px; line-height: 1.5; }
+.dashboard-page .booking-success-details { display: grid; gap: 9px; margin: 0; padding: 14px; border-radius: 8px; background: #fff4f7; text-align: left; }
+.dashboard-page .booking-success-details > div { display: grid; grid-template-columns: minmax(105px, .8fr) minmax(0, 1.2fr); gap: 10px; font-size: 12px; }
+.dashboard-page .booking-success-details dt { color: #6d5362; }
+.dashboard-page .booking-success-details dd { min-width: 0; margin: 0; color: #392330; font-weight: 700; overflow-wrap: anywhere; }
+.dashboard-page .booking-success-details > div:first-child dd,
+.dashboard-page .booking-success-details > div:nth-child(6) dd { color: #b52055; }
+.dashboard-page .booking-success-actions { display: grid; grid-template-columns: 1fr .72fr; gap: 9px; margin-top: 16px; }
+.dashboard-page .booking-success-actions button { min-height: 40px; padding: 8px 10px; border-radius: 6px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dashboard-page .booking-success-details-button { border: 1px solid #d83d72; color: #bd315f; background: #fff; }
+.dashboard-page .booking-success-dismiss { border: 1px solid #d83d72; color: #fff; background: #d83d72; }
 @keyframes checkout-spin { to { transform: rotate(360deg); } }
 @keyframes checkout-step-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes checkout-check-pop { 0% { opacity: 0; transform: scale(.45); } 70% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
@@ -883,6 +936,8 @@
   .dashboard-page .checkout-room-info dl > div { grid-template-columns: minmax(90px, .8fr) minmax(0, 1.2fr); }
   .dashboard-page .checkout-dialog-actions { flex-direction: column-reverse; }
   .dashboard-page .checkout-dialog-actions button { width: 100%; }
+  .dashboard-page .booking-success-dialog { padding: 20px 16px; }
+  .dashboard-page .booking-success-actions { grid-template-columns: 1fr; }
 }
 .dashboard-page .rent-room-form { margin: 0; padding: 20px; }
 .dashboard-page .rent-room-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
