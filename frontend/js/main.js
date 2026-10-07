@@ -114,7 +114,7 @@ function formatBookingDate(value) {
 }
 
 function roomRentalPrice(room, now = Date.now()) {
-  const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+  const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate);
   const checkInValue = roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at');
   const checkOutValue = roomRentalField(room, 'checkOutAt', 'checkOutTime', 'check_out_time', 'checkout_time', 'checked_out_at');
   if (!checkInValue || !Number.isFinite(Number(new Date(checkInValue).getTime()))) {
@@ -125,7 +125,7 @@ function roomRentalPrice(room, now = Date.now()) {
   const hasCheckOut = checkOutValue !== null;
   const calculationEndTime = hasCheckOut ? new Date(checkOutValue) : new Date(now);
 
-  if (!Number.isFinite(nightlyRate) || nightlyRate <= 0 || !Number.isFinite(checkIn.getTime()) || !Number.isFinite(calculationEndTime.getTime()) || calculationEndTime.getTime() < checkIn.getTime()) {
+  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || !Number.isFinite(checkIn.getTime()) || !Number.isFinite(calculationEndTime.getTime()) || calculationEndTime.getTime() < checkIn.getTime()) {
     return null;
   }
 
@@ -149,7 +149,7 @@ function roomRentalPrice(room, now = Date.now()) {
     }
   }
 
-  return nightlyRate * elapsedMinutes / 1440;
+  return hourlyRate * Math.ceil(elapsedMinutes / 60);
 }
 
 function updateLiveRoomPrices() {
@@ -184,6 +184,7 @@ if (form) {
   const fullNameInput = document.querySelector('#full-name');
   const usernameInput = document.querySelector('#username') || document.querySelector('#email');
   const phoneInput = document.querySelector('#phone');
+  const phoneGroup = phoneInput?.closest('.field-group');
   const confirmPasswordGroup = document.querySelector('#confirm-password-group');
   const confirmPasswordInput = document.querySelector('#confirm-password');
   const registerTerms = document.querySelector('#register-terms');
@@ -199,12 +200,14 @@ if (form) {
     const isRegister = mode === 'register';
 
     if (fullNameGroup) fullNameGroup.classList.toggle('hidden', !isRegister);
+    if (phoneGroup) phoneGroup.classList.toggle('hidden', !isRegister);
     if (confirmPasswordGroup) confirmPasswordGroup.classList.toggle('hidden', !isRegister);
     if (registerTermsRow) registerTermsRow.hidden = !isRegister;
     if (registerTerms) registerTerms.required = isRegister;
     if (rememberRow) rememberRow.classList.toggle('hidden', isRegister);
 
     if (fullNameInput) fullNameInput.required = isRegister;
+    if (phoneInput) phoneInput.required = isRegister;
     if (confirmPasswordInput) confirmPasswordInput.required = isRegister;
     if (authTitle) authTitle.textContent = isRegister ? 'Tạo tài khoản' : 'Đăng nhập';
     if (authSubtitle) authSubtitle.textContent = isRegister
@@ -296,7 +299,7 @@ if (form) {
         : {
             username: usernameValue || (document.querySelector('#email')?.value || '').trim(),
             password: passwordInput.value,
-            rememberMe: rememberInput.checked
+            rememberMe: rememberInput?.checked ?? false
           };
 
       const response = await fetch(isRegister ? '/api/register' : '/api/login', {
@@ -444,11 +447,12 @@ function renderBookingList() {
   const statusClasses = { pending: 'reserved', checked_in: 'occupied', checked_out: 'cleaning', cancelled: 'cancelled' };
   const formatTotal = booking => {
     const room = roomCache.find(item => String(item.id) === String(booking.roomId));
-    const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+    const hourlyRate = Number(booking.hourlyRate ?? room?.hourlyRate ?? room?.hourly_rate);
     const checkIn = new Date(booking.scheduledCheckInAt);
     const checkOut = new Date(booking.scheduledCheckOutAt);
-    const estimatedTotal = Number.isFinite(nightlyRate) && checkOut > checkIn
-      ? nightlyRate * (checkOut - checkIn) / 86400000
+    const durationMinutes = (checkOut - checkIn) / 60000;
+    const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
+      ? hourlyRate * Math.ceil(durationMinutes / 60)
       : null;
     const total = booking.rentalTotal ?? estimatedTotal;
     return total === null ? '—' : `${Number(total).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`;
@@ -501,11 +505,12 @@ function renderBookingDetails(booking) {
   const roomImage = room?.imagePath || room?.image_path || '/assets/room-placeholder.svg';
   const statusLabels = { pending: 'Đang chờ', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' };
   const statusClass = { pending: 'reserved', checked_in: 'occupied', checked_out: 'cleaning', cancelled: 'cancelled' }[booking.status] || 'reserved';
-  const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+  const hourlyRate = Number(booking.hourlyRate ?? room?.hourlyRate ?? room?.hourly_rate);
   const checkIn = new Date(booking.scheduledCheckInAt);
   const checkOut = new Date(booking.scheduledCheckOutAt);
-  const estimatedTotal = Number.isFinite(nightlyRate) && checkOut > checkIn
-    ? nightlyRate * (checkOut - checkIn) / 86400000
+  const durationMinutes = (checkOut - checkIn) / 60000;
+  const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
+    ? hourlyRate * Math.ceil(durationMinutes / 60)
     : null;
   const total = booking.rentalTotal ?? estimatedTotal;
   const actions = booking.status === 'pending'
@@ -519,7 +524,7 @@ function renderBookingDetails(booking) {
       <img src="${escapeHtml(roomImage)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" />
       <div><div class="booking-detail-room-title"><strong>Phòng ${escapeHtml(roomCode)}</strong><span class="booking-status ${statusClass}">${escapeHtml(statusLabels[booking.status] || booking.status)}</span></div>
         <small>${escapeHtml(roomType || 'Phòng lưu trú')}</small>
-        <span class="booking-detail-rate">${Number.isFinite(nightlyRate) ? `${nightlyRate.toLocaleString('vi-VN')}đ/ngày` : 'Chưa có giá phòng'}</span>
+        <span class="booking-detail-rate">${Number.isFinite(hourlyRate) ? `${hourlyRate.toLocaleString('vi-VN')}đ/giờ` : 'Chưa có giá phòng'}</span>
         <span class="booking-detail-guests">${escapeHtml(booking.guestCount || 1)} khách</span>
       </div>
     </div>
@@ -615,12 +620,15 @@ function updateBookingRoomOptions() {
   const roomSelect = document.querySelector('#booking-room');
   if (!roomSelect) return;
   const selectedId = roomSelect.value;
-  const availableRooms = roomCache.filter(room => roomStatusInfo(room.status).className === 'available');
+  const availableRooms = roomCache.filter(room =>
+    roomStatusInfo(room.status).className === 'available'
+    && Number(room.hourlyRate ?? room.hourly_rate) > 0
+  );
   roomSelect.innerHTML = '<option value="">Chọn phòng trống</option>' + availableRooms
     .map(room => {
       const roomCode = room.roomCode || room.room_code || '';
-      const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate) || 0;
-      return `<option value="${escapeHtml(room.id)}">${escapeHtml(roomCode)} · ${escapeHtml(roomTypeLabel(room.roomType || room.room_type || ''))} · ${nightlyRate.toLocaleString('vi-VN')}đ/ngày</option>`;
+      const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate) || 0;
+      return `<option value="${escapeHtml(room.id)}">${escapeHtml(roomCode)} · ${escapeHtml(roomTypeLabel(room.roomType || room.room_type || ''))} · ${hourlyRate.toLocaleString('vi-VN')}đ/giờ</option>`;
     }).join('');
   if (availableRooms.some(room => String(room.id) === selectedId)) roomSelect.value = selectedId;
 }
@@ -651,11 +659,11 @@ if (bookingForm && bookingFormCard) {
     }
     const room = roomCache.find(item => String(item.id) === String(booking.roomId));
     const customer = customerCache.find(item => String(item.id) === String(booking.customerId));
-    const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+    const hourlyRate = Number(booking.hourlyRate ?? room?.hourlyRate ?? room?.hourly_rate);
     const checkIn = new Date(booking.scheduledCheckInAt);
     const checkOut = new Date(booking.scheduledCheckOutAt);
-    const estimatedTotal = Number.isFinite(nightlyRate) && checkOut > checkIn
-      ? nightlyRate * (checkOut - checkIn) / 86400000
+    const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
+      ? hourlyRate * Math.ceil((checkOut - checkIn) / 3600000)
       : null;
     const total = booking.rentalTotal ?? estimatedTotal;
     const statusLabel = { pending: 'Đã đặt', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' }[booking.status] || booking.status || 'Đã đặt';
@@ -684,19 +692,20 @@ if (bookingForm && bookingFormCard) {
     const room = roomCache.find(item => String(item.id) === document.querySelector('#booking-room').value);
     const image = document.querySelector('#booking-room-image');
     const rateElement = document.querySelector('#booking-room-rate');
-    const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
+    const hourlyRate = Number(room?.hourlyRate ?? room?.hourly_rate);
     image.src = room?.imagePath || room?.image_path || '/assets/room-placeholder.svg';
-    rateElement.textContent = room && Number.isFinite(nightlyRate)
-      ? `${nightlyRate.toLocaleString('vi-VN')}đ / ngày`
+    rateElement.textContent = room && Number.isFinite(hourlyRate)
+      ? `${hourlyRate.toLocaleString('vi-VN')}đ / giờ`
       : 'Đơn giá sẽ hiển thị khi chọn phòng';
     const checkIn = new Date(document.querySelector('#booking-check-in').value);
     const checkOut = new Date(document.querySelector('#booking-check-out').value);
-    const durationDays = checkOut > checkIn ? (checkOut - checkIn) / 86400000 : null;
-    document.querySelector('#booking-night-count').textContent = durationDays === null
+    const durationMinutes = checkOut > checkIn ? (checkOut - checkIn) / 60000 : null;
+    const billableHours = durationMinutes === null ? null : Math.ceil(durationMinutes / 60);
+    document.querySelector('#booking-night-count').textContent = billableHours === null
       ? '—'
-      : `${Number.isInteger(durationDays) ? durationDays : durationDays.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} ngày`;
-    document.querySelector('#booking-total').textContent = durationDays !== null && Number.isFinite(nightlyRate)
-      ? `${(nightlyRate * durationDays).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
+      : `${billableHours} giờ (làm tròn lên)`;
+    document.querySelector('#booking-total').textContent = billableHours !== null && Number.isFinite(hourlyRate)
+      ? `${(hourlyRate * billableHours).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
       : '—';
   };
   bookingSuccessDialog?.querySelectorAll('[data-booking-success-close]').forEach(button => {
@@ -1118,7 +1127,7 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
       const roomCode = room.roomCode || room.room_code || room.roomNumber || '';
       const roomType = room.roomType || room.room_type || '';
       const shortDescription = room.shortDescription ?? room.short_description ?? '';
-      const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+      const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate);
       const imagePath = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
       const checkIn = status.className === 'occupied'
         ? formatTimeOnly(roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at'))
@@ -1129,8 +1138,8 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
       const currentRentalPrice = status.className === 'occupied' ? roomRentalPrice(room) : null;
       const priceLabel = status.className === 'occupied'
         ? currentRentalPrice === null ? '—' : `${Number(currentRentalPrice).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
-        : Number.isFinite(nightlyRate) && nightlyRate > 0
-          ? `${nightlyRate.toLocaleString('vi-VN')}đ / ngày`
+        : Number.isFinite(hourlyRate) && hourlyRate > 0
+          ? `${hourlyRate.toLocaleString('vi-VN')}đ / giờ`
           : '';
       const statusAction = occupiedOnly || bookingViewActive
         ? status.className === 'occupied'
@@ -1209,7 +1218,7 @@ if (rentRoomDialog && rentRoomForm) {
     const normalizedCheckIn = checkIn instanceof Date && Number.isFinite(checkIn.getTime())
       ? normalizeDateTimeToMinute(checkIn)
       : null;
-    const nightlyRate = Number(selectedRentalRoom?.nightlyRate ?? selectedRentalRoom?.nightly_rate);
+    const hourlyRate = Number(selectedRentalRoom?.hourlyRate ?? selectedRentalRoom?.hourly_rate);
     let message = '';
 
     if (!selectedRentalRoom?.id) message = 'Không tìm thấy phòng cần cho thuê.';
@@ -1218,7 +1227,7 @@ if (rentRoomDialog && rentRoomForm) {
     else if (!checkOutInput.value) message = 'Vui lòng chọn thời gian trả phòng.';
     else if (!Number.isFinite(checkOut.getTime())) message = 'Vui lòng chọn thời gian trả phòng hợp lệ.';
     else if (checkOut.getTime() <= checkIn.getTime()) message = 'Giờ trả phòng phải sau giờ nhận phòng.';
-    else if (!Number.isFinite(nightlyRate) || nightlyRate <= 0) message = 'Giá phòng không hợp lệ.';
+    else if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) message = 'Giá phòng theo giờ chưa được thiết lập.';
 
     selectedCheckIn = checkIn;
 
@@ -1240,8 +1249,9 @@ if (rentRoomDialog && rentRoomForm) {
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
     rentalDuration.textContent = `${hours ? `${hours} giờ` : ''}${hours && minutes ? ' ' : ''}${minutes ? `${minutes} phút` : ''}` || '0 phút';
-    const total = nightlyRate * durationMinutes / 1440;
-    rentalRoomRate.textContent = `${formatRentalCurrency(nightlyRate)}/ngày`;
+    const billableHours = Math.ceil(durationMinutes / 60);
+    const total = hourlyRate * billableHours;
+    rentalRoomRate.textContent = `${formatRentalCurrency(hourlyRate)}/giờ`;
     const roundedTotal = Math.floor(total * 100 + 0.5) / 100;
     rentalTotal.textContent = `≈ ${formatRentalCurrency(roundedTotal)}`;
     rentalTotal.dataset.exactTotal = roundedTotal.toFixed(2);
@@ -1277,7 +1287,10 @@ if (rentRoomDialog && rentRoomForm) {
     document.querySelector('#rent-room-type').textContent = roomTypeLabel(room.roomType || room.room_type || '');
     document.querySelector('#rent-room-description').textContent = room.shortDescription || room.short_description || 'Không có mô tả.';
     document.querySelector('#rent-room-status').textContent = `Trạng thái hiện tại: ${room.status || 'Phòng trống'}`;
-    rentalRoomRate.textContent = `${formatRentalCurrency(Number(room.nightlyRate ?? room.nightly_rate))}/ngày`;
+    const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate);
+    rentalRoomRate.textContent = Number.isFinite(hourlyRate) && hourlyRate > 0
+      ? `${formatRentalCurrency(hourlyRate)}/giờ`
+      : 'Chưa thiết lập giá theo giờ';
     calculateRental();
     rentRoomDialog.showModal();
   };
@@ -1385,9 +1398,9 @@ async function loadRoomTypes() {
       const selectedValue = roomTypeSelect.value;
       roomTypeSelect.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
         .map((roomType) => {
-          const rateLabel = roomType.nightlyRate === null
-            ? ' · Chưa thiết lập giá'
-            : ` · ${Number(roomType.nightlyRate).toLocaleString('vi-VN')}đ / ngày`;
+          const rateLabel = roomType.hourlyRate === null
+            ? ' · Chưa thiết lập giá theo giờ'
+            : ` · ${Number(roomType.hourlyRate).toLocaleString('vi-VN')}đ / giờ`;
           return `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomTypeLabel(roomType.name) + rateLabel)}</option>`;
         })
         .join('');
@@ -1405,7 +1418,7 @@ async function loadRoomTypes() {
                 <th>STT</th>
                 <th>Mã loại phòng</th>
                 <th>Tên loại phòng</th>
-                <th>Giá cố định</th>
+                <th>Giá theo giờ</th>
                 <th>Mô tả</th>
                 <th>Số lượng phòng</th>
                 <th>Thao tác</th>
@@ -1416,9 +1429,9 @@ async function loadRoomTypes() {
                 const relatedRooms = roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name);
                 const count = relatedRooms.length;
                 const description = roomType.description || '—';
-                const price = roomType.nightlyRate === null
+                const price = roomType.hourlyRate === null
                   ? 'Chưa thiết lập'
-                  : `${Number(roomType.nightlyRate).toLocaleString('vi-VN')}đ / ngày`;
+                  : `${Number(roomType.hourlyRate).toLocaleString('vi-VN')}đ / giờ`;
                 return `
                   <tr data-room-type-name="${escapeHtml(roomType.name)}">
                     <td>${index + 1}</td>
@@ -1459,7 +1472,7 @@ if (roomTypeForm) {
   const cancelButton = document.querySelector('#cancel-room-type-form');
   const codeInput = document.querySelector('#room-type-code');
   const nameInput = document.querySelector('#room-type-name');
-  const nightlyRateInput = document.querySelector('#room-type-nightly-rate');
+  const hourlyRateInput = document.querySelector('#room-type-hourly-rate');
   const descriptionInput = document.querySelector('#room-type-description');
   const errorMessage = document.querySelector('#room-type-error');
   const successMessage = document.querySelector('#room-type-message');
@@ -1526,7 +1539,7 @@ if (roomTypeForm) {
     editingCode = roomType.code;
     codeInput.value = roomType.code;
     nameInput.value = roomType.name;
-    nightlyRateInput.value = roomType.nightlyRate ?? '';
+    hourlyRateInput.value = roomType.hourlyRate ?? '';
     descriptionInput.value = roomType.description || '';
     roomTypeForm.classList.remove('hidden-form');
     toggleButton.textContent = 'Đang cập nhật';
@@ -1544,7 +1557,7 @@ if (roomTypeForm) {
     successMessage.classList.remove('error');
     const name = nameInput.value.trim().replace(/\s+/g, ' ');
     const description = descriptionInput.value.trim();
-    const nightlyRate = Number(nightlyRateInput.value);
+    const hourlyRate = Number(hourlyRateInput.value);
     if (!name) {
       errorMessage.textContent = 'Tên thể loại không được để trống.';
       nameInput.focus();
@@ -1556,7 +1569,7 @@ if (roomTypeForm) {
         : '/api/room-types', {
         method: editingCode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, nightlyRate })
+        body: JSON.stringify({ name, description, hourlyRate })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể lưu thể loại phòng.');
@@ -1717,8 +1730,8 @@ if (roomForm) {
   const descriptionCount = document.querySelector('.description-count');
   const roomCodeInput = document.querySelector('#room-code');
   const roomTypeSelect = document.querySelector('#room-type-select');
-  const nightlyRateInput = document.querySelector('#nightly-rate');
-  const nightlyRateHint = document.querySelector('#nightly-rate-hint');
+  const hourlyRateInput = document.querySelector('#hourly-rate');
+  const hourlyRateHint = document.querySelector('#hourly-rate-hint');
   const editingStatusInput = document.querySelector('#room-status');
   const formHeading = document.querySelector('#room-form-heading');
   const formDescription = document.querySelector('#room-form-description');
@@ -1730,12 +1743,12 @@ if (roomForm) {
   const syncNewRoomRate = () => {
     if (editingRoomId) return;
     const selectedType = roomTypesCache.find((roomType) => roomType.name === roomTypeSelect.value);
-    nightlyRateInput.value = selectedType?.nightlyRate ?? '';
-    nightlyRateHint.textContent = selectedType
-      ? selectedType.nightlyRate === null
-        ? 'Thể loại này chưa có giá cố định. Hãy cập nhật giá trong mục Thể loại phòng.'
-        : `Giá mặc định của thể loại: ${Number(selectedType.nightlyRate).toLocaleString('vi-VN')} VNĐ / ngày.`
-      : 'Chọn thể loại để tự động điền giá cố định.';
+    hourlyRateInput.value = selectedType?.hourlyRate ?? '';
+    hourlyRateHint.textContent = selectedType
+      ? selectedType.hourlyRate === null
+        ? 'Thể loại này chưa thiết lập giá theo giờ. Hãy cập nhật giá trong mục Thể loại phòng.'
+        : `Giá mặc định của thể loại: ${Number(selectedType.hourlyRate).toLocaleString('vi-VN')} VNĐ / giờ.`
+      : 'Chọn thể loại để tự động điền giá theo giờ.';
   };
 
   roomTypeSelect.addEventListener('change', syncNewRoomRate);
@@ -1774,7 +1787,7 @@ if (roomForm) {
   const clearRoomForm = () => {
     roomForm.reset();
     editingRoomId = null;
-    nightlyRateInput.readOnly = true;
+    hourlyRateInput.readOnly = true;
     formHeading.textContent = 'Thêm phòng';
     formDescription.textContent = 'Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.';
     formTitle.textContent = 'Thêm phòng vào hệ thống';
@@ -1788,12 +1801,12 @@ if (roomForm) {
 
   openRoomForm = (room) => {
     editingRoomId = String(room.id);
-    nightlyRateInput.readOnly = false;
-    nightlyRateHint.textContent = 'Giá phòng này có thể chỉnh sửa riêng, không làm đổi giá mặc định của thể loại.';
+    hourlyRateInput.readOnly = false;
+    hourlyRateHint.textContent = 'Giá phòng này có thể chỉnh sửa riêng, không làm đổi giá mặc định của thể loại.';
     roomCodeInput.value = room.roomCode || '';
     descriptionInput.value = room.shortDescription || '';
     roomTypeSelect.value = room.roomType || '';
-    nightlyRateInput.value = room.nightlyRate ?? '';
+    hourlyRateInput.value = room.hourlyRate ?? '';
     editingStatusInput.value = room.status || 'Phòng trống';
     descriptionCount.textContent = `${descriptionInput.value.length}/240 ký tự`;
     formHeading.textContent = `Cập nhật phòng ${room.roomCode || ''}`;

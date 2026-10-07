@@ -73,7 +73,7 @@ def test_create_booking_saves_customer_guest_count_and_notes(monkeypatch, tmp_pa
         "id": 1,
         "room_code": "101",
         "room_type": "Đơn",
-        "nightly_rate": 500000,
+        "hourly_rate": 500000,
         "status": "Phòng trống",
     }])
     customer = client.post("/api/customers", json={

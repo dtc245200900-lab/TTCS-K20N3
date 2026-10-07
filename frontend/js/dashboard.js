@@ -25,11 +25,11 @@
       const imagePath = room.imagePath || room.image_path || '/assets/room-placeholder.svg';
       const roomType = roomTypeLabel(room.roomType || room.room_type || '');
       const description = room.shortDescription || room.short_description || '';
-      const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate);
+      const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate);
       const currentTotal = status === 'occupied' ? roomRentalPrice(room) : null;
       const price = status === 'occupied'
         ? currentTotal === null ? '—' : currentTotal.toLocaleString('vi-VN') + 'đ'
-        : Number.isFinite(nightlyRate) && nightlyRate > 0 ? nightlyRate.toLocaleString('vi-VN') + 'đ / ngày' : '';
+        : Number.isFinite(hourlyRate) && hourlyRate > 0 ? hourlyRate.toLocaleString('vi-VN') + 'đ / giờ' : '';
       const totalAttribute = status === 'occupied' ? ' data-map-total-id="' + escapeHtml(room.id) + '"' : '';
       const checkoutAction = status === 'occupied'
         ? '<button type="button" class="map-room-checkout" data-checkout-room="' + escapeHtml(room.id) + '">Trả phòng</button>'

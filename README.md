@@ -39,7 +39,7 @@ Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai; da them luon
 
 ## Database
 
-Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, room_types, reservations va payments. Gia co dinh cua the loai phong duoc dung cho cac phong tao moi; gia cua phong da ton tai van duoc quan ly rieng trong cap nhat phong. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
+Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, room_types, reservations va payments. Gia mac dinh theo gio cua the loai phong duoc dung cho phong tao moi; gia theo gio cua phong da ton tai van duoc quan ly rieng trong cap nhat phong. Thoi gian le duoi mot gio duoc lam tron len mot gio khi tinh tien. Cac cot gia theo ngay cu duoc giu lai de tuong thich du lieu, khong tu dong chuyen gia/ngay thanh gia/gio; can nhap gia theo gio cho cac the loai cu truoc khi tiep tuc cho thue/dat phong. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
 
 ## API
 
@@ -50,4 +50,4 @@ Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles
 - `PUT /api/profile` (can dang nhap; cap nhat ho ten, ngay sinh, so dien thoai va anh dai dien; email khong the thay doi)
 - `GET /api/home` (can dang nhap)
 - `GET /api/rooms`, `POST /api/rooms`, `PUT /api/rooms/:id`, `PATCH /api/rooms/:id/status`, `DELETE /api/rooms/:id` (can dang nhap)
-- `GET /api/room-types`, `POST /api/room-types`, `PUT /api/room-types/:code`, `DELETE /api/room-types/:code` (can dang nhap)
+- `GET /api/room-types`, `POST /api/room-types`, `PUT /api/room-types/:code`, `DELETE /api/room-types/:code` (can dang nhap; gia su dung truong `hourlyRate`)

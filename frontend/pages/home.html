@@ -942,8 +942,8 @@
                     >0/240 ký tự</small
                   >
                 </label>
-                <label id="room-rate-field" for="nightly-rate"
-                  >Giá phòng (VNĐ) <span class="required-mark">*</span>
+                <label id="room-rate-field" for="hourly-rate"
+                  >Giá phòng (VNĐ / giờ) <span class="required-mark">*</span>
                   <span class="input-with-icon currency-wrap">
                     <span class="field-icon" aria-hidden="true">
                       <svg
@@ -961,17 +961,17 @@
                       </svg>
                     </span>
                     <input
-                      id="nightly-rate"
+                      id="hourly-rate"
                       type="number"
-                      name="nightlyRate"
+                      name="hourlyRate"
                       min="0.01"
                       step="any"
                       placeholder="500000"
                       required
                     />
-                    <span class="currency-suffix">VNĐ / ngày</span>
+                    <span class="currency-suffix">VNĐ / giờ</span>
                   </span>
-                  <small id="nightly-rate-hint" class="field-hint"
+                  <small id="hourly-rate-hint" class="field-hint"
                     >Giá lấy theo thể loại phòng đã chọn.</small
                   >
                 </label>
@@ -1080,12 +1080,12 @@
                     required
                   />
                 </label>
-                <label for="room-type-nightly-rate">
-                  Giá cố định (VNĐ / ngày)
+                <label for="room-type-hourly-rate">
+                  Giá theo giờ (VNĐ / giờ)
                   <input
-                    id="room-type-nightly-rate"
+                    id="room-type-hourly-rate"
                     type="number"
-                    name="nightlyRate"
+                    name="hourlyRate"
                     min="0.01"
                     max="9999999999.99"
                     step="0.01"
@@ -1254,7 +1254,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261007-customer-name-input" defer></script>
-    <script src="/js/dashboard.js?v=20261007-checkout-actions" defer></script>
+    <script src="/js/main.js?v=20261007-hourly-rates" defer></script>
+    <script src="/js/dashboard.js?v=20261007-hourly-rates" defer></script>
   </body>
 </html>

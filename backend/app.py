@@ -1,10 +1,11 @@
 import json
+import math
 import os
 import re
 import sys
 import time
 from datetime import date, datetime, timedelta
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
 from pathlib import Path
 
 import bcrypt
@@ -164,6 +165,7 @@ def initialize_database():
                 image_path VARCHAR(255) NULL,
                 room_type VARCHAR(80) NOT NULL,
                 nightly_rate DECIMAL(12,2) NOT NULL,
+                hourly_rate DECIMAL(12,2) NULL,
                 status ENUM('Phòng trống', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 checked_in_at DATETIME NULL,
@@ -209,6 +211,8 @@ def initialize_database():
             cursor.execute("ALTER TABLE rooms ADD COLUMN last_cleaning_started_at DATETIME NULL")
         if "cleaning_started_at" not in columns:
             cursor.execute("ALTER TABLE rooms ADD COLUMN cleaning_started_at DATETIME NULL")
+        if "hourly_rate" not in columns:
+            cursor.execute("ALTER TABLE rooms ADD COLUMN hourly_rate DECIMAL(12,2) NULL AFTER nightly_rate")
         cursor.execute("ALTER TABLE rooms MODIFY room_type VARCHAR(80) NOT NULL")
         cursor.execute("ALTER TABLE rooms MODIFY status VARCHAR(30) NOT NULL DEFAULT 'Phòng trống'")
         cursor.execute("""
@@ -251,6 +255,7 @@ def initialize_database():
                 cleaning_until DATETIME NULL,
                 duration_minutes BIGINT UNSIGNED NULL,
                 rental_total DECIMAL(14,2) NULL,
+                hourly_rate DECIMAL(12,2) NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 cancelled_at DATETIME NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -270,12 +275,15 @@ def initialize_database():
             cursor.execute("ALTER TABLE bookings ADD COLUMN guest_count INT UNSIGNED NOT NULL DEFAULT 1")
         if "notes" not in booking_columns:
             cursor.execute("ALTER TABLE bookings ADD COLUMN notes TEXT NULL")
+        if "hourly_rate" not in booking_columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN hourly_rate DECIMAL(12,2) NULL AFTER rental_total")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS room_types (
                 code VARCHAR(16) NOT NULL,
                 name VARCHAR(80) NOT NULL,
                 description TEXT NULL,
                 nightly_rate DECIMAL(12,2) NULL,
+                hourly_rate DECIMAL(12,2) NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (code),
                 UNIQUE KEY uq_room_types_name (name)
@@ -306,6 +314,8 @@ def initialize_database():
             cursor.execute("ALTER TABLE room_types ADD COLUMN description TEXT NULL AFTER name")
         if "nightly_rate" not in room_type_columns:
             cursor.execute("ALTER TABLE room_types ADD COLUMN nightly_rate DECIMAL(12,2) NULL AFTER description")
+        if "hourly_rate" not in room_type_columns:
+            cursor.execute("ALTER TABLE room_types ADD COLUMN hourly_rate DECIMAL(12,2) NULL AFTER nightly_rate")
         connection.commit()
     except mysql.connector.Error as error:
         print(f"MySQL chưa sẵn sàng, sẽ dùng lưu trữ dự phòng JSON: {error}")
@@ -448,6 +458,7 @@ def normalize_booking(booking):
         "cleaningUntil": iso_value(booking.get("cleaning_until", booking.get("cleaningUntil"))),
         "durationMinutes": booking.get("duration_minutes", booking.get("durationMinutes")),
         "rentalTotal": float(booking.get("rental_total", booking.get("rentalTotal"))) if booking.get("rental_total", booking.get("rentalTotal")) is not None else None,
+        "hourlyRate": float(booking.get("hourly_rate", booking.get("hourlyRate"))) if booking.get("hourly_rate", booking.get("hourlyRate")) is not None else None,
         "createdAt": iso_value(booking.get("created_at", booking.get("createdAt"))),
         "cancelledAt": iso_value(booking.get("cancelled_at", booking.get("cancelledAt"))),
         "updatedAt": iso_value(booking.get("updated_at", booking.get("updatedAt"))),
@@ -645,7 +656,7 @@ def current_room_rental_total(room):
         return next((room[key] for key in keys if room.get(key) is not None), None)
 
     try:
-        rate = Decimal(str(value("nightly_rate", "nightlyRate")))
+        rate = Decimal(str(room_hourly_rate(room)))
         checked_in_at = parse_datetime_value(value("checked_in_at", "checkInAt"))
         scheduled_check_out = parse_datetime_value(value("checked_out_at", "checkOutAt"))
         if checked_in_at is None or not rate.is_finite() or rate <= 0:
@@ -657,7 +668,7 @@ def current_room_rental_total(room):
         if elapsed_seconds <= 0:
             return None
         elapsed_minutes = max(1, int(elapsed_seconds // 60))
-        return float(max(Decimal("1"), calculate_rental_total(rate, elapsed_minutes)))
+        return float(calculate_hourly_rental_total(rate, elapsed_minutes))
     except (InvalidOperation, TypeError, ValueError, OverflowError):
         return None
 
@@ -673,7 +684,7 @@ def normalize_room(room):
                 return room[key]
         return default
 
-    rate = get("nightly_rate", "nightlyRate", default=0)
+    rate = room_hourly_rate(room)
     if isinstance(rate, Decimal):
         rate = float(rate)
     return {
@@ -682,7 +693,7 @@ def normalize_room(room):
         "shortDescription": get("short_description", "shortDescription", default=""),
         "imagePath": get("image_path", "imagePath", default=""),
         "roomType": get("room_type", "roomType", default="Đơn"),
-        "nightlyRate": float(rate or 0),
+        "hourlyRate": float(rate) if rate is not None else None,
         "status": normalized_status(get("status", default="Phòng trống")),
         "checkInAt": iso_value(get("checked_in_at", "checkInAt")),
         "checkOutAt": iso_value(get("checked_out_at", "checkOutAt")),
@@ -775,6 +786,19 @@ def calculate_rental_total(nightly_rate, duration_minutes):
     )
 
 
+def calculate_hourly_rental_total(hourly_rate, duration_minutes):
+    try:
+        rate = Decimal(str(hourly_rate))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("Giá phòng theo giờ không hợp lệ.")
+    if not rate.is_finite() or rate <= 0:
+        raise ValueError("Giá phòng theo giờ không hợp lệ.")
+    if duration_minutes <= 0:
+        raise ValueError("Thời gian thuê phải lớn hơn 0 phút.")
+    billable_hours = (Decimal(duration_minutes) / Decimal(60)).to_integral_value(rounding=ROUND_CEILING)
+    return (rate * billable_hours).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def norm_name(value):
     return " ".join(str(value or "").split()).casefold()
 
@@ -789,12 +813,12 @@ def next_type_code(room_types):
 
 
 def normalize_room_type(room_type):
-    rate = room_type.get("nightly_rate", room_type.get("nightlyRate"))
+    rate = room_type.get("hourly_rate", room_type.get("hourlyRate"))
     return {
         "code": room_type["code"],
         "name": room_type["name"],
         "description": room_type.get("description") or "",
-        "nightlyRate": float(rate) if rate is not None else None,
+        "hourlyRate": float(rate) if rate is not None else None,
     }
 
 
@@ -802,21 +826,49 @@ def parse_room_type_rate(value):
     try:
         rate = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
-        raise ValueError("Vui lòng nhập giá cố định hợp lệ cho thể loại phòng.")
+        raise ValueError("Vui lòng nhập giá theo giờ hợp lệ cho thể loại phòng.")
     if (
         not rate.is_finite()
         or rate <= 0
         or rate > Decimal("9999999999.99")
         or rate != rate.quantize(Decimal("0.01"))
     ):
-        raise ValueError("Giá cố định phải lớn hơn 0 và không vượt quá 9.999.999.999,99 VNĐ.")
+        raise ValueError("Giá theo giờ phải lớn hơn 0 và không vượt quá 9.999.999.999,99 VNĐ.")
     return rate
+
+
+def room_hourly_rate(room):
+    if not room:
+        return None
+    for key in ("hourly_rate", "hourlyRate", "type_hourly_rate"):
+        value = room.get(key)
+        if value is not None:
+            return float(value)
+
+    room_type_name = room.get("room_type", room.get("roomType", ""))
+    if db_available():
+        rows = query(
+            "SELECT hourly_rate FROM room_types WHERE name = %s LIMIT 1",
+            (room_type_name,),
+            fetch=True,
+        )["rows"]
+        return float(rows[0]["hourly_rate"]) if rows and rows[0].get("hourly_rate") is not None else None
+
+    room_type = next(
+        (
+            item for item in read_json(ROOM_TYPES_FILE, [])
+            if norm_name(item.get("name")) == norm_name(room_type_name)
+        ),
+        None,
+    )
+    value = room_type.get("hourlyRate", room_type.get("hourly_rate")) if room_type else None
+    return float(value) if value is not None else None
 
 
 def list_room_types():
     if db_available():
         room_rows = query("SELECT DISTINCT room_type FROM rooms", fetch=True)["rows"]
-        type_rows = query("SELECT code, name, description, nightly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
+        type_rows = query("SELECT code, name, description, hourly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
         types = [normalize_room_type(row) for row in type_rows]
         if not type_rows and not room_rows:
             json_types = read_json(ROOM_TYPES_FILE, [])
@@ -832,7 +884,7 @@ def list_room_types():
                 types.append({"code": code, "name": str(name).strip(), "description": ""})
             except mysql.connector.IntegrityError:
                 pass
-        rows = query("SELECT code, name, description, nightly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
+        rows = query("SELECT code, name, description, hourly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
         if rows:
             return [normalize_room_type(row) for row in rows]
 
@@ -861,7 +913,15 @@ def list_rooms():
     database_available = db_available()
     refresh_booking_lifecycles(database_available=database_available)
     if database_available:
-        rows = query("SELECT * FROM rooms ORDER BY created_at DESC, id DESC", fetch=True)["rows"]
+        rows = query(
+            """
+            SELECT rooms.*, room_types.hourly_rate AS type_hourly_rate
+            FROM rooms
+            LEFT JOIN room_types ON room_types.name = rooms.room_type
+            ORDER BY rooms.created_at DESC, rooms.id DESC
+            """,
+            fetch=True,
+        )["rows"]
         if rows:
             booking_rows = query(
                 """
@@ -950,7 +1010,16 @@ def rooms_api():
 def room_by_id(room_id):
     refresh_booking_lifecycles()
     if db_available():
-        rows = query("SELECT * FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
+        rows = query(
+            """
+            SELECT rooms.*, room_types.hourly_rate AS type_hourly_rate
+            FROM rooms
+            LEFT JOIN room_types ON room_types.name = rooms.room_type
+            WHERE rooms.id = %s LIMIT 1
+            """,
+            (room_id,),
+            fetch=True,
+        )["rows"]
         if rows:
             return normalize_room(derive_room_with_booking(rows[0]))
         json_rows = read_json(ROOMS_FILE, [])
@@ -1163,10 +1232,21 @@ def create_booking_api():
         try:
             connection = db_connection()
             cursor = connection.cursor(dictionary=True)
-            cursor.execute("SELECT id, room_code, status FROM rooms WHERE id = %s FOR UPDATE", (room_id,))
+            cursor.execute(
+                """
+                SELECT rooms.id, rooms.room_code, rooms.status,
+                    COALESCE(rooms.hourly_rate, room_types.hourly_rate) AS hourly_rate
+                FROM rooms
+                LEFT JOIN room_types ON room_types.name = rooms.room_type
+                WHERE rooms.id = %s FOR UPDATE
+                """,
+                (room_id,),
+            )
             room = cursor.fetchone()
             if not room:
                 return jsonify(message="Không tìm thấy phòng."), 404
+            if room.get("hourly_rate") is None or Decimal(str(room["hourly_rate"])) <= 0:
+                return jsonify(message="Thể loại phòng chưa được thiết lập giá theo giờ."), 400
             if customer_id is not None:
                 cursor.execute("SELECT id FROM customers WHERE id = %s", (customer_id,))
                 if not cursor.fetchone():
@@ -1178,10 +1258,10 @@ def create_booking_api():
             cursor.execute(
                 """
                 INSERT INTO bookings (room_id, customer_id, scheduled_check_in_at,
-                    scheduled_check_out_at, guest_count, notes, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    scheduled_check_out_at, guest_count, notes, status, hourly_rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (room_id, customer_id, check_in, check_out, guest_count, notes, BOOKING_PENDING_STATUS),
+                (room_id, customer_id, check_in, check_out, guest_count, notes, BOOKING_PENDING_STATUS, room["hourly_rate"]),
             )
             booking_id = cursor.lastrowid
             connection.commit()
@@ -1210,6 +1290,9 @@ def create_booking_api():
     room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(room_id)), None)
     if not room:
         return jsonify(message="Không tìm thấy phòng."), 404
+    hourly_rate = room_hourly_rate(room)
+    if hourly_rate is None or hourly_rate <= 0:
+        return jsonify(message="Thể loại phòng chưa được thiết lập giá theo giờ."), 400
     customer = next(
         (item for item in read_json(CUSTOMERS_FILE, []) if str(item.get("id")) == str(customer_id)),
         None,
@@ -1230,6 +1313,7 @@ def create_booking_api():
         "cleaning_until": None,
         "duration_minutes": None,
         "rental_total": None,
+        "hourly_rate": hourly_rate,
         "created_at": datetime.now().isoformat(),
         "cancelled_at": None,
         "updated_at": datetime.now().isoformat(),
@@ -1309,8 +1393,9 @@ def check_out_booking_api(booking_id):
             if booking["status"] != BOOKING_CHECKED_IN_STATUS:
                 return jsonify(message="Đặt phòng không còn đang được thuê."), 409
             room = room_by_id(booking["room_id"])
-            duration = max(0, int((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() // 60))
-            total = calculate_rental_total(room["nightlyRate"], duration)
+            duration = max(0, math.ceil((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() / 60))
+            hourly_rate = booking.get("hourly_rate") or room.get("hourlyRate")
+            total = calculate_hourly_rental_total(hourly_rate, duration)
             cleaning_until = now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)
             cursor.execute("INSERT INTO rental_history (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total) VALUES (%s, %s, %s, %s, %s, %s)", (
                 booking["room_id"], booking["actual_check_in_at"], booking["scheduled_check_out_at"], now, duration, total,
@@ -1334,9 +1419,10 @@ def check_out_booking_api(booking_id):
     if not booking:
         return jsonify(message="Không tìm thấy đặt phòng."), 404
     room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(booking["room_id"])), None)
-    duration = max(0, int((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() // 60))
-    total = calculate_rental_total(room["nightlyRate"], duration)
-    booking.update({"status": BOOKING_CHECKED_OUT_STATUS, "actual_check_out_at": now.isoformat(), "cleaning_until": (now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)).isoformat(), "duration_minutes": duration, "rental_total": total, "updated_at": now.isoformat()})
+    duration = max(0, math.ceil((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() / 60))
+    hourly_rate = booking.get("hourly_rate") or room_hourly_rate(room)
+    total = calculate_hourly_rental_total(hourly_rate, duration)
+    booking.update({"status": BOOKING_CHECKED_OUT_STATUS, "actual_check_out_at": now.isoformat(), "cleaning_until": (now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)).isoformat(), "duration_minutes": duration, "rental_total": float(total), "updated_at": now.isoformat()})
     save_booking(booking)
     return jsonify(message="Trả phòng thành công. Đang dọn phòng trong 30 phút.", booking=normalize_booking(booking), room=normalize_room(derive_room_with_booking(room)))
 
@@ -1812,7 +1898,7 @@ def read_room_fields(data):
     description = str(data.get("shortDescription", "")).strip()
     room_type = str(data.get("roomType", "")).strip()
     try:
-        rate = float(data.get("nightlyRate", ""))
+        rate = float(data.get("hourlyRate", ""))
     except (TypeError, ValueError):
         rate = float("nan")
     return code, description, room_type, rate
@@ -1830,19 +1916,19 @@ def add_room():
         selected_type = find_room_type(room_type)
         if not selected_type:
             raise ValueError("Loại phòng không hợp lệ.")
-        if selected_type["nightlyRate"] is None:
-            raise ValueError("Thể loại phòng chưa được thiết lập giá cố định. Vui lòng cập nhật giá trong mục Thể loại phòng.")
-        rate = selected_type["nightlyRate"]
+        if selected_type["hourlyRate"] is None:
+            raise ValueError("Thể loại phòng chưa được thiết lập giá theo giờ. Vui lòng cập nhật giá trong mục Thể loại phòng.")
+        rate = selected_type["hourlyRate"]
         image_path = save_upload()
         existing = next((room for room in list_rooms() if room["roomCode"].casefold() == code.casefold()), None)
         if existing:
             raise ValueError("Mã phòng đã tồn tại.")
         if db_available():
-            result = query("INSERT INTO rooms (room_code, short_description, image_path, room_type, nightly_rate, status) VALUES (%s, %s, %s, %s, %s, %s)", (code, description, image_path or None, room_type, rate, "Phòng trống"))
+            result = query("INSERT INTO rooms (room_code, short_description, image_path, room_type, nightly_rate, hourly_rate, status) VALUES (%s, %s, %s, %s, %s, %s, %s)", (code, description, image_path or None, room_type, rate, rate, "Phòng trống"))
             room = room_by_id(result["lastrowid"])
         else:
             rooms = read_json(ROOMS_FILE, [])
-            raw = {"id": max((int(item.get("id", 0)) for item in rooms), default=0) + 1, "roomCode": code, "shortDescription": description, "imagePath": image_path, "roomType": room_type, "nightlyRate": rate, "status": "Phòng trống"}
+            raw = {"id": max((int(item.get("id", 0)) for item in rooms), default=0) + 1, "roomCode": code, "shortDescription": description, "imagePath": image_path, "roomType": room_type, "hourlyRate": rate, "status": "Phòng trống"}
             rooms.insert(0, raw)
             write_json(ROOMS_FILE, rooms)
             room = normalize_room(raw)
@@ -1861,7 +1947,8 @@ def update_room(room_id):
     if not re.fullmatch(r"[A-Za-z0-9-]{1,20}", code) or not description or len(description) > 240 or not room_type or not (rate > 0 and rate < float("inf")):
         return jsonify(message="Vui lòng nhập mã phòng hợp lệ, mô tả (tối đa 240 ký tự), thể loại và giá thuê > 0."), 400
     try:
-        if not find_room_type(room_type):
+        selected_type = find_room_type(room_type)
+        if not selected_type:
             raise ValueError("Loại phòng không hợp lệ.")
         image_path = save_upload()
         if db_available():
@@ -1871,7 +1958,7 @@ def update_room(room_id):
             duplicates = query("SELECT id FROM rooms WHERE room_code = %s AND id <> %s LIMIT 1", (code, room_id), fetch=True)["rows"]
             if duplicates:
                 raise ValueError("Mã phòng đã tồn tại.")
-            query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, room_id))
+            query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s, hourly_rate = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, rate, room_id))
             room = room_by_id(room_id)
         else:
             rooms = read_json(ROOMS_FILE, [])
@@ -1880,7 +1967,7 @@ def update_room(room_id):
                 return jsonify(message="Không tìm thấy phòng."), 404
             if any(int(item.get("id", 0)) != room_id and str(item.get("roomCode", item.get("room_code", item.get("roomNumber", "")))).casefold() == code.casefold() for item in rooms):
                 raise ValueError("Mã phòng đã tồn tại.")
-            room.update({"roomCode": code, "shortDescription": description, "imagePath": image_path or room.get("imagePath", room.get("image_path", "")), "roomType": room_type, "nightlyRate": rate})
+            room.update({"roomCode": code, "shortDescription": description, "imagePath": image_path or room.get("imagePath", room.get("image_path", "")), "roomType": room_type, "hourlyRate": rate})
             write_json(ROOMS_FILE, rooms)
             room = normalize_room(room)
         return jsonify(message="Cập nhật thông tin phòng thành công.", room=room)
@@ -1953,7 +2040,7 @@ def update_room_status(room_id):
                     connection.rollback()
                     return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian nhận phòng hoặc trả phòng khác."), 409
                 try:
-                    rental_total = calculate_rental_total(room["nightly_rate"], duration_minutes)
+                    rental_total = calculate_hourly_rental_total(room_hourly_rate(room), duration_minutes)
                 except ValueError as error:
                     connection.rollback()
                     return jsonify(message=str(error)), 400
@@ -1995,7 +2082,7 @@ def update_room_status(room_id):
                         raise ValueError
                     returned_at = datetime.now()
                     stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
-                    rental_total = calculate_rental_total(room["nightly_rate"], stored_minutes)
+                    rental_total = calculate_hourly_rental_total(room_hourly_rate(room), stored_minutes)
                 except (TypeError, ValueError, InvalidOperation):
                     connection.rollback()
                     return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
@@ -2058,9 +2145,7 @@ def update_room_status(room_id):
             if booking_conflicts(existing_bookings, check_in, check_out):
                 return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian nhận phòng hoặc trả phòng khác."), 409
             try:
-                rental_total = calculate_rental_total(
-                    room.get("nightlyRate", room.get("nightly_rate", 0)), duration_minutes
-                )
+                rental_total = calculate_hourly_rental_total(room_hourly_rate(room), duration_minutes)
             except ValueError as error:
                 return jsonify(message=str(error)), 400
             room["checkInAt"] = check_in.isoformat()
@@ -2086,9 +2171,7 @@ def update_room_status(room_id):
                     raise ValueError
                 returned_at = datetime.now()
                 stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
-                rental_total = calculate_rental_total(
-                    room.get("nightlyRate", room.get("nightly_rate", 0)), stored_minutes
-                )
+                rental_total = calculate_hourly_rental_total(room_hourly_rate(room), stored_minutes)
             except (TypeError, ValueError, InvalidOperation):
                 return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
             history = room.setdefault("rentalHistory", [])
@@ -2174,7 +2257,7 @@ def add_room_type():
     name = " ".join(str(request_data().get("name", "")).split())
     description = str(request_data().get("description", "")).strip()
     try:
-        nightly_rate = parse_room_type_rate(request_data().get("nightlyRate"))
+        hourly_rate = parse_room_type_rate(request_data().get("hourlyRate"))
     except ValueError as error:
         return jsonify(message=str(error)), 400
     if not name:
@@ -2187,11 +2270,11 @@ def add_room_type():
             return jsonify(message="Tên thể loại đã tồn tại."), 409
         code = next_type_code(types)
         if db_available():
-            query("INSERT INTO room_types (code, name, description, nightly_rate) VALUES (%s, %s, %s, %s)", (code, name, description, nightly_rate))
+            query("INSERT INTO room_types (code, name, description, hourly_rate) VALUES (%s, %s, %s, %s)", (code, name, description, hourly_rate))
         else:
-            types.append({"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)})
+            types.append({"code": code, "name": name, "description": description, "hourlyRate": float(hourly_rate)})
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)}), 201
+        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "hourlyRate": float(hourly_rate)}), 201
     except ValueError as error:
         return jsonify(message=str(error)), 400
     except mysql.connector.Error as error:
@@ -2216,7 +2299,7 @@ def update_room_type(code):
         if not current:
             return jsonify(message="Không tìm thấy thể loại phòng."), 404
         description = str(payload.get("description", current.get("description", "")) or "").strip()
-        nightly_rate = parse_room_type_rate(payload.get("nightlyRate", current.get("nightlyRate")))
+        hourly_rate = parse_room_type_rate(payload.get("hourlyRate", current.get("hourlyRate")))
         if len(description) > 500:
             return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
         if any(item["code"] != code and norm_name(item["name"]) == norm_name(name) for item in types):
@@ -2230,7 +2313,7 @@ def update_room_type(code):
                 if not cursor.fetchone():
                     connection.rollback()
                     return jsonify(message="Không tìm thấy thể loại phòng."), 404
-                cursor.execute("UPDATE room_types SET name = %s, description = %s, nightly_rate = %s WHERE code = %s", (name, description, nightly_rate, code))
+                cursor.execute("UPDATE room_types SET name = %s, description = %s, hourly_rate = %s WHERE code = %s", (name, description, hourly_rate, code))
                 cursor.execute("UPDATE rooms SET room_type = %s WHERE room_type = %s", (name, current["name"]))
                 connection.commit()
             except Exception:
@@ -2244,7 +2327,7 @@ def update_room_type(code):
                 if item["code"] == code:
                     item["name"] = name
                     item["description"] = description
-                    item["nightlyRate"] = float(nightly_rate)
+                    item["hourlyRate"] = float(hourly_rate)
             rooms = read_json(ROOMS_FILE, [])
             for room in rooms:
                 old_name = room.get("roomType", room.get("room_type", ""))
@@ -2255,7 +2338,7 @@ def update_room_type(code):
                         room["room_type"] = name
             write_json(ROOMS_FILE, rooms)
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)})
+        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "hourlyRate": float(hourly_rate)})
     except ValueError as error:
         return jsonify(message=str(error)), 400
     except mysql.connector.Error as error:

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   image_path VARCHAR(255) NULL,
   room_type VARCHAR(80) NOT NULL,
   nightly_rate DECIMAL(12, 2) NOT NULL CHECK (nightly_rate > 0),
+  hourly_rate DECIMAL(12, 2) NULL CHECK (hourly_rate IS NULL OR hourly_rate > 0),
   status ENUM('Phòng trống', 'Đã đặt', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống',
   checked_in_at DATETIME NULL,
   checked_out_at DATETIME NULL,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS room_types (
   name VARCHAR(80) NOT NULL,
   description TEXT NULL,
   nightly_rate DECIMAL(12, 2) NULL,
+  hourly_rate DECIMAL(12, 2) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (code),
   UNIQUE KEY uq_room_types_name (name)
@@ -73,6 +75,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   cleaning_until DATETIME NULL,
   duration_minutes BIGINT UNSIGNED NULL,
   rental_total DECIMAL(14, 2) NULL,
+  hourly_rate DECIMAL(12, 2) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   cancelled_at DATETIME NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

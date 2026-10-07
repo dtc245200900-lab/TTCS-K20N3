@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import app as hotel_app
 
 
@@ -14,46 +16,46 @@ def authenticated_client(monkeypatch, tmp_path):
     return client
 
 
-def test_room_type_fixed_rate_is_used_for_new_room_and_can_be_updated(monkeypatch, tmp_path):
+def test_room_type_hourly_rate_is_used_for_new_room_and_can_be_updated(monkeypatch, tmp_path):
     client = authenticated_client(monkeypatch, tmp_path)
 
     created_type = client.post("/api/room-types", json={
         "name": "Phòng tiêu chuẩn",
         "description": "Tầng thấp",
-        "nightlyRate": 500000,
+        "hourlyRate": 500000,
     })
 
     assert created_type.status_code == 201
     room_type = created_type.get_json()["roomType"]
-    assert room_type["nightlyRate"] == 500000
+    assert room_type["hourlyRate"] == 500000
 
     updated_type = client.put(f"/api/room-types/{room_type['code']}", json={
         "name": room_type["name"],
         "description": room_type["description"],
-        "nightlyRate": 750000,
+        "hourlyRate": 750000,
     })
 
     assert updated_type.status_code == 200
-    assert updated_type.get_json()["roomType"]["nightlyRate"] == 750000
+    assert updated_type.get_json()["roomType"]["hourlyRate"] == 750000
 
     created_room = client.post("/api/rooms", data={
         "roomCode": "P101",
         "shortDescription": "Phòng nhìn ra vườn",
         "roomType": room_type["name"],
-        "nightlyRate": "1",
+        "hourlyRate": "1",
     })
 
     assert created_room.status_code == 201
-    assert created_room.get_json()["room"]["nightlyRate"] == 750000
+    assert created_room.get_json()["room"]["hourlyRate"] == 750000
 
 
-def test_room_type_requires_a_positive_fixed_rate(monkeypatch, tmp_path):
+def test_room_type_requires_a_positive_hourly_rate(monkeypatch, tmp_path):
     client = authenticated_client(monkeypatch, tmp_path)
 
     missing_rate = client.post("/api/room-types", json={"name": "Phòng tiêu chuẩn"})
     invalid_rate = client.post("/api/room-types", json={
         "name": "Phòng cao cấp",
-        "nightlyRate": 0,
+        "hourlyRate": 0,
     })
 
     assert missing_rate.status_code == 400
@@ -72,8 +74,83 @@ def test_room_cannot_be_created_with_unconfigured_legacy_type(monkeypatch, tmp_p
         "roomCode": "P101",
         "shortDescription": "Phòng nhìn ra vườn",
         "roomType": "Phòng cũ",
-        "nightlyRate": "500000",
+        "hourlyRate": "500000",
     })
 
     assert response.status_code == 400
-    assert "chưa được thiết lập giá cố định" in response.get_json()["message"]
+    assert "chưa được thiết lập giá theo giờ" in response.get_json()["message"]
+
+
+def test_legacy_daily_rate_is_not_used_as_an_hourly_rate(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    hotel_app.write_json(hotel_app.ROOM_TYPES_FILE, [{
+        "code": "LP001",
+        "name": "Loại phòng cũ",
+        "description": "",
+        "nightlyRate": 900000,
+    }])
+
+    result = client.get("/api/room-types")
+    legacy_type = result.get_json()["roomTypes"][0]
+
+    assert legacy_type["hourlyRate"] is None
+
+
+def test_hourly_rental_rounds_up_partial_hours():
+    assert hotel_app.calculate_hourly_rental_total(100000, 1) == 100000
+    assert hotel_app.calculate_hourly_rental_total(100000, 60) == 100000
+    assert hotel_app.calculate_hourly_rental_total(100000, 61) == 200000
+    assert hotel_app.calculate_hourly_rental_total(100000, 121) == 300000
+
+
+def test_booking_keeps_hourly_rate_snapshot(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    created_type = client.post("/api/room-types", json={
+        "name": "Phòng theo giờ",
+        "hourlyRate": 125000,
+    })
+    room_type = created_type.get_json()["roomType"]
+    created_room = client.post("/api/rooms", data={
+        "roomCode": "H101",
+        "shortDescription": "Phòng lưu trú theo giờ",
+        "roomType": room_type["name"],
+        "hourlyRate": "1",
+    })
+    room = created_room.get_json()["room"]
+    check_in = datetime.now() + timedelta(days=1)
+    check_out = check_in + timedelta(minutes=61)
+
+    booking_response = client.post("/api/bookings", json={
+        "roomId": room["id"],
+        "checkInAt": check_in.isoformat(timespec="minutes"),
+        "checkOutAt": check_out.isoformat(timespec="minutes"),
+    })
+
+    assert booking_response.status_code == 201
+    booking = booking_response.get_json()["booking"]
+    assert booking["hourlyRate"] == 125000
+
+
+def test_checkout_charges_started_hours_using_booking_rate_snapshot(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    checked_in = datetime.now() - timedelta(minutes=60)
+    hotel_app.write_json(hotel_app.ROOMS_FILE, [{
+        "id": 7,
+        "roomCode": "H101",
+        "roomType": "Phòng theo giờ",
+        "hourlyRate": 120000,
+        "status": "Đã thuê",
+    }])
+    hotel_app.write_json(hotel_app.BOOKINGS_FILE, [{
+        "id": 9,
+        "room_id": 7,
+        "status": hotel_app.BOOKING_CHECKED_IN_STATUS,
+        "actual_check_in_at": checked_in.isoformat(timespec="seconds"),
+        "hourly_rate": 80000,
+    }])
+
+    response = client.patch("/api/bookings/9/check-out")
+
+    assert response.status_code == 200
+    assert response.get_json()["booking"]["rentalTotal"] == 160000
+    assert response.get_json()["booking"]["durationMinutes"] >= 61
