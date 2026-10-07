@@ -37,6 +37,7 @@ BOOKING_CHECKED_OUT_STATUS = "checked_out"
 BOOKING_CANCELLED_STATUS = "cancelled"
 CLEANING_TIMEOUT_MINUTES = 30
 BOOKINGS_FILE = DATA_DIR / "bookings.json"
+CUSTOMERS_FILE = DATA_DIR / "customers.json"
 
 load_dotenv(BASE_DIR / ".env")
 
@@ -214,11 +215,28 @@ def initialize_database():
         """)
         cursor.execute("ALTER TABLE rooms MODIFY status ENUM('Phòng trống', 'Đã đặt', 'Đã thuê', 'Đang dọn phòng', 'Bảo trì') NOT NULL DEFAULT 'Phòng trống'")
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                full_name VARCHAR(150) NOT NULL,
+                phone VARCHAR(30) NOT NULL,
+                identity_number VARCHAR(40) NULL,
+                email VARCHAR(254) NULL,
+                address VARCHAR(255) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_customers_phone (phone),
+                UNIQUE KEY uq_customers_identity_number (identity_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS bookings (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 room_id BIGINT UNSIGNED NOT NULL,
+                customer_id BIGINT UNSIGNED NULL,
                 scheduled_check_in_at DATETIME NOT NULL,
                 scheduled_check_out_at DATETIME NOT NULL,
+                guest_count INT UNSIGNED NOT NULL DEFAULT 1,
+                notes TEXT NULL,
                 status ENUM('pending', 'checked_in', 'checked_out', 'cancelled') NOT NULL DEFAULT 'pending',
                 actual_check_in_at DATETIME NULL,
                 actual_check_out_at DATETIME NULL,
@@ -231,9 +249,19 @@ def initialize_database():
                 PRIMARY KEY (id),
                 KEY idx_bookings_room_status (room_id, status, scheduled_check_in_at),
                 KEY idx_bookings_cleaning_until (cleaning_until),
+                KEY idx_bookings_customer (customer_id),
                 CONSTRAINT fk_bookings_room FOREIGN KEY (room_id) REFERENCES rooms(id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+        cursor.execute("SHOW COLUMNS FROM bookings")
+        booking_columns = {row[0] for row in cursor.fetchall()}
+        if "customer_id" not in booking_columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER room_id")
+            cursor.execute("ALTER TABLE bookings ADD KEY idx_bookings_customer (customer_id)")
+        if "guest_count" not in booking_columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN guest_count INT UNSIGNED NOT NULL DEFAULT 1")
+        if "notes" not in booking_columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN notes TEXT NULL")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS room_types (
                 code VARCHAR(16) NOT NULL,
@@ -351,6 +379,13 @@ def normalize_booking(booking):
         "id": booking.get("id"),
         "roomId": booking.get("room_id", booking.get("roomId")),
         "roomCode": booking.get("roomCode", booking.get("room_code", "")),
+        "customerId": booking.get("customer_id", booking.get("customerId")),
+        "customerName": booking.get("customerName", booking.get("customer_name", "")),
+        "customerPhone": booking.get("customerPhone", booking.get("customer_phone", "")),
+        "customerIdentity": booking.get("customerIdentity", booking.get("customer_identity", "")),
+        "customerEmail": booking.get("customerEmail", booking.get("customer_email", "")),
+        "guestCount": booking.get("guest_count", booking.get("guestCount", 1)),
+        "notes": booking.get("notes", ""),
         "scheduledCheckInAt": iso_value(booking.get("scheduled_check_in_at", booking.get("scheduledCheckInAt"))),
         "scheduledCheckOutAt": iso_value(booking.get("scheduled_check_out_at", booking.get("scheduledCheckOutAt"))),
         "status": booking.get("status", BOOKING_PENDING_STATUS),
@@ -362,6 +397,21 @@ def normalize_booking(booking):
         "createdAt": iso_value(booking.get("created_at", booking.get("createdAt"))),
         "cancelledAt": iso_value(booking.get("cancelled_at", booking.get("cancelledAt"))),
         "updatedAt": iso_value(booking.get("updated_at", booking.get("updatedAt"))),
+    }
+
+
+def normalize_customer(customer, booking_count=0):
+    if not customer:
+        return None
+    return {
+        "id": customer.get("id"),
+        "fullName": customer.get("full_name", customer.get("fullName", "")),
+        "phone": customer.get("phone", ""),
+        "identityNumber": customer.get("identity_number", customer.get("identityNumber", "")),
+        "email": customer.get("email", ""),
+        "address": customer.get("address", ""),
+        "bookingCount": booking_count,
+        "createdAt": iso_value(customer.get("created_at", customer.get("createdAt"))),
     }
 
 
@@ -820,6 +870,102 @@ def booking_exists_conflict(room_id, check_in, check_out, exclude_id=None):
     )
 
 
+@app.get("/api/customers")
+def list_customers_api():
+    denied = require_auth()
+    if denied:
+        return denied
+    if db_available():
+        rows = query(
+            """
+            SELECT c.*, COUNT(b.id) AS booking_count
+            FROM customers c
+            LEFT JOIN bookings b ON b.customer_id = c.id
+            GROUP BY c.id
+            ORDER BY c.full_name ASC, c.id DESC
+            """,
+            fetch=True,
+        )["rows"]
+        return jsonify(customers=[
+            normalize_customer(row, row.get("booking_count", 0)) for row in rows
+        ])
+
+    customers = read_json(CUSTOMERS_FILE, [])
+    bookings = read_json(BOOKINGS_FILE, [])
+    booking_counts = {}
+    for booking in bookings:
+        customer_id = booking.get("customer_id", booking.get("customerId"))
+        if customer_id is not None:
+            booking_counts[str(customer_id)] = booking_counts.get(str(customer_id), 0) + 1
+    return jsonify(customers=[
+        normalize_customer(customer, booking_counts.get(str(customer.get("id")), 0))
+        for customer in customers
+    ])
+
+
+@app.post("/api/customers")
+def create_customer_api():
+    denied = require_auth()
+    if denied:
+        return denied
+    data = request_data()
+    full_name = re.sub(r"\s+", " ", str(data.get("fullName", data.get("full_name", ""))).strip())
+    phone = re.sub(r"\s+", "", str(data.get("phone", "")).strip())
+    identity_number = str(data.get("identityNumber", data.get("identity_number", ""))).strip() or None
+    email = str(data.get("email", "")).strip() or None
+    address = re.sub(r"\s+", " ", str(data.get("address", "")).strip()) or None
+    if not full_name or len(full_name) > 150:
+        return jsonify(message="Vui lòng nhập họ tên khách hàng hợp lệ."), 400
+    if not re.fullmatch(r"[+0-9() -]{7,30}", phone):
+        return jsonify(message="Vui lòng nhập số điện thoại hợp lệ."), 400
+    if identity_number and len(identity_number) > 40:
+        return jsonify(message="Số CCCD/CMND không được vượt quá 40 ký tự."), 400
+    if email and (len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)):
+        return jsonify(message="Vui lòng nhập email hợp lệ."), 400
+    if address and len(address) > 255:
+        return jsonify(message="Địa chỉ không được vượt quá 255 ký tự."), 400
+
+    if db_available():
+        try:
+            cursor = query(
+                """
+                INSERT INTO customers (full_name, phone, identity_number, email, address)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (full_name, phone, identity_number, email, address),
+            )
+            customer = query(
+                "SELECT * FROM customers WHERE id = %s",
+                (cursor["lastrowid"],),
+                fetch=True,
+            )["rows"][0]
+            return jsonify(message="Đã thêm khách hàng.", customer=normalize_customer(customer)), 201
+        except mysql.connector.IntegrityError:
+            return jsonify(message="Số điện thoại hoặc CCCD/CMND đã được sử dụng."), 409
+        except mysql.connector.Error as error:
+            return jsonify(message=str(error) or "Không thể thêm khách hàng."), 500
+
+    customers = read_json(CUSTOMERS_FILE, [])
+    if any(
+        str(customer.get("phone", "")).strip() == phone
+        or (identity_number and str(customer.get("identityNumber", customer.get("identity_number", ""))).strip() == identity_number)
+        for customer in customers
+    ):
+        return jsonify(message="Số điện thoại hoặc CCCD/CMND đã được sử dụng."), 409
+    customer = {
+        "id": max((int(item.get("id", 0)) for item in customers), default=0) + 1,
+        "fullName": full_name,
+        "phone": phone,
+        "identityNumber": identity_number or "",
+        "email": email or "",
+        "address": address or "",
+        "createdAt": datetime.now().isoformat(),
+    }
+    customers.append(customer)
+    write_json(CUSTOMERS_FILE, customers)
+    return jsonify(message="Đã thêm khách hàng.", customer=normalize_customer(customer)), 201
+
+
 @app.get("/api/bookings")
 def list_bookings_api():
     denied = require_auth()
@@ -830,9 +976,41 @@ def list_bookings_api():
     if room_id is not None:
         return jsonify(bookings=booking_rows_for_room(int(room_id)))
     if db_available():
-        rows = query("SELECT b.*, r.room_code FROM bookings b JOIN rooms r ON r.id = b.room_id ORDER BY b.scheduled_check_in_at ASC, b.id DESC", fetch=True)["rows"]
+        rows = query(
+            """
+            SELECT b.*, r.room_code, c.full_name AS customer_name,
+                c.phone AS customer_phone, c.identity_number AS customer_identity,
+                c.email AS customer_email
+            FROM bookings b
+            JOIN rooms r ON r.id = b.room_id
+            LEFT JOIN customers c ON c.id = b.customer_id
+            ORDER BY b.scheduled_check_in_at ASC, b.id DESC
+            """,
+            fetch=True,
+        )["rows"]
         return jsonify(bookings=[normalize_booking(row) | {"roomCode": row.get("room_code")} for row in rows])
-    return jsonify(bookings=[normalize_booking(row) for row in read_json(BOOKINGS_FILE, [])])
+    customers_by_id = {
+        str(customer.get("id")): customer for customer in read_json(CUSTOMERS_FILE, [])
+    }
+    room_codes_by_id = {
+        str(room.get("id")): room.get("roomCode", room.get("room_code", room.get("roomNumber", "")))
+        for room in read_json(ROOMS_FILE, [])
+    }
+    bookings = []
+    for row in read_json(BOOKINGS_FILE, []):
+        customer_id = row.get("customer_id", row.get("customerId"))
+        customer = customers_by_id.get(str(customer_id))
+        booking = normalize_booking(row)
+        booking["roomCode"] = booking["roomCode"] or room_codes_by_id.get(str(booking["roomId"]), "")
+        if customer:
+            booking.update({
+                "customerName": customer.get("fullName", customer.get("full_name", "")),
+                "customerPhone": customer.get("phone", ""),
+                "customerIdentity": customer.get("identityNumber", customer.get("identity_number", "")),
+                "customerEmail": customer.get("email", ""),
+            })
+        bookings.append(booking)
+    return jsonify(bookings=bookings)
 
 
 @app.post("/api/bookings")
@@ -844,8 +1022,15 @@ def create_booking_api():
     try:
         room_id = int(data.get("roomId", data.get("room_id")))
         check_in, check_out = validate_booking_window(data.get("checkInAt", data.get("check_in_at")), data.get("checkOutAt", data.get("check_out_at")))
+        customer_id = int(data["customerId"]) if data.get("customerId") not in (None, "") else None
+        guest_count = int(data.get("guestCount", 1))
     except (TypeError, ValueError, OverflowError):
         return jsonify(message="Vui lòng chọn thời gian nhận phòng và trả phòng hợp lệ."), 400
+    if guest_count < 1 or guest_count > 20:
+        return jsonify(message="Số khách phải từ 1 đến 20."), 400
+    notes = re.sub(r"\s+", " ", str(data.get("notes", "")).strip()) or None
+    if notes and len(notes) > 1000:
+        return jsonify(message="Ghi chú không được vượt quá 1000 ký tự."), 400
     if booking_exists_conflict(room_id, check_in, check_out):
         return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian khác."), 409
     if db_available():
@@ -858,17 +1043,35 @@ def create_booking_api():
             room = cursor.fetchone()
             if not room:
                 return jsonify(message="Không tìm thấy phòng."), 404
+            if customer_id is not None:
+                cursor.execute("SELECT id FROM customers WHERE id = %s", (customer_id,))
+                if not cursor.fetchone():
+                    return jsonify(message="Không tìm thấy khách hàng đã chọn."), 404
             if normalized_status(room["status"]) == ROOM_MAINTENANCE_STATUS:
                 return jsonify(message="Phòng đang bảo trì, không thể đặt."), 409
             if booking_exists_conflict(room_id, check_in, check_out):
                 return jsonify(message="Phòng đã được đặt trong khung thời gian này. Vui lòng chọn thời gian khác."), 409
             cursor.execute(
-                "INSERT INTO bookings (room_id, scheduled_check_in_at, scheduled_check_out_at, status) VALUES (%s, %s, %s, %s)",
-                (room_id, check_in, check_out, BOOKING_PENDING_STATUS),
+                """
+                INSERT INTO bookings (room_id, customer_id, scheduled_check_in_at,
+                    scheduled_check_out_at, guest_count, notes, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (room_id, customer_id, check_in, check_out, guest_count, notes, BOOKING_PENDING_STATUS),
             )
             booking_id = cursor.lastrowid
             connection.commit()
-            booking = normalize_booking(query("SELECT * FROM bookings WHERE id = %s", (booking_id,), fetch=True)["rows"][0])
+            booking_row = query(
+                """
+                SELECT b.*, c.full_name AS customer_name, c.phone AS customer_phone,
+                    c.identity_number AS customer_identity, c.email AS customer_email
+                FROM bookings b LEFT JOIN customers c ON c.id = b.customer_id
+                WHERE b.id = %s
+                """,
+                (booking_id,),
+                fetch=True,
+            )["rows"][0]
+            booking = normalize_booking(booking_row)
             room_data = normalize_room(room_by_id(room_id))
             return jsonify(message="Đặt phòng thành công.", booking=booking, room=room_data), 201
         except mysql.connector.Error as error:
@@ -883,11 +1086,20 @@ def create_booking_api():
     room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(room_id)), None)
     if not room:
         return jsonify(message="Không tìm thấy phòng."), 404
+    customer = next(
+        (item for item in read_json(CUSTOMERS_FILE, []) if str(item.get("id")) == str(customer_id)),
+        None,
+    ) if customer_id is not None else None
+    if customer_id is not None and customer is None:
+        return jsonify(message="Không tìm thấy khách hàng đã chọn."), 404
     booking = {
         "id": max((int(item.get("id", 0)) for item in read_json(BOOKINGS_FILE, [])), default=0) + 1,
         "room_id": room_id,
+        "customer_id": customer_id,
         "scheduled_check_in_at": check_in.isoformat(),
         "scheduled_check_out_at": check_out.isoformat(),
+        "guest_count": guest_count,
+        "notes": notes or "",
         "status": BOOKING_PENDING_STATUS,
         "actual_check_in_at": None,
         "actual_check_out_at": None,
@@ -899,7 +1111,15 @@ def create_booking_api():
         "updated_at": datetime.now().isoformat(),
     }
     save_booking(booking)
-    return jsonify(message="Đặt phòng thành công.", booking=normalize_booking(booking), room=normalize_room(derive_room_with_booking(room))), 201
+    normalized_booking = normalize_booking(booking)
+    if customer:
+        normalized_booking.update({
+            "customerName": customer.get("fullName", customer.get("full_name", "")),
+            "customerPhone": customer.get("phone", ""),
+            "customerIdentity": customer.get("identityNumber", customer.get("identity_number", "")),
+            "customerEmail": customer.get("email", ""),
+        })
+    return jsonify(message="Đặt phòng thành công.", booking=normalized_booking, room=normalize_room(derive_room_with_booking(room))), 201
 
 
 @app.patch("/api/bookings/<int:booking_id>/check-in")
