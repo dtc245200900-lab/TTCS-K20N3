@@ -25,6 +25,9 @@ def test_create_and_list_customer_with_json_storage(monkeypatch, tmp_path):
         "identityNumber": "001234567890",
         "email": "an@example.com",
         "address": "Hà Nội",
+        "dateOfBirth": "1995-05-20",
+        "gender": "female",
+        "notes": "Ưu tiên phòng yên tĩnh",
     })
 
     assert response.status_code == 201
@@ -32,10 +35,34 @@ def test_create_and_list_customer_with_json_storage(monkeypatch, tmp_path):
     assert customer["fullName"] == "Nguyễn Văn An"
     assert customer["phone"] == "0987654321"
     assert customer["bookingCount"] == 0
+    assert customer["dateOfBirth"] == "1995-05-20"
+    assert customer["gender"] == "female"
+    assert customer["notes"] == "Ưu tiên phòng yên tĩnh"
 
     listed = client.get("/api/customers")
     assert listed.status_code == 200
     assert listed.get_json()["customers"] == [customer]
+
+
+def test_create_customer_rejects_future_birth_date_and_invalid_gender(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    customer_data = {
+        "fullName": "Nguyễn Văn An",
+        "phone": "0987654321",
+        "dateOfBirth": "2999-01-01",
+        "gender": "invalid",
+    }
+
+    future_date = client.post("/api/customers", json=customer_data)
+    invalid_gender = client.post("/api/customers", json={
+        **customer_data,
+        "dateOfBirth": "1995-05-20",
+    })
+
+    assert future_date.status_code == 400
+    assert "ngày sinh" in future_date.get_json()["message"]
+    assert invalid_gender.status_code == 400
+    assert "giới tính" in invalid_gender.get_json()["message"]
 
 
 def test_customer_phone_must_be_unique(monkeypatch, tmp_path):

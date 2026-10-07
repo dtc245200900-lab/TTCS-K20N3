@@ -7,5 +7,14 @@
     "email": "kdaoduy509@gmail.com",
     "address": "ngày đo chpwo",
     "createdAt": "2026-10-07T09:38:15.401983"
+  },
+  {
+    "id": 2,
+    "fullName": "mien",
+    "phone": "937486673",
+    "identityNumber": "2145263632525",
+    "email": "admin@hotel.local",
+    "address": "ngày đo chpwo",
+    "createdAt": "2026-10-07T22:45:00.471573"
   }
 ]

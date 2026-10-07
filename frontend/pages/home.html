@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | Hotel Manager</title>
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/dashboard.css?v=20261007-checkout-button-wide" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=20261008-customer-modal-v20" />
   </head>
   <body class="dashboard-page">
     <header class="topbar">
@@ -23,10 +23,14 @@
             <path d="m16 16 5 5" /></svg
         ></span>
         <input
+          id="global-search"
           type="search"
           aria-label="Tìm kiếm"
+          aria-controls="global-search-results"
+          aria-expanded="false"
           placeholder="Tìm kiếm phòng, khách hàng, đặt phòng..."
         />
+        <div id="global-search-results" class="global-search-results" role="listbox" aria-label="Kết quả tìm kiếm" hidden></div>
       </div>
       <time id="dashboard-date" class="topbar-date"></time>
     </header>
@@ -42,6 +46,8 @@
             type="button"
             class="room-nav-link active"
             data-room-view="overview"
+            aria-label="Tổng quan"
+            title="Tổng quan"
             aria-current="page"
           >
             <span class="nav-icon" aria-hidden="true"
@@ -57,7 +63,7 @@
                 <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z" /></svg></span
             >Tổng quan
           </button>
-          <button type="button" class="room-nav-link" data-room-view="list">
+          <button type="button" class="room-nav-link" data-room-view="list" aria-label="Danh sách phòng" title="Danh sách phòng">
             <span class="nav-icon" aria-hidden="true"
               ><svg
                 viewBox="0 0 24 24"
@@ -73,7 +79,7 @@
                 /></svg></span
             >Danh sách phòng
           </button>
-          <button type="button" class="room-nav-link" data-room-view="booking">
+          <button type="button" class="room-nav-link" data-room-view="booking" aria-label="Đặt phòng" title="Đặt phòng">
             <span class="nav-icon" aria-hidden="true"
               ><svg
                 viewBox="0 0 24 24"
@@ -88,7 +94,7 @@
                 <path d="M16 3v4M8 3v4M3 11h18M12 14v4m-2-2h4" /></svg></span
             >Đặt phòng
           </button>
-          <button type="button" class="room-nav-link" data-room-view="checkout">
+          <button type="button" class="room-nav-link" data-room-view="checkout" aria-label="Trả phòng" title="Trả phòng">
             <span class="nav-icon" aria-hidden="true"
               ><svg
                 viewBox="0 0 24 24"
@@ -103,7 +109,7 @@
                 <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /></svg></span
             >Trả phòng <span id="checkout-nav-count" class="nav-count">0</span>
           </button>
-          <button type="button" class="room-nav-link" data-room-view="customers">
+          <button type="button" class="room-nav-link" data-room-view="customers" aria-label="Khách hàng" title="Khách hàng">
             <span class="nav-icon" aria-hidden="true"
               ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-5A4.5 4.5 0 0 0 2 18.5V20" />
@@ -111,7 +117,7 @@
                 <path d="M17 11a4 4 0 0 0 0-8m5 17v-1.5a4.5 4.5 0 0 0-3.5-4.4" /></svg></span
             >Khách hàng
           </button>
-          <button type="button" class="room-nav-link" data-room-view="types">
+          <button type="button" class="room-nav-link" data-room-view="types" aria-label="Thể loại phòng" title="Thể loại phòng">
             <span class="nav-icon" aria-hidden="true"
               ><svg
                 viewBox="0 0 24 24"
@@ -171,15 +177,20 @@
           aria-label="Tổng quan khách sạn"
         >
           <div class="welcome-banner">
-            <div>
-              <h2>Tổng quan</h2>
+            <div class="welcome-copy">
+              <h2 id="greeting-title">Xin chào!</h2>
               <p id="greeting">
-                Chào mừng bạn trở lại với hệ thống quản lý khách sạn.
+                Chúc bạn một ngày làm việc hiệu quả.<br />
+                Cùng mang đến những trải nghiệm tuyệt vời cho khách hàng!
               </p>
             </div>
-            <button type="button" class="primary-button" data-room-view="add">
-              Thêm phòng
-            </button>
+            <div class="welcome-actions">
+              <p class="welcome-quote">“Dịch vụ tốt tạo nên những kỷ niệm đẹp”</p>
+              <span class="welcome-brand">Hotel Manager</span>
+              <button type="button" class="primary-button" data-room-view="add">
+                + Thêm phòng
+              </button>
+            </div>
           </div>
           <p id="overview-error" class="error" role="alert"></p>
           <div class="stats-grid" aria-label="Thống kê phòng">
@@ -316,47 +327,25 @@
                 </dl>
               </div>
             </article>
-            <article class="overview-card">
+            <article class="overview-card revenue-card">
               <div class="overview-heading">
-                <h3>
-                  <span aria-hidden="true"
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="4" y="3" width="16" height="18" rx="2" />
-                      <path d="M8 8h8M8 12h8M8 16h5" /></svg
-                  ></span>
-                  Phòng theo thể loại
-                </h3>
-                <button
-                  type="button"
-                  class="text-button"
-                  data-room-view="types"
-                >
-                  Quản lý
-                </button>
+                <h3><span aria-hidden="true">▥</span> Doanh thu theo tháng</h3>
+                <label class="overview-select-label" for="revenue-year">Năm
+                  <select id="revenue-year" aria-label="Chọn năm doanh thu"></select>
+                </label>
               </div>
-              <div class="table-scroll">
-                <table class="type-summary">
-                  <thead>
-                    <tr>
-                      <th>Thể loại</th>
-                      <th>Tổng phòng</th>
-                      <th>Phòng trống</th>
-                    </tr>
-                  </thead>
-                  <tbody id="overview-types">
-                    <tr>
-                      <td colspan="3">Đang tải dữ liệu…</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="revenue-chart" id="revenue-chart" aria-label="Doanh thu 6 tháng gần nhất"></div>
+            </article>
+            <article class="overview-card room-type-chart-card">
+              <div class="overview-heading">
+                <h3><span aria-hidden="true">♧</span> Phòng theo thể loại</h3>
+                <button type="button" class="text-button" data-room-view="types">Chi tiết</button>
+              </div>
+              <div class="room-type-chart-content">
+                <div class="room-type-chart" id="room-type-chart" role="img" aria-label="Phân bố phòng theo thể loại">
+                  <strong id="room-type-chart-total">—</strong><span>phòng</span>
+                </div>
+                <ul id="room-type-legend" class="room-type-legend"></ul>
               </div>
             </article>
             <article class="overview-card room-map-card">
@@ -382,6 +371,15 @@
                   Xem tất cả
                 </button>
               </div>
+              <button
+                id="overview-room-layout-toggle"
+                class="room-layout-toggle"
+                type="button"
+                aria-controls="overview-room-map"
+                aria-pressed="true"
+              >
+                Mở rộng thành nhiều hàng
+              </button>
               <div class="room-map-toolbar">
                 <label class="search-field" for="overview-search"
                   ><span aria-hidden="true"
@@ -418,6 +416,45 @@
               >
                 <p class="muted">Đang tải danh sách phòng…</p>
               </div>
+            </article>
+            <article class="overview-card recent-bookings-card">
+              <div class="overview-heading">
+                <h3><span aria-hidden="true">▤</span> Đặt phòng gần đây</h3>
+                <button type="button" class="text-button" data-room-view="booking">Xem tất cả <span aria-hidden="true">→</span></button>
+              </div>
+              <div class="overview-table-wrap">
+                <table class="overview-data-table">
+                  <thead><tr><th>#</th><th>Khách hàng</th><th>Phòng</th><th>Ngày nhận</th><th>Ngày trả</th><th>Trạng thái</th></tr></thead>
+                  <tbody id="overview-bookings"><tr><td colspan="6">Đang tải dữ liệu…</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="overview-card recent-customers-card">
+              <div class="overview-heading">
+                <h3><span aria-hidden="true">♙</span> Khách hàng gần đây</h3>
+                <button type="button" class="text-button" data-room-view="customers">Xem tất cả <span aria-hidden="true">→</span></button>
+              </div>
+              <div class="overview-table-wrap">
+                <table class="overview-data-table">
+                  <thead><tr><th>#</th><th>Tên khách hàng</th><th>Số điện thoại</th><th>Email</th></tr></thead>
+                  <tbody id="overview-customers"><tr><td colspan="4">Đang tải dữ liệu…</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="overview-card booking-calendar-card">
+              <div class="overview-heading">
+                <h3><span aria-hidden="true">▦</span> Lịch đặt phòng</h3>
+                <div class="calendar-month-control">
+                  <button type="button" id="calendar-previous" aria-label="Tháng trước">‹</button>
+                  <strong id="calendar-month"></strong>
+                  <button type="button" id="calendar-next" aria-label="Tháng sau">›</button>
+                </div>
+              </div>
+              <div class="booking-calendar">
+                <div class="calendar-weekdays" aria-hidden="true"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div>
+                <div id="calendar-days" class="calendar-days"></div>
+              </div>
+              <div class="calendar-legend"><span><i class="calendar-dot pending"></i>Đã đặt</span><span><i class="calendar-dot checked-in"></i>Đang ở</span><span><i class="calendar-dot checked-out"></i>Đã trả</span></div>
             </article>
           </div>
         </section>
@@ -507,37 +544,84 @@
           </div>
         </section>
         <section id="customer-view" class="room-view hidden-view">
-          <div class="view-heading room-view-heading rooms-header">
+          <header class="customer-page-banner">
             <div>
               <p class="eyebrow">QUẢN LÝ KHÁCH HÀNG</p>
               <h2>Khách hàng</h2>
-              <p class="muted">Thông tin liên hệ và lịch sử đặt phòng của khách lưu trú.</p>
+              <p>Quản lý thông tin khách hàng, lịch sử đặt phòng và chăm sóc khách hàng.</p>
             </div>
             <button type="button" class="primary-button room-view-action" id="customer-form-toggle">+ Thêm khách hàng</button>
+          </header>
+          <div class="customer-stats-grid" aria-label="Thống kê khách hàng">
+            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">♧</span><div><span>Tổng khách hàng</span><strong id="customer-stat-total">—</strong><small>Trong hệ thống</small></div></article>
+            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">♙</span><div><span>Khách mới</span><strong id="customer-stat-new">—</strong><small>Trong tháng này</small></div></article>
+            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">▣</span><div><span>Đang lưu trú</span><strong id="customer-stat-staying">—</strong><small>Hiện tại</small></div></article>
+            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">◷</span><div><span>Lượt đã phục vụ</span><strong id="customer-stat-served">—</strong><small>Lượt trả phòng hoàn tất</small></div></article>
           </div>
-          <div class="customer-toolbar">
-            <label class="booking-search" for="customer-search"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Tìm tên, số điện thoại, CCCD hoặc email..." autocomplete="off" /></label>
-            <span id="customer-count" class="muted" aria-live="polite"></span>
+          <div class="customer-workspace">
+            <article class="customer-directory-card">
+              <div class="customer-directory-heading">
+                <div><h3><span aria-hidden="true">♧</span> Danh sách khách hàng</h3><p id="customer-count" class="muted" aria-live="polite"></p></div>
+              </div>
+              <div class="customer-toolbar">
+                <label class="booking-search" for="customer-search"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Tìm tên, số điện thoại, CCCD hoặc email..." autocomplete="off" /></label>
+                <select id="customer-status-filter" aria-label="Lọc theo trạng thái đặt phòng">
+                  <option value="all">Tất cả khách hàng</option>
+                  <option value="staying">Đang lưu trú</option>
+                  <option value="upcoming">Có đặt phòng</option>
+                  <option value="served">Đã trả phòng</option>
+                </select>
+                <select id="customer-sort" aria-label="Sắp xếp khách hàng">
+                  <option value="recent">Mới thêm trước</option>
+                  <option value="name">Tên A–Z</option>
+                  <option value="bookings">Đặt phòng nhiều nhất</option>
+                </select>
+              </div>
+              <div class="customer-table-scroll">
+                <table class="customer-table">
+                  <thead><tr><th>#</th><th>Tên khách hàng</th><th>Số điện thoại</th><th>CCCD/Căn cước</th><th>Email</th><th>Số lần đặt</th><th>Lần đặt gần nhất</th><th>Trạng thái</th></tr></thead>
+                  <tbody id="customer-table-body"></tbody>
+                </table>
+              </div>
+              <div class="customer-pagination">
+                <span id="customer-page-summary" class="muted"></span>
+                <div class="customer-page-controls">
+                  <button id="customer-page-prev" type="button" aria-label="Trang trước">‹</button>
+                  <span id="customer-page-number" aria-live="polite"></span>
+                  <button id="customer-page-next" type="button" aria-label="Trang sau">›</button>
+                  <select id="customer-page-size" aria-label="Số khách hàng mỗi trang"><option value="8">8 / trang</option><option value="16">16 / trang</option><option value="32">32 / trang</option></select>
+                </div>
+              </div>
+            </article>
+            <aside id="customer-detail-panel" class="customer-detail-panel" aria-live="polite"></aside>
           </div>
-          <article id="customer-form-card" class="management-form-card hidden-form">
+          <article id="customer-form-card" class="management-form-card customer-modal hidden-form" role="dialog" aria-modal="true" aria-labelledby="customer-form-title" aria-describedby="customer-form-description" tabindex="-1">
             <div class="management-form-heading">
-              <div><p class="eyebrow">HỒ SƠ KHÁCH</p><h3>Thêm khách hàng</h3></div>
-              <button type="button" class="cancel-button" id="customer-form-cancel">Đóng</button>
+              <span class="customer-modal-icon" aria-hidden="true">♙</span>
+              <div class="customer-modal-title"><h3 id="customer-form-title">Thêm khách hàng</h3><p id="customer-form-description">Nhập thông tin khách hàng mới vào hệ thống.</p></div>
+              <button type="button" class="customer-modal-close" id="customer-form-cancel" aria-label="Đóng biểu mẫu">×</button>
             </div>
             <form id="customer-form" class="management-form" novalidate>
-              <label>Họ và tên <span class="required-mark">*</span><input name="fullName" type="text" maxlength="150" autocomplete="name" required /></label>
-              <label>Số điện thoại <span class="required-mark">*</span><input name="phone" type="tel" maxlength="30" pattern="[+0-9() -]{7,30}" autocomplete="tel" required /></label>
-              <label>CCCD/Căn cước<input name="identityNumber" type="text" maxlength="40" /></label>
-              <label>Email<input name="email" type="email" maxlength="254" autocomplete="email" /></label>
-              <label class="wide-field">Địa chỉ<input name="address" type="text" maxlength="255" autocomplete="street-address" /></label>
+              <label class="customer-modal-name">Họ và tên <span class="required-mark">*</span><input name="fullName" type="text" maxlength="150" autocomplete="name" placeholder="Nhập họ và tên khách hàng" required /></label>
+              <label>Số điện thoại <span class="required-mark">*</span><input name="phone" type="tel" maxlength="30" pattern="[+0-9() -]{7,30}" autocomplete="tel" placeholder="Ví dụ: 0901234567" required /></label>
+              <label>CCCD/Căn cước <span class="required-mark">*</span><input name="identityNumber" type="text" maxlength="40" placeholder="Nhập số CCCD" required /></label>
+              <label class="customer-modal-email">Email <span class="required-mark">*</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="Nhập email khách hàng" required /></label>
+              <label>Ngày sinh <span class="required-mark">*</span><input name="dateOfBirth" type="date" required /></label>
+              <fieldset class="customer-gender-field">
+                <legend>Giới tính <span class="required-mark">*</span></legend>
+                <label><input type="radio" name="gender" value="male" required /> Nam</label>
+                <label><input type="radio" name="gender" value="female" /> Nữ</label>
+                <label><input type="radio" name="gender" value="other" /> Khác</label>
+              </fieldset>
+              <label class="wide-field">Địa chỉ <span class="required-mark">*</span><input name="address" type="text" maxlength="255" autocomplete="street-address" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" required /></label>
+              <label class="wide-field customer-modal-notes">Ghi chú<textarea name="notes" rows="2" maxlength="1000" placeholder="Nhập ghi chú (nếu có)..."></textarea></label>
               <p id="customer-form-error" class="error wide-field" role="alert" aria-live="polite"></p>
               <div class="management-form-actions wide-field">
                 <button type="button" class="cancel-button" id="customer-form-dismiss">Hủy</button>
-                <button type="submit" class="primary-button">Lưu khách hàng</button>
+                <button type="submit" class="primary-button"><span aria-hidden="true">▣</span> Thêm khách hàng</button>
               </div>
             </form>
           </article>
-          <div id="customer-list" class="customer-list" aria-live="polite"></div>
         </section>
         <section id="room-checkout-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">
@@ -979,14 +1063,15 @@
                   >Trạng thái
                   <span class="status-default">
                     <span class="status-dot"></span>
-                    <input
+                    <select
                       id="room-status"
-                      type="text"
-                      value="Phòng trống"
-                      readonly
-                    />
+                      name="status"
+                      disabled
+                    >
+                      <option value="Phòng trống">Phòng trống</option>
+                      <option value="Bảo trì">Bảo trì</option>
+                    </select>
                   </span>
-                  <input type="hidden" name="status" value="Phòng trống" />
                   <small class="field-hint"
                     >Phòng mới luôn bắt đầu ở trạng thái trống.</small
                   >
@@ -1133,42 +1218,65 @@
           </article>
         </section>
         <section id="profile-view" class="room-view hidden-view" aria-label="Cập nhật thông tin cá nhân">
-          <article class="profile-card">
-            <div class="profile-cover" aria-hidden="true"></div>
-            <div class="profile-heading">
-              <div>
-                <p class="eyebrow">TÀI KHOẢN</p>
-                <h2>Thông tin cá nhân</h2>
-                <p class="muted">Quản lý thông tin tài khoản của bạn.</p>
+          <header class="profile-page-heading">
+            <div class="profile-breadcrumb"><span>Tài khoản</span><span aria-hidden="true">›</span><strong>Thông tin cá nhân</strong></div>
+            <h2>Thông tin cá nhân</h2>
+            <p>Quản lý thông tin tài khoản và cập nhật thông tin cá nhân của bạn.</p>
+          </header>
+          <form id="profile-form" class="profile-layout" novalidate>
+            <aside class="profile-summary-card" aria-label="Tóm tắt tài khoản">
+              <div class="profile-summary-photo">
+                <img id="profile-avatar-preview" src="/assets/sakura-mark.svg" alt="Ảnh đại diện hiện tại" />
+                <label for="profile-avatar" class="avatar-upload-trigger" aria-label="Tải ảnh đại diện">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.3l1.1-1.8h6.2L15.2 5H17.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/>
+                    <circle cx="12" cy="12.5" r="3.35"/>
+                  </svg>
+                </label>
+                <input id="profile-avatar" class="visually-hidden" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
               </div>
-            </div>
-            <form id="profile-form" class="profile-form" novalidate>
-              <div class="profile-avatar-field">
-                <div class="profile-avatar-upload">
-                  <img id="profile-avatar-preview" src="/assets/sakura-mark.svg" alt="Ảnh đại diện hiện tại" />
-                  <label for="profile-avatar" class="avatar-upload-trigger" aria-label="Tải ảnh đại diện">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.3l1.1-1.8h6.2L15.2 5H17.5A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/>
-                      <circle cx="12" cy="12.5" r="3.35"/>
-                    </svg>
-                  </label>
-                  <input id="profile-avatar" class="visually-hidden" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+              <small class="profile-avatar-help">JPG, PNG, WEBP hoặc GIF · tối đa 5MB</small>
+              <h3 id="profile-summary-name">Tài khoản</h3>
+              <p class="profile-summary-role" id="profile-summary-username">Thành viên</p>
+              <div class="profile-summary-divider"></div>
+              <dl class="profile-summary-list">
+                <div><dt>Điện thoại</dt><dd id="profile-summary-phone">Chưa cập nhật</dd></div>
+                <div><dt>Email</dt><dd id="profile-summary-email">Chưa cập nhật</dd></div>
+                <div><dt>Ngày sinh</dt><dd id="profile-summary-birth-date">Chưa cập nhật</dd></div>
+              </dl>
+              <div class="profile-account-status" id="profile-summary-status"><span aria-hidden="true">✓</span> Đang hoạt động</div>
+            </aside>
+            <article class="profile-details-card">
+              <div class="profile-details-heading">
+                <div>
+                  <h3><span aria-hidden="true">♙</span> Thông tin cá nhân</h3>
+                  <p>Cập nhật thông tin cá nhân của bạn.</p>
                 </div>
+                <button id="profile-edit-button" type="button" class="secondary-button profile-edit-button">Chỉnh sửa</button>
               </div>
               <div class="profile-fields">
                 <label for="profile-full-name">Họ và tên <span class="required-mark">*</span>
-                  <input id="profile-full-name" name="fullName" type="text" maxlength="150" autocomplete="name" required />
+                  <input id="profile-full-name" name="fullName" type="text" minlength="2" maxlength="150" autocomplete="name" required />
+                </label>
+                <label for="profile-username">Tên đăng nhập <span class="required-mark">*</span>
+                  <input id="profile-username" name="username" type="text" minlength="3" maxlength="50" autocomplete="username" required />
                 </label>
                 <label for="profile-phone">Số điện thoại <span class="required-mark">*</span>
                   <input id="profile-phone" name="phone" type="tel" maxlength="20" pattern="[+0-9() -]{7,20}" autocomplete="tel" required />
                 </label>
-                <label for="profile-email">Email
-                  <input id="profile-email" name="email" type="email" readonly aria-describedby="profile-email-hint" />
-                  <small id="profile-email-hint">Email không thể thay đổi.</small>
+                <label for="profile-account-type">Loại tài khoản
+                  <input id="profile-account-type" type="text" value="Thành viên" readonly />
+                </label>
+                <label for="profile-email">Email <span class="required-mark">*</span>
+                  <input id="profile-email" name="email" type="email" maxlength="254" autocomplete="email" required />
+                </label>
+                <label for="profile-account-status">Trạng thái tài khoản
+                  <span class="profile-status-field" id="profile-account-status"><span aria-hidden="true">✓</span> Đang hoạt động</span>
                 </label>
                 <label for="profile-date-of-birth">Ngày sinh <span class="required-mark">*</span>
                   <input id="profile-date-of-birth" name="dateOfBirth" type="date" required />
                 </label>
+                <div class="profile-readonly-spacer" aria-hidden="true"></div>
                 <fieldset class="profile-gender-field">
                   <legend>Giới tính</legend>
                   <label><input type="radio" name="gender" value="female" /> Nữ</label>
@@ -1181,9 +1289,21 @@
               </div>
               <p id="profile-error" class="error" role="alert" aria-live="polite"></p>
               <p id="profile-success" class="success" role="status" aria-live="polite"></p>
-              <button id="profile-save-button" type="submit" class="primary-button">Lưu thay đổi</button>
-            </form>
-          </article>
+              <div class="profile-form-actions">
+                <button id="profile-cancel-button" type="button" class="cancel-button">Hủy</button>
+                <button id="profile-save-button" type="submit" class="primary-button">Lưu thay đổi</button>
+              </div>
+            </article>
+          </form>
+          <section class="profile-activity-card" aria-labelledby="profile-activity-title">
+            <div class="profile-activity-heading">
+              <div>
+                <h3 id="profile-activity-title"><span aria-hidden="true">◷</span> Lịch sử hoạt động gần đây</h3>
+                <p>Các hoạt động mới nhất của tài khoản.</p>
+              </div>
+            </div>
+            <p class="profile-activity-empty" role="status">Chưa có dữ liệu lịch sử hoạt động cho tài khoản này.</p>
+          </section>
         </section>
         <section id="password-view" class="room-view hidden-view account-settings-view" aria-label="Đổi mật khẩu">
           <div class="account-page-heading">
@@ -1254,7 +1374,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261007-hourly-rates" defer></script>
-    <script src="/js/dashboard.js?v=20261007-hourly-rates" defer></script>
+    <script src="/js/main.js?v=20261008-customer-modal-v19" defer></script>
+    <script src="/js/dashboard.js?v=20261007-sakura-dashboard-v13" defer></script>
   </body>
 </html>

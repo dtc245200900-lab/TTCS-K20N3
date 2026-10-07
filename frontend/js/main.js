@@ -4,11 +4,62 @@ let roomCache = [];
 let bookingCache = [];
 let customerCache = [];
 let selectedBookingId = null;
+let selectedCustomerId = null;
+let customerPage = 1;
+let customerPageSize = 8;
 let bookingPage = 1;
 const bookingPageSize = 8;
 let openRoomForm;
 let openRentRoom;
 let roomFeedbackTimeout;
+let dashboardCacheUserId = null;
+let hasCachedRooms = false;
+
+function dashboardCacheKey(name) {
+  return dashboardCacheUserId ? `hotel-manager:${dashboardCacheUserId}:${name}` : null;
+}
+
+function readDashboardCache(name) {
+  const key = dashboardCacheKey(name);
+  if (!key) return null;
+  try {
+    const value = JSON.parse(sessionStorage.getItem(key));
+    return Array.isArray(value) ? value : null;
+  } catch (error) {
+    console.warn(`Unable to read cached dashboard ${name}.`, error);
+    return null;
+  }
+}
+
+function saveDashboardCache(name, value) {
+  const key = dashboardCacheKey(name);
+  if (!key) return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Unable to save cached dashboard ${name}.`, error);
+  }
+}
+
+function restoreDashboardCache(userId) {
+  dashboardCacheUserId = userId == null ? null : String(userId);
+  if (!dashboardCacheUserId) return false;
+
+  const cachedRooms = readDashboardCache('rooms');
+  const cachedRoomTypes = readDashboardCache('room-types');
+  if (cachedRooms === null && cachedRoomTypes === null) return false;
+
+  if (cachedRooms !== null) {
+    roomCache = cachedRooms;
+    hasCachedRooms = true;
+    document.dispatchEvent(new Event('rooms-updated'));
+  }
+  if (cachedRoomTypes !== null) {
+    roomTypesCache = cachedRoomTypes;
+    document.dispatchEvent(new Event('room-types-updated'));
+  }
+  return cachedRooms !== null;
+}
 
 function showRoomFeedback(message, type = 'success') {
   const feedback = document.querySelector('#room-feedback');
@@ -401,11 +452,15 @@ async function loadRoomList() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách phòng.');
 
     roomCache = result.rooms || [];
+    hasCachedRooms = true;
+    saveDashboardCache('rooms', roomCache);
     document.dispatchEvent(new Event('rooms-updated'));
+    document.dispatchEvent(new Event('dashboard-data-updated'));
     renderRoomList();
     updateBookingRoomOptions();
   } catch (error) {
-    roomGrid.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    if (!hasCachedRooms) roomGrid.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    else showRoomFeedback('Không thể đồng bộ dữ liệu phòng mới. Đang hiển thị dữ liệu đã tải trước đó.', 'error');
     document.dispatchEvent(new CustomEvent('rooms-error', { detail: error.message }));
   }
 }
@@ -556,6 +611,7 @@ function upsertBookingCache(booking) {
   }
   bookingCache = [updated, ...bookingCache.filter(item => String(item.id) !== String(booking.id))];
   selectedBookingId = updated.id;
+  document.dispatchEvent(new Event('dashboard-data-updated'));
 }
 
 async function loadBookingList() {
@@ -567,45 +623,134 @@ async function loadBookingList() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách đặt phòng.');
     bookingCache = result.bookings || [];
     renderBookingList();
+    document.dispatchEvent(new Event('dashboard-bookings-loaded'));
+    document.dispatchEvent(new Event('dashboard-data-updated'));
     if (customerCache.length) renderCustomerList();
   } catch (error) {
     bookingList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    document.dispatchEvent(new CustomEvent('dashboard-bookings-error', { detail: error.message }));
   }
 }
 
 function renderCustomerList() {
-  const customerList = document.querySelector('#customer-list');
-  if (!customerList) return;
+  const tableBody = document.querySelector('#customer-table-body');
+  if (!tableBody) return;
   const query = (document.querySelector('#customer-search')?.value || '').trim().toLocaleLowerCase('vi');
-  const customers = customerCache.filter(customer =>
+  const statusFilter = document.querySelector('#customer-status-filter')?.value || 'all';
+  const sortBy = document.querySelector('#customer-sort')?.value || 'recent';
+  const statusForCustomer = (customer) => {
+    const customerBookings = bookingCache.filter(booking => String(booking.customerId) === String(customer.id));
+    if (customerBookings.some(booking => booking.status === 'checked_in')) return 'staying';
+    if (customerBookings.some(booking => booking.status === 'pending')) return 'upcoming';
+    if (customerBookings.some(booking => booking.status === 'checked_out')) return 'served';
+    if (customerBookings.some(booking => booking.status === 'cancelled')) return 'cancelled';
+    return 'none';
+  };
+  const matchingCustomers = customerCache.filter(customer =>
     `${customer.fullName} ${customer.phone} ${customer.identityNumber || ''} ${customer.email || ''}`
       .toLocaleLowerCase('vi').includes(query)
-  );
+  ).filter(customer => statusFilter === 'all' || statusForCustomer(customer) === statusFilter);
+  const customers = [...matchingCustomers].sort((a, b) => {
+    if (sortBy === 'name') return String(a.fullName || '').localeCompare(String(b.fullName || ''), 'vi');
+    if (sortBy === 'bookings') return Number(b.bookingCount || 0) - Number(a.bookingCount || 0);
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      || Number(b.id || 0) - Number(a.id || 0);
+  });
+  const now = new Date();
+  const newThisMonth = customerCache.filter(customer => {
+    const created = new Date(customer.createdAt);
+    return Number.isFinite(created.getTime())
+      && created.getFullYear() === now.getFullYear()
+      && created.getMonth() === now.getMonth();
+  }).length;
+  const stayingBookings = bookingCache.filter(booking => booking.status === 'checked_in');
+  const stayingCustomers = new Set(stayingBookings.map(booking => String(booking.customerId)));
+  const servedBookings = bookingCache.filter(booking => booking.status === 'checked_out').length;
+  document.querySelector('#customer-stat-total').textContent = customerCache.length.toLocaleString('vi-VN');
+  document.querySelector('#customer-stat-new').textContent = newThisMonth.toLocaleString('vi-VN');
+  document.querySelector('#customer-stat-staying').textContent = stayingCustomers.size.toLocaleString('vi-VN');
+  document.querySelector('#customer-stat-served').textContent = servedBookings.toLocaleString('vi-VN');
+
   const count = document.querySelector('#customer-count');
-  if (count) count.textContent = `${customers.length} / ${customerCache.length} khách hàng`;
-  customerList.innerHTML = customers.length
-    ? customers.map(customer => {
-        const initials = String(customer.fullName || '?').trim().split(/\s+/).slice(-2).map(name => name[0]).join('').toLocaleUpperCase('vi');
-        const history = bookingCache.filter(booking => String(booking.customerId) === String(customer.id));
-        return `<article class="customer-card">
-          <div class="customer-card-heading"><span class="customer-avatar" aria-hidden="true">${escapeHtml(initials)}</span><div><h3>${escapeHtml(customer.fullName)}</h3><span class="customer-summary">${Number(customer.bookingCount || history.length)} lần đặt phòng</span></div></div>
-          <dl class="customer-details">
-            <div><dt>Số điện thoại</dt><dd>${escapeHtml(customer.phone || '—')}</dd></div>
-            <div><dt>CCCD/Căn cước</dt><dd>${escapeHtml(customer.identityNumber || '—')}</dd></div>
-            <div><dt>Email</dt><dd>${escapeHtml(customer.email || '—')}</dd></div>
-            <div><dt>Địa chỉ</dt><dd>${escapeHtml(customer.address || '—')}</dd></div>
-          </dl>
-          <div class="customer-history"><strong>Lịch sử đặt phòng</strong>${history.length
-            ? history.slice(0, 2).map(booking => {
-                const statusLabel = { pending: 'Đang chờ', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' }[booking.status] || booking.status;
-                return `<div><span>Phòng ${escapeHtml(booking.roomCode || '—')} · ${escapeHtml(formatBookingDateTime(booking.scheduledCheckInAt))}</span><small>${escapeHtml(statusLabel)}</small></div>`;
-              }).join('')
-            : '<span class="muted">Chưa có lịch sử đặt phòng.</span>'}</div>
-        </article>`;
+  if (count) count.textContent = `Hiển thị ${customers.length} / ${customerCache.length} khách hàng`;
+  const pageCount = Math.max(1, Math.ceil(customers.length / customerPageSize));
+  customerPage = Math.min(customerPage, pageCount);
+  const pageCustomers = customers.slice((customerPage - 1) * customerPageSize, customerPage * customerPageSize);
+  const labelForStatus = {
+    staying: ['Đang ở', 'staying'],
+    upcoming: ['Đã đặt', 'upcoming'],
+    served: ['Đã trả', 'served'],
+    cancelled: ['Đã hủy', 'cancelled'],
+    none: ['Chưa đặt', 'none']
+  };
+  tableBody.innerHTML = pageCustomers.length
+    ? pageCustomers.map((customer, index) => {
+        const status = labelForStatus[statusForCustomer(customer)];
+        const latestBooking = bookingCache
+          .filter(booking => String(booking.customerId) === String(customer.id))
+          .sort((a, b) => String(b.scheduledCheckInAt || '').localeCompare(String(a.scheduledCheckInAt || '')))[0];
+        const rowNumber = (customerPage - 1) * customerPageSize + index + 1;
+        return `<tr class="${String(customer.id) === String(selectedCustomerId) ? 'is-selected' : ''}" data-customer-id="${escapeHtml(customer.id)}" tabindex="0" aria-selected="${String(customer.id) === String(selectedCustomerId)}">
+          <td>${rowNumber}</td>
+          <td><strong>${escapeHtml(customer.fullName || '—')}</strong></td>
+          <td>${escapeHtml(customer.phone || '—')}</td>
+          <td>${escapeHtml(customer.identityNumber || '—')}</td>
+          <td>${escapeHtml(customer.email || '—')}</td>
+          <td>${Number(customer.bookingCount || 0)}</td>
+          <td>${latestBooking ? escapeHtml(formatBookingDate(latestBooking.scheduledCheckInAt)) : '—'}</td>
+          <td><span class="customer-status-badge ${status[1]}">${status[0]}</span></td>
+        </tr>`;
       }).join('')
-    : `<div class="room-empty">${customerCache.length ? 'Không tìm thấy khách hàng phù hợp.' : 'Chưa có khách hàng. Hãy thêm khách hàng để bắt đầu tạo đặt phòng.'}</div>`;
+    : `<tr><td colspan="8" class="customer-table-empty">${customerCache.length ? 'Không tìm thấy khách hàng phù hợp.' : 'Chưa có khách hàng. Hãy thêm khách hàng để bắt đầu tạo đặt phòng.'}</td></tr>`;
+  document.querySelector('#customer-page-summary').textContent = customers.length
+    ? `Hiển thị ${(customerPage - 1) * customerPageSize + 1} - ${Math.min(customerPage * customerPageSize, customers.length)} trong ${customers.length} khách hàng`
+    : 'Không có khách hàng';
+  document.querySelector('#customer-page-number').textContent = `${customerPage} / ${pageCount}`;
+  document.querySelector('#customer-page-prev').disabled = customerPage <= 1;
+  document.querySelector('#customer-page-next').disabled = customerPage >= pageCount;
+  if (!pageCustomers.some(customer => String(customer.id) === String(selectedCustomerId))) {
+    selectedCustomerId = pageCustomers[0]?.id ?? null;
+  }
+  renderCustomerDetails();
   updateBookingCustomerOptions();
   renderBookingDetails(bookingCache.find(booking => String(booking.id) === String(selectedBookingId)));
+}
+
+function renderCustomerDetails() {
+  const panel = document.querySelector('#customer-detail-panel');
+  if (!panel) return;
+  const customer = customerCache.find(item => String(item.id) === String(selectedCustomerId));
+  if (!customer) {
+    panel.innerHTML = '<div class="customer-detail-empty">Chọn một khách hàng trong danh sách để xem hồ sơ và lịch sử đặt phòng.</div>';
+    return;
+  }
+  const history = bookingCache
+    .filter(booking => String(booking.customerId) === String(customer.id))
+    .sort((a, b) => String(b.scheduledCheckInAt || '').localeCompare(String(a.scheduledCheckInAt || '')));
+  const latestBooking = history[0];
+  const initials = String(customer.fullName || '?').trim().split(/\s+/).slice(-2).map(name => name[0]).join('').toLocaleUpperCase('vi');
+  const labels = { pending: ['Đã đặt', 'upcoming'], checked_in: ['Đang ở', 'staying'], checked_out: ['Đã trả', 'served'], cancelled: ['Đã hủy', 'cancelled'] };
+  const completedSpend = history
+    .filter(booking => booking.status === 'checked_out')
+    .reduce((sum, booking) => sum + (Number(booking.rentalTotal) || 0), 0);
+  panel.innerHTML = `<div class="customer-detail-heading"><span class="customer-avatar">${escapeHtml(initials)}</span><div><h3>${escapeHtml(customer.fullName || '—')}</h3><p>Mã khách hàng: KH${escapeHtml(String(customer.id).padStart(4, '0'))}</p></div></div>
+    <dl class="customer-detail-fields">
+      <div><dt>Điện thoại</dt><dd>${escapeHtml(customer.phone || 'Chưa cập nhật')}</dd></div>
+      <div><dt>CCCD/Căn cước</dt><dd>${escapeHtml(customer.identityNumber || 'Chưa cập nhật')}</dd></div>
+      <div><dt>Email</dt><dd>${escapeHtml(customer.email || 'Chưa cập nhật')}</dd></div>
+      <div><dt>Ngày sinh</dt><dd>${escapeHtml(customer.dateOfBirth ? formatBookingDate(customer.dateOfBirth) : 'Chưa cập nhật')}</dd></div>
+      <div><dt>Giới tính</dt><dd>${escapeHtml({ male: 'Nam', female: 'Nữ', other: 'Khác' }[customer.gender] || 'Chưa cập nhật')}</dd></div>
+      <div><dt>Địa chỉ</dt><dd>${escapeHtml(customer.address || 'Chưa cập nhật')}</dd></div>
+    </dl>
+    ${customer.notes ? `<div class="customer-profile-notes"><strong>Ghi chú</strong><p>${escapeHtml(customer.notes)}</p></div>` : ''}
+    <h4 class="customer-detail-section-title">Thống kê đặt phòng</h4>
+    <div class="customer-booking-stats"><div><span>Số lần đặt</span><strong>${Number(customer.bookingCount || history.length)}</strong></div><div><span>Tổng chi tiêu đã trả</span><strong>${completedSpend.toLocaleString('vi-VN')} đ</strong></div><div><span>Lần gần nhất</span><strong>${latestBooking ? escapeHtml(formatBookingDate(latestBooking.scheduledCheckInAt)) : 'Chưa có'}</strong></div></div>
+    <div class="customer-detail-history"><h4>Lịch sử đặt phòng</h4>${history.length
+      ? history.slice(0, 5).map(booking => {
+          const status = labels[booking.status] || ['Không rõ', 'none'];
+          return `<div class="customer-history-row"><span><strong>Phòng ${escapeHtml(booking.roomCode || '—')}</strong><small>${escapeHtml(formatBookingDateTime(booking.scheduledCheckInAt))}</small></span><span class="customer-status-badge ${status[1]}">${status[0]}</span></div>`;
+        }).join('')
+      : '<p class="muted">Khách hàng chưa có lịch sử đặt phòng.</p>'}</div>`;
 }
 
 function updateBookingCustomerOptions() {
@@ -634,16 +779,19 @@ function updateBookingRoomOptions() {
 }
 
 async function loadCustomers() {
-  const customerList = document.querySelector('#customer-list');
-  if (!customerList) return;
+  const customerTableBody = document.querySelector('#customer-table-body');
+  if (!customerTableBody) return;
   try {
     const response = await fetch('/api/customers');
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách khách hàng.');
     customerCache = result.customers || [];
     renderCustomerList();
+    document.dispatchEvent(new Event('dashboard-customers-loaded'));
+    document.dispatchEvent(new Event('dashboard-data-updated'));
   } catch (error) {
-    customerList.innerHTML = `<p class="error">${escapeHtml(error.message || 'Không thể tải danh sách khách hàng.')}</p>`;
+    document.querySelector('#customer-table-body').innerHTML = `<tr><td colspan="8" class="customer-table-error">${escapeHtml(error.message || 'Không thể tải danh sách khách hàng.')}</td></tr>`;
+    document.dispatchEvent(new CustomEvent('dashboard-customers-error', { detail: error.message || 'Không thể tải danh sách khách hàng.' }));
   }
 }
 
@@ -839,6 +987,7 @@ if (bookingForm && bookingFormCard) {
         const customerResult = await customerResponse.json();
         if (!customerResponse.ok) throw new Error(customerResult.message || 'Không thể lưu thông tin khách hàng.');
         customerCache = [...customerCache, customerResult.customer];
+        document.dispatchEvent(new Event('dashboard-data-updated'));
         customerId = customerResult.customer.id;
       }
       payload.customerId = customerId;
@@ -872,18 +1021,31 @@ const customerFormCard = document.querySelector('#customer-form-card');
 if (customerForm && customerFormCard) {
   const showCustomerForm = () => {
     customerForm.reset();
+    const birthDateInput = customerForm.querySelector('[name="dateOfBirth"]');
+    const today = new Date();
+    birthDateInput.max = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     document.querySelector('#customer-form-error').textContent = '';
     customerFormCard.classList.remove('hidden-form');
+    document.body.classList.add('customer-modal-open');
+    customerFormCard.focus();
     customerForm.querySelector('[name="fullName"]').focus();
   };
   const hideCustomerForm = () => {
     customerForm.reset();
     document.querySelector('#customer-form-error').textContent = '';
     customerFormCard.classList.add('hidden-form');
+    document.body.classList.remove('customer-modal-open');
+    document.querySelector('#customer-form-toggle')?.focus();
   };
   document.querySelector('#customer-form-toggle')?.addEventListener('click', showCustomerForm);
   document.querySelector('#customer-form-cancel')?.addEventListener('click', hideCustomerForm);
   document.querySelector('#customer-form-dismiss')?.addEventListener('click', hideCustomerForm);
+  customerFormCard.addEventListener('click', event => {
+    if (event.target === customerFormCard) hideCustomerForm();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !customerFormCard.classList.contains('hidden-form')) hideCustomerForm();
+  });
   customerForm.addEventListener('submit', async event => {
     event.preventDefault();
     const errorMessage = document.querySelector('#customer-form-error');
@@ -901,6 +1063,12 @@ if (customerForm && customerFormCard) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể thêm khách hàng.');
       customerCache = [...customerCache, result.customer];
+      selectedCustomerId = result.customer.id;
+      customerPage = 1;
+      document.querySelector('#customer-search').value = '';
+      document.querySelector('#customer-status-filter').value = 'all';
+      document.querySelector('#customer-sort').value = 'recent';
+      document.dispatchEvent(new Event('dashboard-data-updated'));
       hideCustomerForm();
       renderCustomerList();
       showRoomFeedback(result.message || 'Đã thêm khách hàng.');
@@ -912,7 +1080,45 @@ if (customerForm && customerFormCard) {
   });
 }
 
-document.querySelector('#customer-search')?.addEventListener('input', renderCustomerList);
+document.querySelector('#customer-search')?.addEventListener('input', () => {
+  customerPage = 1;
+  renderCustomerList();
+});
+document.querySelector('#customer-status-filter')?.addEventListener('change', () => {
+  customerPage = 1;
+  renderCustomerList();
+});
+document.querySelector('#customer-sort')?.addEventListener('change', () => {
+  customerPage = 1;
+  renderCustomerList();
+});
+document.querySelector('#customer-page-size')?.addEventListener('change', (event) => {
+  customerPageSize = Number(event.target.value) || 8;
+  customerPage = 1;
+  renderCustomerList();
+});
+document.querySelector('#customer-page-prev')?.addEventListener('click', () => {
+  customerPage = Math.max(1, customerPage - 1);
+  renderCustomerList();
+});
+document.querySelector('#customer-page-next')?.addEventListener('click', () => {
+  customerPage += 1;
+  renderCustomerList();
+});
+document.querySelector('#customer-table-body')?.addEventListener('click', (event) => {
+  const row = event.target.closest('tr[data-customer-id]');
+  if (!row) return;
+  selectedCustomerId = row.dataset.customerId;
+  renderCustomerList();
+});
+document.querySelector('#customer-table-body')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const row = event.target.closest('tr[data-customer-id]');
+  if (!row) return;
+  event.preventDefault();
+  selectedCustomerId = row.dataset.customerId;
+  renderCustomerList();
+});
 document.querySelector('#booking-search')?.addEventListener('input', renderBookingList);
 document.querySelector('#booking-from-date')?.addEventListener('change', renderBookingList);
 document.querySelector('#booking-to-date')?.addEventListener('change', renderBookingList);
@@ -1391,6 +1597,7 @@ async function loadRoomTypes() {
     if (!response.ok) throw new Error(result.message || 'Không thể tải danh sách thể loại phòng.');
 
     roomTypesCache = result.roomTypes || [];
+    saveDashboardCache('room-types', roomTypesCache);
     document.dispatchEvent(new Event('room-types-updated'));
     renderRoomList();
     const roomTypeSelect = document.querySelector('#room-type-select');
@@ -1733,6 +1940,8 @@ if (roomForm) {
   const hourlyRateInput = document.querySelector('#hourly-rate');
   const hourlyRateHint = document.querySelector('#hourly-rate-hint');
   const editingStatusInput = document.querySelector('#room-status');
+  const statusDefault = editingStatusInput.closest('.status-default');
+  const statusHint = editingStatusInput.closest('#room-status-field').querySelector('.field-hint');
   const formHeading = document.querySelector('#room-form-heading');
   const formDescription = document.querySelector('#room-form-description');
   const formTitle = document.querySelector('#room-form-title');
@@ -1787,6 +1996,11 @@ if (roomForm) {
   const clearRoomForm = () => {
     roomForm.reset();
     editingRoomId = null;
+    editingStatusInput.innerHTML = '<option value="Phòng trống">Phòng trống</option><option value="Bảo trì">Bảo trì</option>';
+    editingStatusInput.value = 'Phòng trống';
+    editingStatusInput.disabled = true;
+    statusDefault.classList.remove('is-maintenance');
+    statusHint.textContent = 'Phòng mới luôn bắt đầu ở trạng thái trống.';
     hourlyRateInput.readOnly = true;
     formHeading.textContent = 'Thêm phòng';
     formDescription.textContent = 'Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.';
@@ -1801,13 +2015,24 @@ if (roomForm) {
 
   openRoomForm = (room) => {
     editingRoomId = String(room.id);
+    const currentStatus = room.status || 'Phòng trống';
+    const canChangeStatus = ['Phòng trống', 'Bảo trì'].includes(currentStatus);
+    editingStatusInput.innerHTML = '<option value="Phòng trống">Phòng trống</option><option value="Bảo trì">Bảo trì</option>';
+    if (!canChangeStatus) {
+      editingStatusInput.add(new Option(currentStatus, currentStatus));
+    }
+    editingStatusInput.value = currentStatus;
+    editingStatusInput.disabled = !canChangeStatus;
+    statusDefault.classList.toggle('is-maintenance', currentStatus === 'Bảo trì');
+    statusHint.textContent = canChangeStatus
+      ? 'Có thể chuyển phòng trống sang bảo trì hoặc mở lại phòng.'
+      : 'Trạng thái phòng đang được quản lý qua quy trình đặt và trả phòng.';
     hourlyRateInput.readOnly = false;
     hourlyRateHint.textContent = 'Giá phòng này có thể chỉnh sửa riêng, không làm đổi giá mặc định của thể loại.';
     roomCodeInput.value = room.roomCode || '';
     descriptionInput.value = room.shortDescription || '';
     roomTypeSelect.value = room.roomType || '';
     hourlyRateInput.value = room.hourlyRate ?? '';
-    editingStatusInput.value = room.status || 'Phòng trống';
     descriptionCount.textContent = `${descriptionInput.value.length}/240 ký tự`;
     formHeading.textContent = `Cập nhật phòng ${room.roomCode || ''}`;
     formDescription.textContent = 'Chỉnh sửa thông tin phòng và lưu thay đổi.';
@@ -1902,6 +2127,98 @@ if (roomForm) {
   });
 }
 
+const globalSearch = document.querySelector('#global-search');
+const globalSearchResults = document.querySelector('#global-search-results');
+if (globalSearch && globalSearchResults) {
+  const closeGlobalSearch = () => {
+    globalSearchResults.hidden = true;
+    globalSearch.setAttribute('aria-expanded', 'false');
+  };
+  const normalizeSearchText = value => String(value || '')
+    .trim()
+    .toLocaleLowerCase('vi')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+  const renderGlobalSearch = () => {
+    const query = normalizeSearchText(globalSearch.value);
+    if (!query) {
+      closeGlobalSearch();
+      globalSearchResults.innerHTML = '';
+      return;
+    }
+    const matches = [
+      ...roomCache.filter(room => normalizeSearchText([
+        room.roomCode, room.room_code, room.roomNumber, room.roomType, room.room_type,
+        room.shortDescription, room.short_description
+      ].join(' ')).includes(query)).map(room => ({
+        type: 'list',
+        id: room.id,
+        title: `Phòng ${room.roomCode || room.room_code || room.roomNumber || ''}`,
+        detail: `${roomTypeLabel(room.roomType || room.room_type || '')} · ${room.status || 'Chưa cập nhật'}`,
+        query: room.roomCode || room.room_code || room.roomNumber || ''
+      })),
+      ...bookingCache.filter(booking => normalizeSearchText([
+        booking.id, booking.customerName, booking.customerPhone, booking.roomCode
+      ].join(' ')).includes(query)).map(booking => ({
+        type: 'booking',
+        id: booking.id,
+        title: `Đặt phòng DP${String(booking.id).padStart(3, '0')}`,
+        detail: `${booking.customerName || 'Chưa có tên khách'} · ${booking.roomCode || 'Chưa chọn phòng'}`,
+        query: String(booking.id)
+      })),
+      ...customerCache.filter(customer => normalizeSearchText([
+        customer.fullName, customer.phone, customer.identityNumber, customer.email
+      ].join(' ')).includes(query)).map(customer => ({
+        type: 'customers',
+        id: customer.id,
+        title: customer.fullName || 'Khách hàng',
+        detail: [customer.phone, customer.email].filter(Boolean).join(' · '),
+        query: customer.fullName || customer.phone || ''
+      }))
+    ].slice(0, 8);
+    globalSearchResults.innerHTML = matches.length
+      ? matches.map(item => `<button type="button" class="global-search-result" role="option" data-search-view="${item.type}" data-search-id="${escapeHtml(item.id)}" data-search-query="${escapeHtml(item.query)}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail)}</span></button>`).join('')
+      : '<p class="global-search-empty">Không tìm thấy kết quả phù hợp.</p>';
+    globalSearchResults.hidden = false;
+    globalSearch.setAttribute('aria-expanded', 'true');
+  };
+  const chooseGlobalSearchResult = button => {
+    const view = button.dataset.searchView;
+    const query = button.dataset.searchQuery || '';
+    document.querySelector(`.room-navigation [data-room-view="${CSS.escape(view)}"]`)?.click();
+    const target = view === 'list' ? document.querySelector('#rooms-search')
+      : view === 'booking' ? document.querySelector('#booking-search')
+        : document.querySelector('#customer-search');
+    if (target) {
+      target.value = query;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+      target.focus();
+    }
+    closeGlobalSearch();
+  };
+  globalSearch.addEventListener('input', renderGlobalSearch);
+  globalSearch.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeGlobalSearch();
+      return;
+    }
+    if (event.key === 'Enter' && !globalSearchResults.hidden) {
+      event.preventDefault();
+      const firstResult = globalSearchResults.querySelector('.global-search-result');
+      if (firstResult) chooseGlobalSearchResult(firstResult);
+    }
+  });
+  globalSearchResults.addEventListener('click', event => {
+    const button = event.target.closest('.global-search-result');
+    if (button) chooseGlobalSearchResult(button);
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.topbar-search-wrap')) closeGlobalSearch();
+  });
+  document.addEventListener('dashboard-data-updated', renderGlobalSearch);
+}
+
 async function loadSession() {
   if (!document.querySelector('#top-name')) return;
   try {
@@ -1912,22 +2229,61 @@ async function loadSession() {
       return;
     }
     const { user } = result;
+    restoreDashboardCache(user.id);
     document.querySelector('#top-name').textContent = user.fullName;
+    const greetingName = String(user.fullName || '').trim().split(/\s+/).at(-1);
+    const greetingTitle = document.querySelector('#greeting-title');
+    if (greetingTitle) greetingTitle.textContent = greetingName ? `Xin chào, ${greetingName}! 👋` : 'Xin chào! 👋';
     updateProfileForm(user);
     initializeGeneralSettings();
-    await Promise.all([loadRoomList(), loadRoomTypes()]);
+    await Promise.all([loadRoomList(), loadRoomTypes(), loadBookingList(), loadCustomers()]);
   } catch {
     window.location.href = '/login.html';
   }
 }
 
+let currentProfileUser = null;
 const profileForm = document.querySelector('#profile-form');
 if (profileForm) {
   const avatarInput = document.querySelector('#profile-avatar');
   const avatarPreview = document.querySelector('#profile-avatar-preview');
+  const dateOfBirthInput = document.querySelector('#profile-date-of-birth');
   const errorMessage = document.querySelector('#profile-error');
   const successMessage = document.querySelector('#profile-success');
   const saveButton = document.querySelector('#profile-save-button');
+  const editButton = document.querySelector('#profile-edit-button');
+  const cancelButton = document.querySelector('#profile-cancel-button');
+  const today = new Date();
+  dateOfBirthInput.max = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  function setProfileEditing(isEditing) {
+    ['#profile-full-name', '#profile-username', '#profile-phone', '#profile-email', '#profile-date-of-birth', '#profile-address'].forEach((selector) => {
+      document.querySelector(selector).readOnly = !isEditing;
+    });
+    avatarInput.disabled = !isEditing;
+    profileForm.querySelectorAll('.profile-gender-field input').forEach((input) => {
+      input.disabled = !isEditing;
+    });
+    profileForm.classList.toggle('is-editing', isEditing);
+    editButton.hidden = isEditing;
+    cancelButton.hidden = !isEditing;
+    saveButton.hidden = !isEditing;
+  }
+
+  setProfileEditing(false);
+  editButton.addEventListener('click', () => {
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    setProfileEditing(true);
+    document.querySelector('#profile-full-name').focus();
+  });
+  cancelButton.addEventListener('click', () => {
+    if (currentProfileUser) updateProfileForm(currentProfileUser);
+    avatarInput.value = '';
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    setProfileEditing(false);
+  });
 
   profileForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1954,6 +2310,7 @@ if (profileForm) {
       if (!response.ok) throw new Error(result.message || 'Không thể cập nhật thông tin cá nhân.');
       updateProfileForm(result.user);
       avatarInput.value = '';
+      setProfileEditing(false);
       successMessage.textContent = result.message || 'Cập nhật thông tin cá nhân thành công';
     } catch (error) {
       errorMessage.textContent = error.message || 'Không thể cập nhật thông tin cá nhân.';
@@ -1964,12 +2321,21 @@ if (profileForm) {
 
   avatarInput.addEventListener('change', () => {
     const file = avatarInput.files[0];
-    if (file) avatarPreview.src = URL.createObjectURL(file);
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        errorMessage.textContent = 'Ảnh đại diện không được vượt quá 5MB.';
+        avatarInput.value = '';
+        return;
+      }
+      errorMessage.textContent = '';
+      avatarPreview.src = URL.createObjectURL(file);
+    }
   });
 }
 
 function updateProfileForm(user) {
   if (!user) return;
+  currentProfileUser = user;
   const topName = document.querySelector('#top-name');
   const fullName = document.querySelector('#profile-full-name');
   const dateOfBirth = document.querySelector('#profile-date-of-birth');
@@ -1977,14 +2343,33 @@ function updateProfileForm(user) {
   const phone = document.querySelector('#profile-phone');
   const address = document.querySelector('#profile-address');
   const avatarPreview = document.querySelector('#profile-avatar-preview');
+  const formattedBirthDate = user.dateOfBirth
+    ? user.dateOfBirth.split('-').reverse().join('/')
+    : 'Chưa cập nhật';
+  const summaryName = document.querySelector('#profile-summary-name');
+  const summaryUsername = document.querySelector('#profile-summary-username');
+  const summaryPhone = document.querySelector('#profile-summary-phone');
+  const summaryEmail = document.querySelector('#profile-summary-email');
+  const summaryBirthDate = document.querySelector('#profile-summary-birth-date');
+  const username = document.querySelector('#profile-username');
   if (topName) topName.textContent = user.fullName || '';
   if (fullName) fullName.value = user.fullName || '';
+  if (summaryName) summaryName.textContent = user.fullName || 'Tài khoản';
+  if (summaryUsername) summaryUsername.textContent = user.username || 'Thành viên';
+  if (summaryPhone) summaryPhone.textContent = user.phone || 'Chưa cập nhật';
+  if (summaryEmail) summaryEmail.textContent = user.email || 'Chưa cập nhật';
+  if (summaryBirthDate) summaryBirthDate.textContent = formattedBirthDate;
+  if (username) username.value = user.username || '';
+  const greetingTitle = document.querySelector('#greeting-title');
+  const greetingName = String(user.fullName || '').trim().split(/\s+/).at(-1);
+  if (greetingTitle) greetingTitle.textContent = greetingName ? `Xin chào, ${greetingName}! 👋` : 'Xin chào! 👋';
   if (dateOfBirth) dateOfBirth.value = user.dateOfBirth || '';
   if (email) email.value = user.email || '';
   if (phone) phone.value = user.phone || '';
   if (address) address.value = user.address || '';
-  const genderInput = document.querySelector(`input[name="gender"][value="${CSS.escape(user.gender || '')}"]`);
-  if (genderInput) genderInput.checked = true;
+  document.querySelectorAll('input[name="gender"]').forEach((input) => {
+    input.checked = input.value === (user.gender || '');
+  });
   const initials = (user.fullName || 'H').trim().charAt(0).toLocaleUpperCase('vi');
   const topAvatar = document.querySelector('#avatar');
   if (topAvatar) {
@@ -1992,7 +2377,7 @@ function updateProfileForm(user) {
     topAvatar.style.backgroundImage = user.avatar ? `url("${user.avatar}")` : '';
     topAvatar.classList.toggle('has-avatar', Boolean(user.avatar));
   }
-  if (avatarPreview && user.avatar) avatarPreview.src = user.avatar;
+  if (avatarPreview) avatarPreview.src = user.avatar || '/assets/sakura-mark.svg';
 }
 
 const changePasswordForm = document.querySelector('#change-password-form');

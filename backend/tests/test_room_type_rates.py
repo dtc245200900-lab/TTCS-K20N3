@@ -49,6 +49,37 @@ def test_room_type_hourly_rate_is_used_for_new_room_and_can_be_updated(monkeypat
     assert created_room.get_json()["room"]["hourlyRate"] == 750000
 
 
+def test_new_room_starts_available_and_existing_room_can_be_set_to_maintenance(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    created_type = client.post("/api/room-types", json={
+        "name": "Phòng tiêu chuẩn",
+        "hourlyRate": 150000,
+    })
+    room_type = created_type.get_json()["roomType"]
+    created_room = client.post("/api/rooms", data={
+        "roomCode": "P102",
+        "shortDescription": "Phòng gần sảnh",
+        "roomType": room_type["name"],
+        "hourlyRate": "150000",
+        "status": "Bảo trì",
+    })
+
+    assert created_room.status_code == 201
+    room = created_room.get_json()["room"]
+    assert room["status"] == hotel_app.ROOM_AVAILABLE_STATUS
+
+    updated_room = client.put(f"/api/rooms/{room['id']}", data={
+        "roomCode": room["roomCode"],
+        "shortDescription": room["shortDescription"],
+        "roomType": room["roomType"],
+        "hourlyRate": str(room["hourlyRate"]),
+        "status": hotel_app.ROOM_MAINTENANCE_STATUS,
+    })
+
+    assert updated_room.status_code == 200
+    assert updated_room.get_json()["room"]["status"] == hotel_app.ROOM_MAINTENANCE_STATUS
+
+
 def test_room_type_requires_a_positive_hourly_rate(monkeypatch, tmp_path):
     client = authenticated_client(monkeypatch, tmp_path)
 

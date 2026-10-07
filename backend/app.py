@@ -234,12 +234,23 @@ def initialize_database():
                 identity_number VARCHAR(40) NULL,
                 email VARCHAR(254) NULL,
                 address VARCHAR(255) NULL,
+                date_of_birth DATE NULL,
+                gender VARCHAR(20) NULL,
+                notes TEXT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_customers_phone (phone),
                 UNIQUE KEY uq_customers_identity_number (identity_number)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+        cursor.execute("SHOW COLUMNS FROM customers")
+        customer_columns = {row[0] for row in cursor.fetchall()}
+        if "date_of_birth" not in customer_columns:
+            cursor.execute("ALTER TABLE customers ADD COLUMN date_of_birth DATE NULL")
+        if "gender" not in customer_columns:
+            cursor.execute("ALTER TABLE customers ADD COLUMN gender VARCHAR(20) NULL")
+        if "notes" not in customer_columns:
+            cursor.execute("ALTER TABLE customers ADD COLUMN notes TEXT NULL")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bookings (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -475,6 +486,9 @@ def normalize_customer(customer, booking_count=0):
         "identityNumber": customer.get("identity_number", customer.get("identityNumber", "")),
         "email": customer.get("email", ""),
         "address": customer.get("address", ""),
+        "dateOfBirth": iso_value(customer.get("date_of_birth", customer.get("dateOfBirth"))),
+        "gender": customer.get("gender", ""),
+        "notes": customer.get("notes", ""),
         "bookingCount": booking_count,
         "createdAt": iso_value(customer.get("created_at", customer.get("createdAt"))),
     }
@@ -1107,6 +1121,9 @@ def create_customer_api():
     identity_number = str(data.get("identityNumber", data.get("identity_number", ""))).strip() or None
     email = str(data.get("email", "")).strip() or None
     address = re.sub(r"\s+", " ", str(data.get("address", "")).strip()) or None
+    date_of_birth = str(data.get("dateOfBirth", data.get("date_of_birth", ""))).strip() or None
+    gender = str(data.get("gender", "")).strip() or None
+    notes = str(data.get("notes", "")).strip()
     if not full_name or len(full_name) > 150:
         return jsonify(message="Vui lòng nhập họ tên khách hàng hợp lệ."), 400
     if not re.fullmatch(r"[+0-9() -]{7,30}", phone):
@@ -1117,15 +1134,26 @@ def create_customer_api():
         return jsonify(message="Vui lòng nhập email hợp lệ."), 400
     if address and len(address) > 255:
         return jsonify(message="Địa chỉ không được vượt quá 255 ký tự."), 400
+    if date_of_birth:
+        try:
+            if datetime.strptime(date_of_birth, "%Y-%m-%d").date() > date.today():
+                raise ValueError
+        except ValueError:
+            return jsonify(message="Vui lòng nhập ngày sinh hợp lệ, không ở trong tương lai."), 400
+    if gender and gender not in {"female", "male", "other"}:
+        return jsonify(message="Vui lòng chọn giới tính hợp lệ."), 400
+    if len(notes) > 1000:
+        return jsonify(message="Ghi chú không được vượt quá 1000 ký tự."), 400
 
     if db_available():
         try:
             cursor = query(
                 """
-                INSERT INTO customers (full_name, phone, identity_number, email, address)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO customers
+                    (full_name, phone, identity_number, email, address, date_of_birth, gender, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (full_name, phone, identity_number, email, address),
+                (full_name, phone, identity_number, email, address, date_of_birth, gender, notes or None),
             )
             customer = query(
                 "SELECT * FROM customers WHERE id = %s",
@@ -1152,6 +1180,9 @@ def create_customer_api():
         "identityNumber": identity_number or "",
         "email": email or "",
         "address": address or "",
+        "dateOfBirth": date_of_birth or "",
+        "gender": gender or "",
+        "notes": notes,
         "createdAt": datetime.now().isoformat(),
     }
     customers.append(customer)
@@ -1496,12 +1527,18 @@ def update_profile():
         return denied
 
     full_name = str(request.form.get("fullName", "")).strip()
+    username = normalize_username(request.form.get("username", ""))
+    email = str(request.form.get("email", "")).strip().lower()
     date_of_birth = str(request.form.get("dateOfBirth", "")).strip()
     gender = str(request.form.get("gender", "")).strip()
     phone = str(request.form.get("phone", "")).strip()
     address = str(request.form.get("address", "")).strip()
     if not 2 <= len(full_name) <= 150:
         return jsonify(message="Họ và tên phải có từ 2 đến 150 ký tự."), 400
+    if not 3 <= len(username) <= 50:
+        return jsonify(message="Tên đăng nhập phải có từ 3 đến 50 ký tự."), 400
+    if len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return jsonify(message="Vui lòng nhập địa chỉ email hợp lệ."), 400
     try:
         parsed_date = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
         if parsed_date > date.today():
@@ -1521,6 +1558,25 @@ def update_profile():
     user = next((item for item in all_users if str(item.get("id")) == str(current_user.get("id"))), None)
     if not user:
         return jsonify(message="Không tìm thấy tài khoản người dùng."), 404
+    normalized_phone = normalize_phone(phone)
+    if any(
+        str(item.get("id")) != str(user.get("id"))
+        and normalize_phone(item.get("phone", "")) == normalized_phone
+        for item in all_users
+    ):
+        return jsonify(message="Số điện thoại này đã được sử dụng."), 409
+    if any(
+        str(item.get("id")) != str(user.get("id"))
+        and normalize_username(item.get("username", "")) == username
+        for item in all_users
+    ):
+        return jsonify(message="Tên đăng nhập này đã được sử dụng."), 409
+    if any(
+        str(item.get("id")) != str(user.get("id"))
+        and str(item.get("email", "")).strip().lower() == email
+        for item in all_users
+    ):
+        return jsonify(message="Email này đã được sử dụng."), 409
 
     avatar = request.files.get("avatar")
     if avatar and avatar.filename:
@@ -1538,7 +1594,15 @@ def update_profile():
         avatar.save(UPLOAD_DIR / filename)
         user["avatar"] = f"/uploads/{filename}"
 
-    user.update(fullName=full_name, dateOfBirth=date_of_birth, gender=gender, phone=phone, address=address)
+    user.update(
+        fullName=full_name,
+        username=username,
+        email=email,
+        dateOfBirth=date_of_birth,
+        gender=gender,
+        phone=phone,
+        address=address,
+    )
     write_json(USERS_FILE, all_users)
     session["user"] = public_user(user)
     return jsonify(message="Cập nhật thông tin cá nhân thành công", user=session["user"])
@@ -1950,6 +2014,15 @@ def update_room(room_id):
         selected_type = find_room_type(room_type)
         if not selected_type:
             raise ValueError("Loại phòng không hợp lệ.")
+        existing_room = room_by_id(room_id)
+        if not existing_room:
+            return jsonify(message="Không tìm thấy phòng."), 404
+        requested_status = normalized_status(data.get("status")) if data.get("status") else None
+        if requested_status and requested_status not in {ROOM_AVAILABLE_STATUS, ROOM_MAINTENANCE_STATUS}:
+            return jsonify(message="Chỉ có thể chuyển phòng giữa trạng thái trống và bảo trì."), 400
+        current_status = normalized_status(existing_room["status"])
+        if requested_status and current_status not in {ROOM_AVAILABLE_STATUS, ROOM_MAINTENANCE_STATUS}:
+            return jsonify(message="Không thể đổi trạng thái phòng đang được đặt, thuê hoặc dọn phòng."), 409
         image_path = save_upload()
         if db_available():
             rows = query("SELECT id, image_path FROM rooms WHERE id = %s LIMIT 1", (room_id,), fetch=True)["rows"]
@@ -1958,7 +2031,10 @@ def update_room(room_id):
             duplicates = query("SELECT id FROM rooms WHERE room_code = %s AND id <> %s LIMIT 1", (code, room_id), fetch=True)["rows"]
             if duplicates:
                 raise ValueError("Mã phòng đã tồn tại.")
-            query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s, hourly_rate = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, rate, room_id))
+            if requested_status:
+                query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s, hourly_rate = %s, status = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, rate, requested_status, room_id))
+            else:
+                query("UPDATE rooms SET room_code = %s, short_description = %s, image_path = %s, room_type = %s, nightly_rate = %s, hourly_rate = %s WHERE id = %s", (code, description, image_path or rows[0]["image_path"], room_type, rate, rate, room_id))
             room = room_by_id(room_id)
         else:
             rooms = read_json(ROOMS_FILE, [])
@@ -1968,6 +2044,8 @@ def update_room(room_id):
             if any(int(item.get("id", 0)) != room_id and str(item.get("roomCode", item.get("room_code", item.get("roomNumber", "")))).casefold() == code.casefold() for item in rooms):
                 raise ValueError("Mã phòng đã tồn tại.")
             room.update({"roomCode": code, "shortDescription": description, "imagePath": image_path or room.get("imagePath", room.get("image_path", "")), "roomType": room_type, "hourlyRate": rate})
+            if requested_status:
+                room["status"] = requested_status
             write_json(ROOMS_FILE, rooms)
             room = normalize_room(room)
         return jsonify(message="Cập nhật thông tin phòng thành công.", room=room)
