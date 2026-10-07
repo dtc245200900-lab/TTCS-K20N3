@@ -325,25 +325,66 @@ def write_json(path, value):
 def public_user(user):
     return {
         "id": user["id"],
-        "email": user["email"],
-        "fullName": user["fullName"],
+        "email": user.get("email", ""),
+        "fullName": user.get("fullName", ""),
         "dateOfBirth": user.get("dateOfBirth", ""),
         "phone": user.get("phone", ""),
         "avatar": user.get("avatar", ""),
+        "username": user.get("username"),
     }
+
+
+PASSWORD_RESET_TTL_SECONDS = 300
+PASSWORD_RESET_CODES = {}
+
+
+def normalize_username(value):
+    return "".join(str(value or "").split()).lower()
+
+
+def normalize_phone(value):
+    digits = re.sub(r"\D", "", str(value or ""))
+    if len(digits) > 10 and digits.startswith("84"):
+        digits = "0" + digits[2:]
+    return digits
 
 
 def users():
     existing = read_json(USERS_FILE, [])
     if not existing:
         password_hash = bcrypt.hashpw(b"Admin@123", bcrypt.gensalt(rounds=12)).decode("utf-8")
-        existing = [{"id": 1, "email": "admin@hotel.local", "passwordHash": password_hash, "fullName": "Quản trị viên"}]
+        existing = [{
+            "id": 1,
+            "email": "admin@hotel.local",
+            "username": "admin",
+            "phone": "0900000000",
+            "passwordHash": password_hash,
+            "fullName": "Quản trị viên",
+        }]
         write_json(USERS_FILE, existing)
     return existing
 
 
 def find_user(email):
-    return next((user for user in users() if user.get("email") == email), None)
+    normalized = str(email or "").strip().lower()
+    return next((user for user in users() if str(user.get("email", "")).strip().lower() == normalized), None)
+
+
+def find_user_by_identifier(identifier):
+    value = str(identifier or "").strip()
+    if not value:
+        return None
+    normalized_value = value.lower()
+    normalized_phone = normalize_phone(value)
+    normalized_username = normalize_username(value)
+    for user in users():
+        if str(user.get("email", "")).strip().lower() == normalized_value:
+            return user
+        if normalize_username(user.get("username", "")) == normalized_username:
+            return user
+        if normalize_phone(user.get("phone", "")) == normalized_phone:
+            return user
+    return None
 
 
 def normalized_status(value):
@@ -1331,17 +1372,17 @@ def update_profile():
 @app.post("/api/login")
 def login():
     data = request_data()
-    email = str(data.get("email", "")).strip().lower()
+    identifier = str(data.get("username") or data.get("email") or data.get("phone") or "").strip()
     password = str(data.get("password", ""))
-    if not email or not password:
-        return jsonify(message="Vui lòng nhập email và mật khẩu."), 400
-    user = find_user(email)
+    if not identifier or not password:
+        return jsonify(message="Vui lòng nhập tên đăng nhập và mật khẩu."), 400
+    user = find_user_by_identifier(identifier)
     try:
         valid = user and bcrypt.checkpw(password.encode("utf-8"), user["passwordHash"].encode("utf-8"))
     except (ValueError, KeyError):
         valid = False
     if not valid:
-        return jsonify(message="Email hoặc mật khẩu không chính xác."), 401
+        return jsonify(message="Tên đăng nhập hoặc mật khẩu không chính xác."), 401
     session.clear()
     session["user"] = public_user(user)
     session.permanent = data.get("rememberMe") is True or str(data.get("rememberMe", "")).lower() == "true"
@@ -1352,25 +1393,101 @@ def login():
 def register():
     data = request_data()
     full_name = str(data.get("fullName", "")).strip()
+    username = normalize_username(data.get("username") or data.get("email") or "")
+    phone = normalize_phone(data.get("phone", ""))
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
     confirm = str(data.get("confirmPassword", ""))
-    if len(full_name) < 2 or not email or len(password) < 8:
-        return jsonify(message="Vui lòng nhập họ tên, email hợp lệ và mật khẩu tối thiểu 8 ký tự."), 400
+
+    if len(full_name) < 2 or len(username) < 3 or len(phone) < 9 or len(password) < 8:
+        return jsonify(message="Vui lòng nhập họ tên, tên đăng nhập, số điện thoại hợp lệ và mật khẩu tối thiểu 8 ký tự."), 400
     if password != confirm:
         return jsonify(message="Mật khẩu xác nhận không trùng khớp."), 400
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return jsonify(message="Email không hợp lệ."), 400
+
     all_users = users()
-    if any(item.get("email") == email for item in all_users):
+    if any(normalize_username(item.get("username", "")) == username for item in all_users):
+        return jsonify(message="Tên đăng nhập này đã được sử dụng."), 409
+    if any(normalize_phone(item.get("phone", "")) == phone for item in all_users):
+        return jsonify(message="Số điện thoại này đã được sử dụng."), 409
+    if email and any(str(item.get("email", "")).strip().lower() == email for item in all_users):
         return jsonify(message="Email này đã được sử dụng."), 409
+
+    user_id = max((item.get("id", 0) for item in all_users), default=0) + 1
     user = {
-        "id": max((item.get("id", 0) for item in all_users), default=0) + 1,
-        "email": email,
+        "id": user_id,
+        "email": email or f"user-{user_id}@hotel.local",
+        "username": username,
+        "phone": phone,
         "passwordHash": bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8"),
         "fullName": full_name,
     }
     all_users.append(user)
     write_json(USERS_FILE, all_users)
     return jsonify(message="Tạo tài khoản thành công. Bạn có thể đăng nhập ngay.", user=public_user(user)), 201
+
+
+@app.post("/api/forgot-password/request")
+def forgot_password_request():
+    data = request_data()
+    username = normalize_username(data.get("username", ""))
+    phone = normalize_phone(data.get("phone", ""))
+    if len(username) < 3 or len(phone) < 9:
+        return jsonify(message="Vui lòng nhập tên đăng nhập và số điện thoại hợp lệ."), 400
+    user = next((item for item in users() if normalize_username(item.get("username", "")) == username and normalize_phone(item.get("phone", "")) == phone), None)
+    if not user:
+        return jsonify(message="Tài khoản không tồn tại hoặc số điện thoại không khớp."), 404
+
+    import random
+    otp = f"{random.randint(100000, 999999)}"
+    PASSWORD_RESET_CODES[username] = {
+        "phone": phone,
+        "otp": otp,
+        "expires_at": time.time() + PASSWORD_RESET_TTL_SECONDS,
+    }
+    response = {"message": "Mã OTP đã được tạo và gửi qua SMS.", "otp": otp}
+    return jsonify(response)
+
+
+@app.post("/api/forgot-password/verify")
+def forgot_password_verify():
+    data = request_data()
+    username = normalize_username(data.get("username", ""))
+    phone = normalize_phone(data.get("phone", ""))
+    otp = str(data.get("otp", "")).strip()
+    entry = PASSWORD_RESET_CODES.get(username)
+    if not entry or entry["phone"] != phone or entry["otp"] != otp:
+        return jsonify(message="Mã OTP không hợp lệ hoặc đã hết hạn."), 400
+    if time.time() > entry["expires_at"]:
+        PASSWORD_RESET_CODES.pop(username, None)
+        return jsonify(message="Mã OTP đã hết hạn, vui lòng tạo lại."), 410
+    return jsonify(message="OTP hợp lệ. Bạn có thể đặt mật khẩu mới.")
+
+
+@app.post("/api/forgot-password/reset")
+def forgot_password_reset():
+    data = request_data()
+    username = normalize_username(data.get("username", ""))
+    phone = normalize_phone(data.get("phone", ""))
+    otp = str(data.get("otp", "")).strip()
+    new_password = str(data.get("newPassword", ""))
+    if len(new_password) < 8:
+        return jsonify(message="Mật khẩu mới phải có ít nhất 8 ký tự."), 400
+    entry = PASSWORD_RESET_CODES.get(username)
+    if not entry or entry["phone"] != phone or entry["otp"] != otp:
+        return jsonify(message="Thông tin xác thực không hợp lệ."), 400
+    if time.time() > entry["expires_at"]:
+        PASSWORD_RESET_CODES.pop(username, None)
+        return jsonify(message="Mã OTP đã hết hạn, vui lòng tạo lại."), 410
+    all_users = users()
+    user = next((item for item in all_users if normalize_username(item.get("username", "")) == username), None)
+    if not user:
+        return jsonify(message="Không tìm thấy tài khoản để đổi mật khẩu."), 404
+    user["passwordHash"] = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+    write_json(USERS_FILE, all_users)
+    PASSWORD_RESET_CODES.pop(username, None)
+    return jsonify(message="Đổi mật khẩu thành công. Bạn có thể đăng nhập ngay.")
 
 
 def oauth_error_redirect(flow, error_code):
@@ -1438,8 +1555,26 @@ def find_or_create_oauth_user(provider, subject, email, full_name):
     if user:
         return user
 
-    if any(str(item.get("email", "")).strip().lower() == email for item in all_users):
-        raise OAuthProfileError("email_exists")
+    existing_user = next(
+        (
+            item for item in all_users
+            if str(item.get("email", "")).strip().lower() == email
+        ),
+        None,
+    )
+    if existing_user:
+        if provider not in {"github", "google"}:
+            raise OAuthProfileError("email_exists")
+        accounts = existing_user.get("oauthAccounts")
+        if not isinstance(accounts, dict):
+            accounts = {}
+            existing_user["oauthAccounts"] = accounts
+        linked_subject = accounts.get(provider)
+        if linked_subject and linked_subject != subject:
+            raise OAuthProfileError("email_exists")
+        accounts[provider] = subject
+        write_json(USERS_FILE, all_users)
+        return existing_user
 
     user = {
         "id": max((item.get("id", 0) for item in all_users), default=0) + 1,
@@ -1464,7 +1599,8 @@ def oauth_login(provider):
 
     client = oauth_clients.get(provider)
     if not client:
-        return oauth_error_redirect(flow, "provider_not_configured")
+        error_code = "github_not_configured" if provider == "github" else "provider_not_configured"
+        return oauth_error_redirect(flow, error_code)
 
     session[f"oauth_flow_{provider}"] = flow
     try:
@@ -1483,7 +1619,8 @@ def oauth_callback(provider):
 
     client = oauth_clients.get(provider)
     if not client:
-        return oauth_error_redirect(flow, "provider_not_configured")
+        error_code = "github_not_configured" if provider == "github" else "provider_not_configured"
+        return oauth_error_redirect(flow, error_code)
 
     try:
         token = client.authorize_access_token()

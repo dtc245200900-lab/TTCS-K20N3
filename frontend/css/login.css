@@ -363,6 +363,19 @@
 .login-page .error:empty,
 .login-page .success:empty { display: none; }
 
+.login-page .hidden { display: none !important; }
+
+.login-page .otp-step {
+  margin-top: 8px;
+}
+
+.login-page .otp-note {
+  margin: -4px 0 12px;
+  color: #8b5d73;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .login-page .primary-button {
   display: flex;
   align-items: center;

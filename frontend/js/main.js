@@ -182,6 +182,8 @@ if (form) {
   const registerTab = document.querySelector('#register-tab');
   const fullNameGroup = document.querySelector('#full-name-group');
   const fullNameInput = document.querySelector('#full-name');
+  const usernameInput = document.querySelector('#username') || document.querySelector('#email');
+  const phoneInput = document.querySelector('#phone');
   const confirmPasswordGroup = document.querySelector('#confirm-password-group');
   const confirmPasswordInput = document.querySelector('#confirm-password');
   const registerTerms = document.querySelector('#register-terms');
@@ -236,7 +238,8 @@ if (form) {
 
   const showSupport = () => {
     if (errorMessage) errorMessage.textContent = '';
-    if (successMessage) successMessage.textContent = 'Vui lòng liên hệ quản trị viên khách sạn để được hỗ trợ tài khoản và đặt lại mật khẩu.';
+    if (successMessage) successMessage.textContent = '';
+    window.location.assign('/forgot-password.html');
   };
 
   const forgotPasswordBtn = document.querySelector('#forgot-password');
@@ -280,15 +283,18 @@ if (form) {
 
     try {
       const isRegister = currentMode === 'register';
+      const usernameValue = (usernameInput?.value || '').trim();
+      const phoneValue = (phoneInput?.value || '').trim();
       const payload = isRegister
         ? {
             fullName: fullNameInput.value.trim(),
-            email: document.querySelector('#email').value.trim(),
+            username: usernameValue,
+            phone: phoneValue,
             password: passwordInput.value,
             confirmPassword: confirmPasswordInput.value
           }
         : {
-            email: document.querySelector('#email').value.trim(),
+            username: usernameValue || (document.querySelector('#email')?.value || '').trim(),
             password: passwordInput.value,
             rememberMe: rememberInput.checked
           };
@@ -310,7 +316,7 @@ if (form) {
         form.reset();
         setMode('login', false);
         successMessage.textContent = result.message || 'Tạo tài khoản thành công.';
-        document.querySelector('#email').value = payload.email;
+        if (usernameInput) usernameInput.value = payload.username;
         return;
       }
 
@@ -328,6 +334,7 @@ if (form) {
 
   const oauthMessages = {
     provider_not_configured: 'Đăng nhập bằng nhà cung cấp này chưa được cấu hình.',
+    github_not_configured: 'GitHub chưa được cấu hình. Hãy thêm GITHUB_CLIENT_ID và GITHUB_CLIENT_SECRET vào backend/.env rồi khởi động lại server.',
     email_not_verified: 'Nhà cung cấp chưa xác nhận email của bạn.',
     email_exists: 'Email này đã có tài khoản. Hãy đăng nhập bằng email và mật khẩu.',
     oauth_failed: 'Không thể xác thực với nhà cung cấp. Vui lòng thử lại.'

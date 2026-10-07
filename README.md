@@ -25,26 +25,17 @@ Mo file `start-server.cmd` trong thu muc project, hoac mo workspace trong VS Cod
 
 Ung dung doc `backend/.env`. Ban local co the dung secret mac dinh chi danh cho development; khi deploy, dat `NODE_ENV=production` va cau hinh `SESSION_SECRET` trong Environment Variables cua hosting. Khong dua file `.env` len Git. Health check: `GET /health`.
 
+### Dang nhap bang GitHub
+
+Trong GitHub Developer settings, tao OAuth App va dat **Authorization callback URL** dung voi dia chi dang mo ung dung, vi du `http://127.0.0.1:3001/auth/github/callback` hoac `http://localhost:3001/auth/github/callback`. Hai dia chi nay khong thay the cho nhau; callback phai khop chinh xac voi host tren thanh dia chi trinh duyet. Them `GITHUB_CLIENT_ID` va `GITHUB_CLIENT_SECRET` vao `backend/.env`, sau do khoi dong lai backend. Khong chia se client secret va khong commit `.env`.
+
 Tai khoan thu nghiem mac dinh khi chua co `backend/data/users.json`:
 
-- Email: `admin@hotel.local`
+- Ten dang nhap: `admin`
+- So dien thoai: `0900000000`
 - Mat khau: `Admin@123`
 
-## Dang ky va dang nhap bang Google, Microsoft, GitHub
-
-`Dang ky ngay` mo form dang ky rieng bang ho ten, email va mat khau toi thieu 8 ky tu. Cac nut Google, Microsoft va GitHub can OAuth credentials; khi chua cau hinh, trang se hien thong bao va form email/mat khau van dung binh thuong.
-
-1. Tao OAuth application tai Google Cloud Console, Microsoft Entra admin center va GitHub Developer Settings.
-2. Khai bao callback URL cho tung ung dung:
-	- Google: `http://localhost:3001/auth/google/callback`
-	- Microsoft: `http://localhost:3001/auth/microsoft/callback`
-	- GitHub: `http://localhost:3001/auth/github/callback`
-3. Copy `backend/.env.example` thanh `backend/.env`, sau do dien client ID va client secret tu tung nha cung cap. Microsoft co the de `MICROSOFT_TENANT_ID=common` hoac thay bang tenant ID cua to chuc.
-4. Khoi dong lai `start-server.cmd` de nap credentials.
-
-Google can OAuth consent screen va scope `openid email profile`. Microsoft can delegated permission `User.Read`. GitHub can scope `read:user user:email`. Khi deploy, thay `localhost` trong callback URL bang domain HTTPS that va khai bao lai URL do trong ca ba developer console.
-
-Khong commit `backend/.env` va khong gui client secret qua chat. Neu email da co tai khoan password, OAuth se yeu cau dang nhap bang tai khoan cu; he thong khong tu dong gop tai khoan.
+Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai; da them luong quen mat khau qua OTP (demo, tra ve ma OTP trong JSON de test local).
 
 ## Database
 
