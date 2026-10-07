@@ -275,6 +275,7 @@ def initialize_database():
                 code VARCHAR(16) NOT NULL,
                 name VARCHAR(80) NOT NULL,
                 description TEXT NULL,
+                nightly_rate DECIMAL(12,2) NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (code),
                 UNIQUE KEY uq_room_types_name (name)
@@ -303,6 +304,8 @@ def initialize_database():
         room_type_columns = {row[0] for row in cursor.fetchall()}
         if "description" not in room_type_columns:
             cursor.execute("ALTER TABLE room_types ADD COLUMN description TEXT NULL AFTER name")
+        if "nightly_rate" not in room_type_columns:
+            cursor.execute("ALTER TABLE room_types ADD COLUMN nightly_rate DECIMAL(12,2) NULL AFTER description")
         connection.commit()
     except mysql.connector.Error as error:
         print(f"MySQL chưa sẵn sàng, sẽ dùng lưu trữ dự phòng JSON: {error}")
@@ -336,7 +339,9 @@ def public_user(user):
         "email": user.get("email", ""),
         "fullName": user.get("fullName", ""),
         "dateOfBirth": user.get("dateOfBirth", ""),
+        "gender": user.get("gender", ""),
         "phone": user.get("phone", ""),
+        "address": user.get("address", ""),
         "avatar": user.get("avatar", ""),
         "username": user.get("username"),
     }
@@ -476,9 +481,11 @@ def apply_booking_lifecycle(booking, now=None):
     return booking
 
 
-def refresh_booking_lifecycles(now=None):
+def refresh_booking_lifecycles(now=None, database_available=None):
     current_time = now or datetime.now()
-    if db_available():
+    if database_available is None:
+        database_available = db_available()
+    if database_available:
         rows = query(
             "SELECT * FROM bookings WHERE status = %s ORDER BY id DESC",
             (BOOKING_PENDING_STATUS,),
@@ -781,15 +788,40 @@ def next_type_code(room_types):
     return f"LP{highest + 1:03d}"
 
 
+def normalize_room_type(room_type):
+    rate = room_type.get("nightly_rate", room_type.get("nightlyRate"))
+    return {
+        "code": room_type["code"],
+        "name": room_type["name"],
+        "description": room_type.get("description") or "",
+        "nightlyRate": float(rate) if rate is not None else None,
+    }
+
+
+def parse_room_type_rate(value):
+    try:
+        rate = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("Vui lòng nhập giá cố định hợp lệ cho thể loại phòng.")
+    if (
+        not rate.is_finite()
+        or rate <= 0
+        or rate > Decimal("9999999999.99")
+        or rate != rate.quantize(Decimal("0.01"))
+    ):
+        raise ValueError("Giá cố định phải lớn hơn 0 và không vượt quá 9.999.999.999,99 VNĐ.")
+    return rate
+
+
 def list_room_types():
     if db_available():
         room_rows = query("SELECT DISTINCT room_type FROM rooms", fetch=True)["rows"]
-        type_rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
-        types = [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in type_rows]
+        type_rows = query("SELECT code, name, description, nightly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
+        types = [normalize_room_type(row) for row in type_rows]
         if not type_rows and not room_rows:
             json_types = read_json(ROOM_TYPES_FILE, [])
             if json_types:
-                return json_types
+                return [normalize_room_type(room_type) for room_type in json_types]
         names = ([] if types else ["Đơn", "Đôi", "VIP"]) + [row["room_type"] for row in room_rows]
         for name in names:
             if not str(name or "").strip() or any(norm_name(item["name"]) == norm_name(name) for item in types):
@@ -800,16 +832,16 @@ def list_room_types():
                 types.append({"code": code, "name": str(name).strip(), "description": ""})
             except mysql.connector.IntegrityError:
                 pass
-        rows = query("SELECT code, name, description FROM room_types ORDER BY code", fetch=True)["rows"]
+        rows = query("SELECT code, name, description, nightly_rate FROM room_types ORDER BY code", fetch=True)["rows"]
         if rows:
-            return [{"code": row["code"], "name": row["name"], "description": row.get("description") or ""} for row in rows]
+            return [normalize_room_type(row) for row in rows]
 
     types = read_json(ROOM_TYPES_FILE, [])
     rooms = read_json(ROOMS_FILE, [])
     if not types and not rooms:
         types = [{"code": "LP001", "name": "Đơn", "description": ""}, {"code": "LP002", "name": "Đôi", "description": ""}, {"code": "LP003", "name": "VIP", "description": ""}]
         write_json(ROOM_TYPES_FILE, types)
-        return types
+        return [normalize_room_type(room_type) for room_type in types]
     names = ([] if types else ["Đơn", "Đôi", "VIP"])
     names.extend(room.get("roomType", room.get("room_type")) for room in rooms)
     for name in names:
@@ -817,7 +849,7 @@ def list_room_types():
             continue
         types.append({"code": next_type_code(types), "name": str(name).strip(), "description": ""})
     write_json(ROOM_TYPES_FILE, types)
-    return types
+    return [normalize_room_type(room_type) for room_type in types]
 
 
 def find_room_type(name):
@@ -826,19 +858,62 @@ def find_room_type(name):
 
 
 def list_rooms():
-    refresh_booking_lifecycles()
-    if db_available():
+    database_available = db_available()
+    refresh_booking_lifecycles(database_available=database_available)
+    if database_available:
         rows = query("SELECT * FROM rooms ORDER BY created_at DESC, id DESC", fetch=True)["rows"]
         if rows:
-            return [normalize_room(derive_room_with_booking(room)) for room in rows]
-        json_rows = read_json(ROOMS_FILE, [])
-        return [normalize_room(derive_room_with_booking(room)) for room in json_rows]
-    rows = read_json(ROOMS_FILE, [])
-    return [normalize_room(derive_room_with_booking(room)) for room in rows]
+            booking_rows = query(
+                """
+                SELECT bookings.*
+                FROM bookings
+                INNER JOIN (
+                    SELECT room_id, MAX(id) AS id
+                    FROM bookings
+                    GROUP BY room_id
+                ) latest ON latest.id = bookings.id
+                """,
+                fetch=True,
+            )["rows"]
+            latest_bookings = latest_bookings_by_room(booking_rows)
+            missing_room_ids = {str(room["id"]) for room in rows}.difference(latest_bookings)
+            if missing_room_ids:
+                json_bookings = latest_bookings_by_room(read_json(BOOKINGS_FILE, []))
+                for room_id in missing_room_ids:
+                    if room_id in json_bookings:
+                        latest_bookings[room_id] = json_bookings[room_id]
+            return [
+                normalize_room(derive_room_with_booking(room, latest_bookings.get(str(room["id"])), lookup_booking=False))
+                for room in rows
+            ]
+        rows = read_json(ROOMS_FILE, [])
+    else:
+        rows = read_json(ROOMS_FILE, [])
+
+    latest_bookings = latest_bookings_by_room(read_json(BOOKINGS_FILE, []))
+    return [
+        normalize_room(derive_room_with_booking(room, latest_bookings.get(str(room["id"])), lookup_booking=False))
+        for room in rows
+    ]
 
 
-def derive_room_with_booking(room):
-    booking = latest_booking_for_room(room["id"])
+def latest_bookings_by_room(bookings):
+    latest = {}
+    for row in bookings:
+        booking = normalize_booking(row)
+        room_id = booking["roomId"]
+        if room_id is None:
+            continue
+        key = str(room_id)
+        current = latest.get(key)
+        if current is None or (booking["id"] or 0) > (current["id"] or 0):
+            latest[key] = booking
+    return latest
+
+
+def derive_room_with_booking(room, booking=None, *, lookup_booking=True):
+    if lookup_booking:
+        booking = latest_booking_for_room(room["id"])
     room = dict(room)
     room["status"] = derived_room_status(room, booking)
     room["bookingId"] = booking["id"] if booking else None
@@ -1336,7 +1411,9 @@ def update_profile():
 
     full_name = str(request.form.get("fullName", "")).strip()
     date_of_birth = str(request.form.get("dateOfBirth", "")).strip()
+    gender = str(request.form.get("gender", "")).strip()
     phone = str(request.form.get("phone", "")).strip()
+    address = str(request.form.get("address", "")).strip()
     if not 2 <= len(full_name) <= 150:
         return jsonify(message="Họ và tên phải có từ 2 đến 150 ký tự."), 400
     try:
@@ -1345,9 +1422,13 @@ def update_profile():
             raise ValueError
     except ValueError:
         return jsonify(message="Vui lòng nhập ngày sinh hợp lệ, không ở trong tương lai."), 400
+    if gender not in {"", "female", "male", "other"}:
+        return jsonify(message="Vui lòng chọn giới tính hợp lệ."), 400
     digits = re.sub(r"\D", "", phone)
     if not re.fullmatch(r"[+0-9() -]{7,20}", phone) or not 7 <= len(digits) <= 15:
         return jsonify(message="Vui lòng nhập số điện thoại hợp lệ."), 400
+    if len(address) > 255:
+        return jsonify(message="Địa chỉ không được vượt quá 255 ký tự."), 400
 
     all_users = users()
     current_user = session["user"]
@@ -1371,10 +1452,48 @@ def update_profile():
         avatar.save(UPLOAD_DIR / filename)
         user["avatar"] = f"/uploads/{filename}"
 
-    user.update(fullName=full_name, dateOfBirth=date_of_birth, phone=phone)
+    user.update(fullName=full_name, dateOfBirth=date_of_birth, gender=gender, phone=phone, address=address)
     write_json(USERS_FILE, all_users)
     session["user"] = public_user(user)
     return jsonify(message="Cập nhật thông tin cá nhân thành công", user=session["user"])
+
+
+@app.put("/api/change-password")
+def change_password():
+    denied = require_auth()
+    if denied:
+        return denied
+
+    payload = request_data()
+    current_password = str(payload.get("currentPassword", ""))
+    new_password = str(payload.get("newPassword", ""))
+    confirm_password = str(payload.get("confirmPassword", ""))
+    if not current_password:
+        return jsonify(message="Vui lòng nhập mật khẩu hiện tại."), 400
+    if len(new_password) < 8:
+        return jsonify(message="Mật khẩu mới phải có ít nhất 8 ký tự."), 400
+    if len(new_password.encode("utf-8")) > 72:
+        return jsonify(message="Mật khẩu mới không được vượt quá 72 byte."), 400
+    if new_password != confirm_password:
+        return jsonify(message="Mật khẩu xác nhận không trùng khớp."), 400
+
+    all_users = users()
+    current_user = session["user"]
+    user = next((item for item in all_users if str(item.get("id")) == str(current_user.get("id"))), None)
+    if not user:
+        return jsonify(message="Không tìm thấy tài khoản người dùng."), 404
+    try:
+        valid = bcrypt.checkpw(current_password.encode("utf-8"), user["passwordHash"].encode("utf-8"))
+    except (ValueError, KeyError):
+        valid = False
+    if not valid:
+        return jsonify(message="Mật khẩu hiện tại không chính xác."), 400
+    if current_password == new_password:
+        return jsonify(message="Mật khẩu mới phải khác mật khẩu hiện tại."), 400
+
+    user["passwordHash"] = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+    write_json(USERS_FILE, all_users)
+    return jsonify(message="Đổi mật khẩu thành công.")
 
 
 @app.post("/api/login")
@@ -1705,12 +1824,16 @@ def add_room():
     if denied:
         return denied
     code, description, room_type, rate = read_room_fields(request.form)
-    if not re.fullmatch(r"[A-Za-z0-9-]+", code) or len(description) > 240 or not code or not room_type or not description or not (rate > 0 and rate < float("inf")):
-        return jsonify(message="Vui lòng nhập đầy đủ mã phòng, mô tả, thể loại và giá thuê > 0."), 400
+    if not re.fullmatch(r"[A-Za-z0-9-]+", code) or len(description) > 240 or not code or not room_type or not description:
+        return jsonify(message="Vui lòng nhập đầy đủ mã phòng, mô tả và thể loại phòng."), 400
     try:
-        image_path = save_upload()
-        if not find_room_type(room_type):
+        selected_type = find_room_type(room_type)
+        if not selected_type:
             raise ValueError("Loại phòng không hợp lệ.")
+        if selected_type["nightlyRate"] is None:
+            raise ValueError("Thể loại phòng chưa được thiết lập giá cố định. Vui lòng cập nhật giá trong mục Thể loại phòng.")
+        rate = selected_type["nightlyRate"]
+        image_path = save_upload()
         existing = next((room for room in list_rooms() if room["roomCode"].casefold() == code.casefold()), None)
         if existing:
             raise ValueError("Mã phòng đã tồn tại.")
@@ -2050,6 +2173,10 @@ def add_room_type():
         return denied
     name = " ".join(str(request_data().get("name", "")).split())
     description = str(request_data().get("description", "")).strip()
+    try:
+        nightly_rate = parse_room_type_rate(request_data().get("nightlyRate"))
+    except ValueError as error:
+        return jsonify(message=str(error)), 400
     if not name:
         return jsonify(message="Tên thể loại không được để trống."), 400
     if len(description) > 500:
@@ -2060,11 +2187,13 @@ def add_room_type():
             return jsonify(message="Tên thể loại đã tồn tại."), 409
         code = next_type_code(types)
         if db_available():
-            query("INSERT INTO room_types (code, name, description) VALUES (%s, %s, %s)", (code, name, description))
+            query("INSERT INTO room_types (code, name, description, nightly_rate) VALUES (%s, %s, %s, %s)", (code, name, description, nightly_rate))
         else:
-            types.append({"code": code, "name": name, "description": description})
+            types.append({"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)})
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description}), 201
+        return jsonify(message="Thêm thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)}), 201
+    except ValueError as error:
+        return jsonify(message=str(error)), 400
     except mysql.connector.Error as error:
         status = 409 if error.errno == 1062 else 400
         return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status
@@ -2087,6 +2216,7 @@ def update_room_type(code):
         if not current:
             return jsonify(message="Không tìm thấy thể loại phòng."), 404
         description = str(payload.get("description", current.get("description", "")) or "").strip()
+        nightly_rate = parse_room_type_rate(payload.get("nightlyRate", current.get("nightlyRate")))
         if len(description) > 500:
             return jsonify(message="Mô tả không được vượt quá 500 ký tự."), 400
         if any(item["code"] != code and norm_name(item["name"]) == norm_name(name) for item in types):
@@ -2100,7 +2230,7 @@ def update_room_type(code):
                 if not cursor.fetchone():
                     connection.rollback()
                     return jsonify(message="Không tìm thấy thể loại phòng."), 404
-                cursor.execute("UPDATE room_types SET name = %s, description = %s WHERE code = %s", (name, description, code))
+                cursor.execute("UPDATE room_types SET name = %s, description = %s, nightly_rate = %s WHERE code = %s", (name, description, nightly_rate, code))
                 cursor.execute("UPDATE rooms SET room_type = %s WHERE room_type = %s", (name, current["name"]))
                 connection.commit()
             except Exception:
@@ -2114,6 +2244,7 @@ def update_room_type(code):
                 if item["code"] == code:
                     item["name"] = name
                     item["description"] = description
+                    item["nightlyRate"] = float(nightly_rate)
             rooms = read_json(ROOMS_FILE, [])
             for room in rooms:
                 old_name = room.get("roomType", room.get("room_type", ""))
@@ -2124,7 +2255,9 @@ def update_room_type(code):
                         room["room_type"] = name
             write_json(ROOMS_FILE, rooms)
             write_json(ROOM_TYPES_FILE, types)
-        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description})
+        return jsonify(message="Cập nhật thể loại phòng thành công.", roomType={"code": code, "name": name, "description": description, "nightlyRate": float(nightly_rate)})
+    except ValueError as error:
+        return jsonify(message=str(error)), 400
     except mysql.connector.Error as error:
         status = 409 if error.errno == 1062 else 400
         return jsonify(message="Tên thể loại đã tồn tại." if status == 409 else str(error)), status

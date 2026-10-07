@@ -29,7 +29,7 @@
       const currentTotal = status === 'occupied' ? roomRentalPrice(room) : null;
       const price = status === 'occupied'
         ? currentTotal === null ? '—' : currentTotal.toLocaleString('vi-VN') + 'đ'
-        : Number.isFinite(nightlyRate) && nightlyRate > 0 ? nightlyRate.toLocaleString('vi-VN') + 'đ / đêm' : '';
+        : Number.isFinite(nightlyRate) && nightlyRate > 0 ? nightlyRate.toLocaleString('vi-VN') + 'đ / ngày' : '';
       const totalAttribute = status === 'occupied' ? ' data-map-total-id="' + escapeHtml(room.id) + '"' : '';
       const checkoutAction = status === 'occupied'
         ? '<button type="button" class="map-room-checkout" data-checkout-room="' + escapeHtml(room.id) + '">Trả phòng</button>'

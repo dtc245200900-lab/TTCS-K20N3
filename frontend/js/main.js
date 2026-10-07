@@ -383,7 +383,9 @@ if (accountToggle && accountMenu) {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeAccountMenu();
   });
-  document.querySelector('#profile-menu-item')?.addEventListener('click', closeAccountMenu);
+  accountMenu.querySelectorAll('[data-room-view]').forEach((button) => {
+    button.addEventListener('click', closeAccountMenu);
+  });
 }
 
 async function loadRoomList() {
@@ -517,7 +519,7 @@ function renderBookingDetails(booking) {
       <img src="${escapeHtml(roomImage)}" alt="Ảnh phòng ${escapeHtml(roomCode)}" />
       <div><div class="booking-detail-room-title"><strong>Phòng ${escapeHtml(roomCode)}</strong><span class="booking-status ${statusClass}">${escapeHtml(statusLabels[booking.status] || booking.status)}</span></div>
         <small>${escapeHtml(roomType || 'Phòng lưu trú')}</small>
-        <span class="booking-detail-rate">${Number.isFinite(nightlyRate) ? `${nightlyRate.toLocaleString('vi-VN')}đ/đêm` : 'Chưa có giá phòng'}</span>
+        <span class="booking-detail-rate">${Number.isFinite(nightlyRate) ? `${nightlyRate.toLocaleString('vi-VN')}đ/ngày` : 'Chưa có giá phòng'}</span>
         <span class="booking-detail-guests">${escapeHtml(booking.guestCount || 1)} khách</span>
       </div>
     </div>
@@ -618,7 +620,7 @@ function updateBookingRoomOptions() {
     .map(room => {
       const roomCode = room.roomCode || room.room_code || '';
       const nightlyRate = Number(room.nightlyRate ?? room.nightly_rate) || 0;
-      return `<option value="${escapeHtml(room.id)}">${escapeHtml(roomCode)} · ${escapeHtml(roomTypeLabel(room.roomType || room.room_type || ''))} · ${nightlyRate.toLocaleString('vi-VN')}đ/đêm</option>`;
+      return `<option value="${escapeHtml(room.id)}">${escapeHtml(roomCode)} · ${escapeHtml(roomTypeLabel(room.roomType || room.room_type || ''))} · ${nightlyRate.toLocaleString('vi-VN')}đ/ngày</option>`;
     }).join('');
   if (availableRooms.some(room => String(room.id) === selectedId)) roomSelect.value = selectedId;
 }
@@ -685,14 +687,14 @@ if (bookingForm && bookingFormCard) {
     const nightlyRate = Number(room?.nightlyRate ?? room?.nightly_rate);
     image.src = room?.imagePath || room?.image_path || '/assets/room-placeholder.svg';
     rateElement.textContent = room && Number.isFinite(nightlyRate)
-      ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
+      ? `${nightlyRate.toLocaleString('vi-VN')}đ / ngày`
       : 'Đơn giá sẽ hiển thị khi chọn phòng';
     const checkIn = new Date(document.querySelector('#booking-check-in').value);
     const checkOut = new Date(document.querySelector('#booking-check-out').value);
     const durationDays = checkOut > checkIn ? (checkOut - checkIn) / 86400000 : null;
     document.querySelector('#booking-night-count').textContent = durationDays === null
       ? '—'
-      : `${Number.isInteger(durationDays) ? durationDays : durationDays.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} đêm`;
+      : `${Number.isInteger(durationDays) ? durationDays : durationDays.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} ngày`;
     document.querySelector('#booking-total').textContent = durationDays !== null && Number.isFinite(nightlyRate)
       ? `${(nightlyRate * durationDays).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
       : '—';
@@ -1128,7 +1130,7 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
       const priceLabel = status.className === 'occupied'
         ? currentRentalPrice === null ? '—' : `${Number(currentRentalPrice).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
         : Number.isFinite(nightlyRate) && nightlyRate > 0
-          ? `${nightlyRate.toLocaleString('vi-VN')}đ / đêm`
+          ? `${nightlyRate.toLocaleString('vi-VN')}đ / ngày`
           : '';
       const statusAction = occupiedOnly || bookingViewActive
         ? status.className === 'occupied'
@@ -1382,9 +1384,15 @@ async function loadRoomTypes() {
     if (roomTypeSelect) {
       const selectedValue = roomTypeSelect.value;
       roomTypeSelect.innerHTML = '<option value="">-- Chọn loại phòng --</option>' + roomTypesCache
-        .map((roomType) => `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomTypeLabel(roomType.name))}</option>`)
+        .map((roomType) => {
+          const rateLabel = roomType.nightlyRate === null
+            ? ' · Chưa thiết lập giá'
+            : ` · ${Number(roomType.nightlyRate).toLocaleString('vi-VN')}đ / ngày`;
+          return `<option value="${escapeHtml(roomType.name)}">${escapeHtml(roomTypeLabel(roomType.name) + rateLabel)}</option>`;
+        })
         .join('');
       roomTypeSelect.value = selectedValue;
+      roomTypeSelect.dispatchEvent(new Event('change'));
     }
 
     document.querySelector('#room-type-code').value = result.nextCode || 'LP001';
@@ -1397,6 +1405,7 @@ async function loadRoomTypes() {
                 <th>STT</th>
                 <th>Mã loại phòng</th>
                 <th>Tên loại phòng</th>
+                <th>Giá cố định</th>
                 <th>Mô tả</th>
                 <th>Số lượng phòng</th>
                 <th>Thao tác</th>
@@ -1407,11 +1416,15 @@ async function loadRoomTypes() {
                 const relatedRooms = roomCache.filter((room) => (room.roomType || room.room_type || '') === roomType.name);
                 const count = relatedRooms.length;
                 const description = roomType.description || '—';
+                const price = roomType.nightlyRate === null
+                  ? 'Chưa thiết lập'
+                  : `${Number(roomType.nightlyRate).toLocaleString('vi-VN')}đ / ngày`;
                 return `
                   <tr data-room-type-name="${escapeHtml(roomType.name)}">
                     <td>${index + 1}</td>
                     <td>${escapeHtml(roomType.code)}</td>
                     <td><span class="room-type-pill">${escapeHtml(roomTypeLabel(roomType.name))}</span></td>
+                    <td class="room-type-price">${escapeHtml(price)}</td>
                     <td>${escapeHtml(description)}</td>
                     <td class="room-type-count">${count}</td>
                     <td class="room-type-actions-cell">
@@ -1446,6 +1459,7 @@ if (roomTypeForm) {
   const cancelButton = document.querySelector('#cancel-room-type-form');
   const codeInput = document.querySelector('#room-type-code');
   const nameInput = document.querySelector('#room-type-name');
+  const nightlyRateInput = document.querySelector('#room-type-nightly-rate');
   const descriptionInput = document.querySelector('#room-type-description');
   const errorMessage = document.querySelector('#room-type-error');
   const successMessage = document.querySelector('#room-type-message');
@@ -1512,6 +1526,7 @@ if (roomTypeForm) {
     editingCode = roomType.code;
     codeInput.value = roomType.code;
     nameInput.value = roomType.name;
+    nightlyRateInput.value = roomType.nightlyRate ?? '';
     descriptionInput.value = roomType.description || '';
     roomTypeForm.classList.remove('hidden-form');
     toggleButton.textContent = 'Đang cập nhật';
@@ -1529,6 +1544,7 @@ if (roomTypeForm) {
     successMessage.classList.remove('error');
     const name = nameInput.value.trim().replace(/\s+/g, ' ');
     const description = descriptionInput.value.trim();
+    const nightlyRate = Number(nightlyRateInput.value);
     if (!name) {
       errorMessage.textContent = 'Tên thể loại không được để trống.';
       nameInput.focus();
@@ -1540,7 +1556,7 @@ if (roomTypeForm) {
         : '/api/room-types', {
         method: editingCode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description })
+        body: JSON.stringify({ name, description, nightlyRate })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Không thể lưu thể loại phòng.');
@@ -1689,7 +1705,9 @@ if (roomForm) {
     add: document.querySelector('#room-add-view'),
     customers: document.querySelector('#customer-view'),
     types: document.querySelector('#room-types-view'),
-    profile: document.querySelector('#profile-view')
+    profile: document.querySelector('#profile-view'),
+    password: document.querySelector('#password-view'),
+    settings: document.querySelector('#settings-view')
   };
   const roomError = document.querySelector('#room-error');
   const cancelButton = document.querySelector('#cancel-room-form');
@@ -1700,6 +1718,7 @@ if (roomForm) {
   const roomCodeInput = document.querySelector('#room-code');
   const roomTypeSelect = document.querySelector('#room-type-select');
   const nightlyRateInput = document.querySelector('#nightly-rate');
+  const nightlyRateHint = document.querySelector('#nightly-rate-hint');
   const editingStatusInput = document.querySelector('#room-status');
   const formHeading = document.querySelector('#room-form-heading');
   const formDescription = document.querySelector('#room-form-description');
@@ -1708,6 +1727,19 @@ if (roomForm) {
   const submitLabel = document.querySelector('#room-submit-label');
   let editingRoomId = null;
 
+  const syncNewRoomRate = () => {
+    if (editingRoomId) return;
+    const selectedType = roomTypesCache.find((roomType) => roomType.name === roomTypeSelect.value);
+    nightlyRateInput.value = selectedType?.nightlyRate ?? '';
+    nightlyRateHint.textContent = selectedType
+      ? selectedType.nightlyRate === null
+        ? 'Thể loại này chưa có giá cố định. Hãy cập nhật giá trong mục Thể loại phòng.'
+        : `Giá mặc định của thể loại: ${Number(selectedType.nightlyRate).toLocaleString('vi-VN')} VNĐ / ngày.`
+      : 'Chọn thể loại để tự động điền giá cố định.';
+  };
+
+  roomTypeSelect.addEventListener('change', syncNewRoomRate);
+
   const setRoomView = (viewName) => {
     Object.entries(roomViews).forEach(([name, view]) => view.classList.toggle('hidden-view', name !== viewName));
     navigationButtons.forEach((button) => button.classList.toggle('active', button.dataset.roomView === viewName));
@@ -1715,7 +1747,7 @@ if (roomForm) {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', customers: 'Khách hàng', types: 'Thể loại phòng', profile: 'Cập nhật thông tin cá nhân' }[viewName];
+    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', customers: 'Khách hàng', types: 'Thể loại phòng', profile: 'Thông tin cá nhân', password: 'Đổi mật khẩu', settings: 'Cài đặt chung' }[viewName];
     if (viewName === 'booking' || viewName === 'customers') loadBookingList();
     if (viewName === 'booking' || viewName === 'customers') loadCustomers();
     if (viewName === 'booking') updateBookingRoomOptions();
@@ -1742,6 +1774,7 @@ if (roomForm) {
   const clearRoomForm = () => {
     roomForm.reset();
     editingRoomId = null;
+    nightlyRateInput.readOnly = true;
     formHeading.textContent = 'Thêm phòng';
     formDescription.textContent = 'Tạo phòng mới, nhập đầy đủ thông tin để đưa vào hệ thống.';
     formTitle.textContent = 'Thêm phòng vào hệ thống';
@@ -1750,10 +1783,13 @@ if (roomForm) {
     resetImagePreview();
     descriptionCount.textContent = '0/240 ký tự';
     roomError.textContent = '';
+    syncNewRoomRate();
   };
 
   openRoomForm = (room) => {
     editingRoomId = String(room.id);
+    nightlyRateInput.readOnly = false;
+    nightlyRateHint.textContent = 'Giá phòng này có thể chỉnh sửa riêng, không làm đổi giá mặc định của thể loại.';
     roomCodeInput.value = room.roomCode || '';
     descriptionInput.value = room.shortDescription || '';
     roomTypeSelect.value = room.roomType || '';
@@ -1865,6 +1901,7 @@ async function loadSession() {
     const { user } = result;
     document.querySelector('#top-name').textContent = user.fullName;
     updateProfileForm(user);
+    initializeGeneralSettings();
     await Promise.all([loadRoomList(), loadRoomTypes()]);
   } catch {
     window.location.href = '/login.html';
@@ -1925,12 +1962,16 @@ function updateProfileForm(user) {
   const dateOfBirth = document.querySelector('#profile-date-of-birth');
   const email = document.querySelector('#profile-email');
   const phone = document.querySelector('#profile-phone');
+  const address = document.querySelector('#profile-address');
   const avatarPreview = document.querySelector('#profile-avatar-preview');
   if (topName) topName.textContent = user.fullName || '';
   if (fullName) fullName.value = user.fullName || '';
   if (dateOfBirth) dateOfBirth.value = user.dateOfBirth || '';
   if (email) email.value = user.email || '';
   if (phone) phone.value = user.phone || '';
+  if (address) address.value = user.address || '';
+  const genderInput = document.querySelector(`input[name="gender"][value="${CSS.escape(user.gender || '')}"]`);
+  if (genderInput) genderInput.checked = true;
   const initials = (user.fullName || 'H').trim().charAt(0).toLocaleUpperCase('vi');
   const topAvatar = document.querySelector('#avatar');
   if (topAvatar) {
@@ -1939,6 +1980,168 @@ function updateProfileForm(user) {
     topAvatar.classList.toggle('has-avatar', Boolean(user.avatar));
   }
   if (avatarPreview && user.avatar) avatarPreview.src = user.avatar;
+}
+
+const changePasswordForm = document.querySelector('#change-password-form');
+if (changePasswordForm) {
+  const currentPassword = document.querySelector('#current-password');
+  const newPassword = document.querySelector('#new-password');
+  const confirmPassword = document.querySelector('#confirm-new-password');
+  const errorMessage = document.querySelector('#change-password-error');
+  const successMessage = document.querySelector('#change-password-success');
+  const submitButton = document.querySelector('#change-password-submit');
+  const strengthMeter = document.querySelector('#password-strength-meter');
+  const strengthLabel = document.querySelector('#password-strength-label');
+  const strengthRules = {
+    length: document.querySelector('#password-length-rule'),
+    case: document.querySelector('#password-case-rule'),
+    number: document.querySelector('#password-number-rule'),
+    symbol: document.querySelector('#password-symbol-rule')
+  };
+
+  changePasswordForm.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.getElementById(button.dataset.passwordToggle);
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+      button.setAttribute('aria-label', input.type === 'password' ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+    });
+  });
+
+  newPassword.addEventListener('input', () => {
+    const value = newPassword.value;
+    const checks = {
+      length: value.length >= 8,
+      case: /[a-z]/.test(value) && /[A-Z]/.test(value),
+      number: /\d/.test(value),
+      symbol: /[^A-Za-z0-9]/.test(value)
+    };
+    const score = Object.values(checks).filter(Boolean).length;
+    for (const [rule, element] of Object.entries(strengthRules)) {
+      element.classList.toggle('is-met', checks[rule]);
+      element.textContent = `${checks[rule] ? '✓' : '○'} ${element.textContent.slice(2)}`;
+    }
+    strengthMeter.style.width = `${score * 25}%`;
+    strengthMeter.dataset.strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
+    strengthLabel.textContent = !value ? 'Mật khẩu nên có ít nhất 8 ký tự.' : ['Rất yếu', 'Yếu', 'Trung bình', 'Tốt', 'Mạnh'][score];
+  });
+
+  changePasswordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    if (!changePasswordForm.checkValidity()) {
+      changePasswordForm.reportValidity();
+      return;
+    }
+    submitButton.disabled = true;
+    try {
+      const response = await fetch('/api/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentPassword.value,
+          newPassword: newPassword.value,
+          confirmPassword: confirmPassword.value
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể đổi mật khẩu.');
+      changePasswordForm.reset();
+      newPassword.dispatchEvent(new Event('input'));
+      successMessage.textContent = result.message;
+    } catch (error) {
+      errorMessage.textContent = error.message || 'Không thể đổi mật khẩu.';
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+}
+
+function initializeGeneralSettings() {
+  const settingsForm = document.querySelector('#general-settings-form');
+  if (!settingsForm) return;
+  const defaults = {
+    bookingNotifications: true,
+    checkoutNotifications: true,
+    systemNotifications: false,
+    language: 'vi',
+    theme: 'light',
+    idleTimeout: '30'
+  };
+  const settingsKey = 'hotelManagerSettings';
+  let settings = defaults;
+  const savedSettings = localStorage.getItem(settingsKey);
+  if (savedSettings) {
+    try {
+      settings = { ...defaults, ...JSON.parse(savedSettings) };
+    } catch (error) {
+      console.error('Unable to parse saved hotel settings.', error);
+      document.querySelector('#settings-message').textContent = 'Không thể đọc cài đặt đã lưu. Vui lòng lưu lại tùy chọn.';
+    }
+  }
+
+  const applyTheme = (theme) => {
+    const selectedTheme = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    document.body.dataset.theme = selectedTheme;
+  };
+  const applySettingsToForm = () => {
+    for (const input of settingsForm.querySelectorAll('[name]')) {
+      if (input.type === 'checkbox') input.checked = Boolean(settings[input.name]);
+      else if (input.type === 'radio') input.checked = input.value === settings[input.name];
+      else input.value = settings[input.name] ?? defaults[input.name];
+    }
+    applyTheme(settings.theme);
+  };
+  const saveSettings = (event) => {
+    if (event) event.preventDefault();
+    const values = Object.fromEntries(new FormData(settingsForm));
+    settings = {
+      bookingNotifications: settingsForm.elements.bookingNotifications.checked,
+      checkoutNotifications: settingsForm.elements.checkoutNotifications.checked,
+      systemNotifications: settingsForm.elements.systemNotifications.checked,
+      language: values.language === 'vi' ? 'vi' : defaults.language,
+      theme: ['light', 'dark', 'system'].includes(values.theme) ? values.theme : defaults.theme,
+      idleTimeout: ['15', '30', '60'].includes(values.idleTimeout) ? values.idleTimeout : defaults.idleTimeout
+    };
+    localStorage.setItem(settingsKey, JSON.stringify(settings));
+    applyTheme(settings.theme);
+    document.querySelector('#settings-message').textContent = 'Đã lưu cài đặt.';
+    scheduleIdleLogout();
+  };
+
+  let idleLogoutTimer;
+  const scheduleIdleLogout = () => {
+    clearTimeout(idleLogoutTimer);
+    idleLogoutTimer = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/logout', { method: 'POST' });
+        if (!response.ok) throw new Error('Không thể kết thúc phiên đăng nhập.');
+        window.location.href = '/login.html';
+      } catch (error) {
+        const message = document.querySelector('#settings-message');
+        message.textContent = error.message || 'Không thể tự động đăng xuất.';
+        message.classList.add('error');
+        scheduleIdleLogout();
+      }
+    }, Number(settings.idleTimeout) * 60 * 1000);
+  };
+
+  applySettingsToForm();
+  scheduleIdleLogout();
+  settingsForm.addEventListener('submit', saveSettings);
+  settingsForm.addEventListener('change', (event) => {
+    if (event.target.name === 'theme') applyTheme(event.target.value);
+    document.querySelector('#settings-message').textContent = '';
+  });
+  ['pointerdown', 'keydown', 'touchstart', 'mousemove'].forEach((eventName) => {
+    document.addEventListener(eventName, scheduleIdleLogout, { passive: true });
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (settings.theme === 'system') applyTheme('system');
+  });
 }
 
 loadSession();

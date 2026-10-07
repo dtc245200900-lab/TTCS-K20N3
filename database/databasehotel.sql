@@ -52,6 +52,16 @@ CREATE TABLE IF NOT EXISTS rooms (
   UNIQUE KEY uq_rooms_code (room_code)
 );
 
+CREATE TABLE IF NOT EXISTS room_types (
+  code VARCHAR(16) NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  description TEXT NULL,
+  nightly_rate DECIMAL(12, 2) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (code),
+  UNIQUE KEY uq_room_types_name (name)
+);
+
 CREATE TABLE IF NOT EXISTS bookings (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   room_id BIGINT UNSIGNED NOT NULL,

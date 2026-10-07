@@ -138,7 +138,13 @@
           </button>
           <div id="account-menu" class="account-menu" hidden>
             <button id="profile-menu-item" class="account-menu-item" type="button" data-room-view="profile">
-              Cập nhật thông tin cá nhân
+              Thông tin cá nhân
+            </button>
+            <button class="account-menu-item" type="button" data-room-view="password">
+              Đổi mật khẩu
+            </button>
+            <button class="account-menu-item" type="button" data-room-view="settings">
+              Cài đặt chung
             </button>
             <button id="logout-button" class="account-menu-item" type="button">
               Đăng xuất
@@ -485,7 +491,7 @@
                   <label>Số khách <span class="required-mark">*</span>
                     <span class="booking-guest-counter"><button type="button" data-guest-step="-1" aria-label="Giảm số khách">−</button><input id="booking-guest-count" name="guestCount" type="number" min="1" max="20" value="1" required /><button type="button" data-guest-step="1" aria-label="Tăng số khách">＋</button></span>
                   </label>
-                  <div class="booking-summary-value"><span>Số đêm</span><strong id="booking-night-count">—</strong></div>
+                  <div class="booking-summary-value"><span>Số ngày</span><strong id="booking-night-count">—</strong></div>
                   <div class="booking-summary-value"><span>Tổng tiền</span><strong id="booking-total">—</strong></div>
                 </div>
                 <label class="booking-form-notes">Ghi chú<textarea id="booking-notes" name="notes" maxlength="1000" rows="2" placeholder="Yêu cầu đặc biệt của khách..."></textarea></label>
@@ -963,8 +969,11 @@
                       placeholder="500000"
                       required
                     />
-                    <span class="currency-suffix">VNĐ / đêm</span>
+                    <span class="currency-suffix">VNĐ / ngày</span>
                   </span>
+                  <small id="nightly-rate-hint" class="field-hint"
+                    >Giá lấy theo thể loại phòng đã chọn.</small
+                  >
                 </label>
                 <label id="room-status-field" for="room-status"
                   >Trạng thái
@@ -1071,6 +1080,19 @@
                     required
                   />
                 </label>
+                <label for="room-type-nightly-rate">
+                  Giá cố định (VNĐ / ngày)
+                  <input
+                    id="room-type-nightly-rate"
+                    type="number"
+                    name="nightlyRate"
+                    min="0.01"
+                    max="9999999999.99"
+                    step="0.01"
+                    placeholder="500000"
+                    required
+                  />
+                </label>
                 <label>
                   Mô tả
                   <textarea
@@ -1112,11 +1134,12 @@
         </section>
         <section id="profile-view" class="room-view hidden-view" aria-label="Cập nhật thông tin cá nhân">
           <article class="profile-card">
+            <div class="profile-cover" aria-hidden="true"></div>
             <div class="profile-heading">
               <div>
                 <p class="eyebrow">TÀI KHOẢN</p>
                 <h2>Thông tin cá nhân</h2>
-                <p class="muted">Cập nhật thông tin liên hệ và ảnh đại diện của bạn.</p>
+                <p class="muted">Quản lý thông tin tài khoản của bạn.</p>
               </div>
             </div>
             <form id="profile-form" class="profile-form" novalidate>
@@ -1133,21 +1156,101 @@
                 </div>
               </div>
               <div class="profile-fields">
-                <label for="profile-full-name">Họ và tên <span class="required-mark">*</span></label>
-                <input id="profile-full-name" name="fullName" type="text" maxlength="150" autocomplete="name" required />
-                <label for="profile-date-of-birth">Ngày sinh <span class="required-mark">*</span></label>
-                <input id="profile-date-of-birth" name="dateOfBirth" type="date" required />
-                <label for="profile-email">Email</label>
-                <input id="profile-email" name="email" type="email" readonly aria-describedby="profile-email-hint" />
-                <small id="profile-email-hint">Email không thể thay đổi.</small>
-                <label for="profile-phone">Số điện thoại <span class="required-mark">*</span></label>
-                <input id="profile-phone" name="phone" type="tel" maxlength="20" pattern="[+0-9() -]{7,20}" autocomplete="tel" required />
+                <label for="profile-full-name">Họ và tên <span class="required-mark">*</span>
+                  <input id="profile-full-name" name="fullName" type="text" maxlength="150" autocomplete="name" required />
+                </label>
+                <label for="profile-phone">Số điện thoại <span class="required-mark">*</span>
+                  <input id="profile-phone" name="phone" type="tel" maxlength="20" pattern="[+0-9() -]{7,20}" autocomplete="tel" required />
+                </label>
+                <label for="profile-email">Email
+                  <input id="profile-email" name="email" type="email" readonly aria-describedby="profile-email-hint" />
+                  <small id="profile-email-hint">Email không thể thay đổi.</small>
+                </label>
+                <label for="profile-date-of-birth">Ngày sinh <span class="required-mark">*</span>
+                  <input id="profile-date-of-birth" name="dateOfBirth" type="date" required />
+                </label>
+                <fieldset class="profile-gender-field">
+                  <legend>Giới tính</legend>
+                  <label><input type="radio" name="gender" value="female" /> Nữ</label>
+                  <label><input type="radio" name="gender" value="male" /> Nam</label>
+                  <label><input type="radio" name="gender" value="other" /> Khác</label>
+                </fieldset>
+                <label class="profile-address-field" for="profile-address">Địa chỉ
+                  <input id="profile-address" name="address" type="text" maxlength="255" autocomplete="street-address" />
+                </label>
               </div>
               <p id="profile-error" class="error" role="alert" aria-live="polite"></p>
               <p id="profile-success" class="success" role="status" aria-live="polite"></p>
               <button id="profile-save-button" type="submit" class="primary-button">Lưu thay đổi</button>
             </form>
           </article>
+        </section>
+        <section id="password-view" class="room-view hidden-view account-settings-view" aria-label="Đổi mật khẩu">
+          <div class="account-page-heading">
+            <span class="account-page-icon" aria-hidden="true">🔒</span>
+            <div>
+              <p class="eyebrow">TÀI KHOẢN&nbsp; › &nbsp;BẢO MẬT</p>
+              <h2>Đổi mật khẩu</h2>
+              <p class="muted">Cập nhật mật khẩu để bảo vệ tài khoản của bạn.</p>
+            </div>
+          </div>
+          <article class="account-settings-card password-card">
+            <div class="password-illustration" aria-hidden="true">🔐</div>
+            <form id="change-password-form" class="account-form" novalidate>
+              <label for="current-password">Mật khẩu hiện tại <span class="required-mark">*</span>
+                <span class="password-input-wrap"><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu hiện tại" required /><button type="button" class="password-visibility-toggle" data-password-toggle="current-password" aria-label="Hiện mật khẩu">◉</button></span>
+              </label>
+              <label for="new-password">Mật khẩu mới <span class="required-mark">*</span>
+                <span class="password-input-wrap"><input id="new-password" name="newPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Nhập mật khẩu mới" required /><button type="button" class="password-visibility-toggle" data-password-toggle="new-password" aria-label="Hiện mật khẩu">◉</button></span>
+              </label>
+              <div class="password-strength" aria-live="polite"><span id="password-strength-meter"></span><small id="password-strength-label">Mật khẩu nên có ít nhất 8 ký tự.</small></div>
+              <p class="password-guidance"><strong>Mật khẩu nên có:</strong><span id="password-length-rule">○ Ít nhất 8 ký tự</span><span id="password-case-rule">○ Chữ hoa, chữ thường</span><span id="password-number-rule">○ Có số</span><span id="password-symbol-rule">○ Ký tự đặc biệt (ví dụ: @, #, !...)</span></p>
+              <label for="confirm-new-password">Nhập lại mật khẩu mới <span class="required-mark">*</span>
+                <span class="password-input-wrap"><input id="confirm-new-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới" required /><button type="button" class="password-visibility-toggle" data-password-toggle="confirm-new-password" aria-label="Hiện mật khẩu">◉</button></span>
+              </label>
+              <p id="change-password-error" class="error" role="alert" aria-live="polite"></p>
+              <p id="change-password-success" class="success" role="status" aria-live="polite"></p>
+              <div class="account-form-actions"><button type="button" class="cancel-button" data-room-view="overview">Hủy</button><button id="change-password-submit" type="submit" class="primary-button">Đổi mật khẩu</button></div>
+            </form>
+          </article>
+        </section>
+        <section id="settings-view" class="room-view hidden-view account-settings-view" aria-label="Cài đặt chung">
+          <div class="account-page-heading">
+            <span class="account-page-icon" aria-hidden="true">⚙</span>
+            <div>
+              <p class="eyebrow">TÀI KHOẢN&nbsp; › &nbsp;TÙY CHỈNH</p>
+              <h2>Cài đặt chung</h2>
+              <p class="muted">Tùy chỉnh trải nghiệm sử dụng hệ thống.</p>
+            </div>
+          </div>
+          <form id="general-settings-form" class="account-settings-card general-settings-form">
+            <section class="settings-group">
+              <h3><span aria-hidden="true">♧</span> Thông báo</h3>
+              <p class="muted">Chọn các thông báo bạn muốn nhận.</p>
+              <label class="settings-toggle-row"><span><strong>Thông báo đặt phòng mới</strong><small>Nhận thông báo khi có đặt phòng mới</small></span><input type="checkbox" name="bookingNotifications" role="switch" /><i aria-hidden="true"></i></label>
+              <label class="settings-toggle-row"><span><strong>Thông báo trả phòng</strong><small>Nhận thông báo khi có khách trả phòng</small></span><input type="checkbox" name="checkoutNotifications" role="switch" /><i aria-hidden="true"></i></label>
+              <label class="settings-toggle-row"><span><strong>Thông báo hệ thống</strong><small>Nhận thông báo về các cập nhật hệ thống</small></span><input type="checkbox" name="systemNotifications" role="switch" /><i aria-hidden="true"></i></label>
+            </section>
+            <section class="settings-group settings-select-group">
+              <label for="settings-language"><strong>◎ &nbsp;Ngôn ngữ</strong><small>Chọn ngôn ngữ hiển thị trong hệ thống</small></label>
+              <select id="settings-language" name="language"><option value="vi">🇻🇳 &nbsp; Tiếng Việt</option></select>
+            </section>
+            <section class="settings-group">
+              <h3><span aria-hidden="true">◉</span> Giao diện</h3>
+              <p class="muted">Chọn chủ đề giao diện</p>
+              <div class="theme-options" role="group" aria-label="Chọn chủ đề">
+                <label><input type="radio" name="theme" value="light" /><span>☼ &nbsp; Sáng</span></label>
+                <label><input type="radio" name="theme" value="dark" /><span>☾ &nbsp; Tối</span></label>
+                <label><input type="radio" name="theme" value="system" /><span>▣ &nbsp; Hệ thống</span></label>
+              </div>
+            </section>
+            <section class="settings-group settings-select-group">
+              <label for="settings-idle-timeout"><strong>◈ &nbsp;Bảo mật phiên đăng nhập</strong><small>Tự động đăng xuất khi không hoạt động</small></label>
+              <select id="settings-idle-timeout" name="idleTimeout"><option value="15">15 phút</option><option value="30">30 phút</option><option value="60">60 phút</option></select>
+            </section>
+            <p id="settings-message" class="success" role="status" aria-live="polite"></p>
+            <button type="submit" class="primary-button settings-save-button">▣ &nbsp;Lưu cài đặt</button>
+          </form>
         </section>
       </main>
     </div>

@@ -1068,3 +1068,105 @@
   .dashboard-page .profile-form { grid-template-columns: 1fr; }
   .dashboard-page #profile-save-button, .dashboard-page #profile-error, .dashboard-page #profile-success { grid-column: 1; }
 }
+
+.dashboard-page .profile-card { max-width: 960px; padding: 0 28px 28px; overflow: hidden; }
+.dashboard-page .profile-cover { height: 150px; margin: 0 -28px; background: linear-gradient(90deg, rgba(255,237,244,.45), rgba(255,255,255,.08)), url('/assets/sakura-login-background.png') center 47% / cover no-repeat; }
+.dashboard-page .profile-heading { margin-top: 22px; }
+.dashboard-page .profile-form { grid-template-columns: 150px minmax(0, 1fr); align-items: start; margin-top: 18px; }
+.dashboard-page .profile-avatar-upload, .dashboard-page .profile-avatar-upload img { width: 132px; height: 132px; }
+.dashboard-page .profile-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px 18px; }
+.dashboard-page .profile-fields > label { display: grid; gap: 7px; min-width: 0; font-weight: 600; }
+.dashboard-page .profile-fields input { width: 100%; box-sizing: border-box; }
+.dashboard-page .profile-fields #profile-email-hint { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.dashboard-page .profile-fields .profile-address-field { grid-column: 1 / -1; }
+.dashboard-page .profile-gender-field { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.dashboard-page .profile-gender-field legend { width: 100%; margin-bottom: 6px; color: #5f3648; font-size: 14px; }
+.dashboard-page .profile-gender-field label { display: inline-flex; align-items: center; gap: 6px; }
+.dashboard-page .profile-gender-field input { width: auto; min-height: 0; margin: 0; accent-color: #d43473; }
+.dashboard-page #profile-save-button { grid-column: 2; }
+.dashboard-page .account-settings-view { max-width: 980px; margin: 0 auto; }
+.dashboard-page .account-page-heading { display: flex; align-items: center; gap: 18px; margin: 20px 0; }
+.dashboard-page .account-page-icon { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; color: #d43473; background: #fbe7ef; font-size: 28px; }
+.dashboard-page .account-page-heading h2 { margin: 3px 0; color: #6b163f; font-size: clamp(27px, 3vw, 38px); }
+.dashboard-page .account-page-heading .muted { margin: 0; }
+.dashboard-page .account-settings-card { padding: 26px; border: 1px solid #f0dfe6; border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 10px 25px rgba(97,46,60,.07); }
+.dashboard-page .password-card { max-width: 560px; margin: 0 auto; }
+.dashboard-page .password-illustration { display: grid; place-items: center; width: 100%; height: 90px; margin-bottom: 16px; color: #d43473; background: radial-gradient(ellipse, #fbe0e9, transparent 70%); font-size: 48px; }
+.dashboard-page .account-form { display: grid; gap: 14px; }
+.dashboard-page .account-form > label { display: grid; gap: 7px; color: #5f3648; font-size: 14px; font-weight: 600; }
+.dashboard-page .account-form input:not([type="checkbox"]) { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #ead5df; border-radius: 8px; color: var(--ink); background: #fff; }
+.dashboard-page .password-input-wrap { position: relative; display: flex; }
+.dashboard-page .password-input-wrap input { padding-right: 44px !important; }
+.dashboard-page .password-visibility-toggle { position: absolute; top: 0; right: 4px; width: 38px; height: 100%; border: 0; color: #816477; background: transparent; cursor: pointer; }
+.dashboard-page .password-strength { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.dashboard-page .password-strength > span { display: block; width: 0; height: 6px; border-radius: 99px; background: #d43473; transition: width .2s ease; }
+.dashboard-page .password-strength > span[data-strength="weak"] { background: #da4960; }
+.dashboard-page .password-strength > span[data-strength="medium"] { background: #e4a53a; }
+.dashboard-page .password-strength > span[data-strength="strong"] { background: #399568; }
+.dashboard-page .password-strength small { color: #80576b; text-align: right; }
+.dashboard-page .password-guidance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 0; padding: 14px; border-radius: 10px; color: #80576b; background: #fff2f6; font-size: 12px; }
+.dashboard-page .password-guidance strong { grid-column: 1 / -1; color: #6b163f; }
+.dashboard-page .password-guidance .is-met { color: #27834d; }
+.dashboard-page .account-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.dashboard-page .account-form-actions .cancel-button { min-height: 42px; padding: 9px 20px; border: 1px solid #e8bdcc; border-radius: 8px; color: #bc2e60; background: #fff; }
+.dashboard-page .account-form-actions .primary-button { min-height: 42px; margin: 0; border-radius: 8px; }
+.dashboard-page .general-settings-form { display: grid; gap: 18px; }
+.dashboard-page .settings-group { padding: 0 0 16px; border-bottom: 1px solid #f0e4e9; }
+.dashboard-page .settings-group h3 { margin: 0; color: #5f2440; font-size: 16px; }
+.dashboard-page .settings-group h3 span { margin-right: 7px; color: #b33361; }
+.dashboard-page .settings-group > .muted { margin: 5px 0 10px; font-size: 12px; }
+.dashboard-page .settings-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 54px; padding: 7px 4px; border-bottom: 1px solid #f5edf0; cursor: pointer; }
+.dashboard-page .settings-toggle-row > span, .dashboard-page .settings-select-group label { display: grid; gap: 4px; }
+.dashboard-page .settings-toggle-row strong, .dashboard-page .settings-select-group strong { color: #513247; font-size: 13px; }
+.dashboard-page .settings-toggle-row small, .dashboard-page .settings-select-group small { color: #8c7887; font-size: 11px; }
+.dashboard-page .settings-toggle-row input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dashboard-page .settings-toggle-row i { position: relative; width: 42px; height: 24px; flex: 0 0 42px; border-radius: 99px; background: #d8d4dc; transition: background .2s ease; }
+.dashboard-page .settings-toggle-row i::after { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; content: ""; transition: transform .2s ease; }
+.dashboard-page .settings-toggle-row input:checked + i { background: #d43473; }
+.dashboard-page .settings-toggle-row input:checked + i::after { transform: translateX(18px); }
+.dashboard-page .settings-toggle-row input:focus-visible + i { outline: 3px solid #cd7c9b; outline-offset: 3px; }
+.dashboard-page .settings-select-group { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 0; border-radius: 10px; background: #fff7fa; }
+.dashboard-page .settings-select-group > label { flex: 1; }
+.dashboard-page .settings-select-group select { min-width: 160px; min-height: 42px; padding: 8px 12px; border: 1px solid #ead5df; border-radius: 8px; color: #5f3648; background: #fff; }
+.dashboard-page .theme-options { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.dashboard-page .theme-options label { position: relative; cursor: pointer; }
+.dashboard-page .theme-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dashboard-page .theme-options label span { display: inline-flex; align-items: center; justify-content: center; min-width: 118px; min-height: 40px; padding: 7px 12px; border: 1px solid #ead5df; border-radius: 8px; color: #624456; background: #fff; font-size: 12px; font-weight: 600; }
+.dashboard-page .theme-options input:checked + span { border-color: #d43473; color: #a82b54; background: #fff1f6; }
+.dashboard-page .theme-options input:focus-visible + span { outline: 3px solid #cd7c9b; outline-offset: 3px; }
+.dashboard-page .settings-save-button { justify-self: end; min-width: 180px; margin: 0; }
+.dashboard-page #settings-message:empty { display: none; }
+.dashboard-page #settings-message.error { color: #b34d3d; }
+
+.dashboard-page[data-theme="dark"] { color-scheme: dark; --paper: #201a20; --ink: #f3e9ef; --muted: #b6a3b0; background: #201a20; color: #f3e9ef; }
+.dashboard-page[data-theme="dark"] .dashboard,
+.dashboard-page[data-theme="dark"] .topbar { color: #f3e9ef; background-color: #201a20; }
+.dashboard-page[data-theme="dark"] .profile-card,
+.dashboard-page[data-theme="dark"] .account-settings-card,
+.dashboard-page[data-theme="dark"] .overview-card,
+.dashboard-page[data-theme="dark"] .dashboard-card,
+.dashboard-page[data-theme="dark"] .stat-card,
+.dashboard-page[data-theme="dark"] .room-card { color: #f3e9ef; border-color: #51434d; background-color: #302730; }
+.dashboard-page[data-theme="dark"] .account-page-heading h2,
+.dashboard-page[data-theme="dark"] .profile-heading h2,
+.dashboard-page[data-theme="dark"] .settings-group h3,
+.dashboard-page[data-theme="dark"] .settings-toggle-row strong,
+.dashboard-page[data-theme="dark"] .settings-select-group strong { color: #f3dce7; }
+.dashboard-page[data-theme="dark"] .profile-fields input,
+.dashboard-page[data-theme="dark"] .account-form input:not([type="checkbox"]),
+.dashboard-page[data-theme="dark"] .settings-select-group select,
+.dashboard-page[data-theme="dark"] .theme-options label span { color: #f3e9ef; border-color: #64515e; background: #241e24; }
+.dashboard-page[data-theme="dark"] .settings-select-group,
+.dashboard-page[data-theme="dark"] .password-guidance { background: #392c35; }
+.dashboard-page[data-theme="dark"] .settings-toggle-row { border-color: #51434d; }
+@media (max-width: 700px) {
+  .dashboard-page .profile-card { padding: 0 18px 20px; }
+  .dashboard-page .profile-cover { margin: 0 -18px; }
+  .dashboard-page .profile-form { grid-template-columns: 1fr; }
+  .dashboard-page .profile-avatar-field { align-items: center; }
+  .dashboard-page .profile-fields { grid-template-columns: 1fr; }
+  .dashboard-page .profile-fields .profile-address-field { grid-column: auto; }
+  .dashboard-page #profile-save-button { grid-column: 1; }
+  .dashboard-page .settings-select-group { align-items: stretch; flex-direction: column; }
+  .dashboard-page .settings-select-group select { width: 100%; }
+}

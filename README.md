@@ -39,7 +39,7 @@ Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai; da them luon
 
 ## Database
 
-Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, reservations va payments. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
+Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, room_types, reservations va payments. Gia co dinh cua the loai phong duoc dung cho cac phong tao moi; gia cua phong da ton tai van duoc quan ly rieng trong cap nhat phong. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
 
 ## API
 
