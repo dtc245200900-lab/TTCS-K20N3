@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | Hotel Manager</title>
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/dashboard.css" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=20261007-checkout-heading" />
   </head>
   <body class="dashboard-page">
     <header class="topbar">
@@ -102,6 +102,14 @@
                 <path d="M10 17l5-5-5-5M15 12H3" />
                 <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /></svg></span
             >Trả phòng <span id="checkout-nav-count" class="nav-count">0</span>
+          </button>
+          <button type="button" class="room-nav-link" data-room-view="customers">
+            <span class="nav-icon" aria-hidden="true"
+              ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-5A4.5 4.5 0 0 0 2 18.5V20" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M17 11a4 4 0 0 0 0-8m5 17v-1.5a4.5 4.5 0 0 0-3.5-4.4" /></svg></span
+            >Khách hàng
           </button>
           <button type="button" class="room-nav-link" data-room-view="types">
             <span class="nav-icon" aria-hidden="true"
@@ -410,12 +418,97 @@
         <section id="room-booking-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">
             <div>
-              <p class="eyebrow">QUẢN LÝ PHÒNG</p>
+              <p class="eyebrow">QUẢN LÝ PHÒNG&nbsp; › &nbsp;ĐẶT PHÒNG</p>
               <h2>Đặt phòng</h2>
-              <p class="muted">Danh sách đặt phòng đang chờ kiểm tra vào, đang thuê và đang dọn phòng.</p>
+              <p class="muted">Theo dõi đặt phòng, khách lưu trú và thời gian nhận/trả phòng.</p>
             </div>
+            <button type="button" class="primary-button room-view-action" id="booking-form-toggle"><span aria-hidden="true">＋</span> Đặt phòng mới</button>
+          </div>
+          <div class="booking-status-filters" role="group" aria-label="Lọc trạng thái đặt phòng">
+            <button type="button" class="active" data-booking-status="">Tất cả <span id="booking-count-all">0</span></button>
+            <button type="button" data-booking-status="pending">Đang chờ <span id="booking-count-pending">0</span></button>
+            <button type="button" data-booking-status="checked_in">Đang ở <span id="booking-count-checked-in">0</span></button>
+            <button type="button" data-booking-status="checked_out">Đã trả <span id="booking-count-checked-out">0</span></button>
+            <button type="button" data-booking-status="cancelled">Đã hủy <span id="booking-count-cancelled">0</span></button>
+          </div>
+          <div class="booking-toolbar">
+            <label class="booking-search" for="booking-search">
+              <span aria-hidden="true">⌕</span>
+              <input id="booking-search" type="search" placeholder="Tìm mã đặt phòng, tên khách, số điện thoại hoặc phòng..." autocomplete="off" />
+            </label>
+            <div class="booking-date-filters">
+              <label for="booking-from-date"><span>Từ ngày</span><input id="booking-from-date" type="date" /></label>
+              <label for="booking-to-date"><span>Đến ngày</span><input id="booking-to-date" type="date" /></label>
+            </div>
+            <label class="booking-status-filter" for="booking-status-select">Trạng thái
+              <select id="booking-status-select">
+                <option value="">Tất cả</option>
+                <option value="pending">Đang chờ</option>
+                <option value="checked_in">Đang ở</option>
+                <option value="checked_out">Đã trả</option>
+                <option value="cancelled">Đã hủy</option>
+              </select>
+            </label>
           </div>
           <div id="booking-list" class="booking-list" aria-live="polite"></div>
+          <div class="booking-workspace">
+          <article id="booking-form-card" class="management-form-card booking-form-card">
+            <div class="management-form-heading">
+              <div><p class="eyebrow"><span aria-hidden="true">⊕</span> ĐẶT CHỖ</p><h3>Đặt phòng mới</h3></div>
+            </div>
+            <form id="booking-form" class="management-form" novalidate>
+              <label>Khách hàng <span class="required-mark">*</span>
+                <select id="booking-customer" name="customerId" required><option value="">⌕  Tìm hoặc chọn khách hàng</option></select>
+              </label>
+              <label>Phòng <span class="required-mark">*</span>
+                <select id="booking-room" name="roomId" required><option value="">Chọn phòng trống</option></select>
+              </label>
+              <label>Ngày nhận phòng <span class="required-mark">*</span><input id="booking-check-in" name="checkInAt" type="datetime-local" required /></label>
+              <label>Ngày trả phòng <span class="required-mark">*</span><input id="booking-check-out" name="checkOutAt" type="datetime-local" required /></label>
+              <label>Số khách <span class="required-mark">*</span><input id="booking-guest-count" name="guestCount" type="number" min="1" max="20" value="1" required /></label>
+              <label class="wide-field">Ghi chú<textarea id="booking-notes" name="notes" maxlength="1000" rows="3" placeholder="Yêu cầu đặc biệt của khách..."></textarea></label>
+              <p id="booking-form-error" class="error wide-field" role="alert" aria-live="polite"></p>
+              <div class="management-form-actions wide-field">
+                <button type="button" class="cancel-button" id="booking-form-dismiss">Hủy</button>
+                <button type="submit" class="primary-button">Xác nhận đặt phòng</button>
+              </div>
+            </form>
+          </article>
+          <article id="booking-detail-card" class="booking-detail-card" aria-live="polite"></article>
+          </div>
+        </section>
+        <section id="customer-view" class="room-view hidden-view">
+          <div class="view-heading room-view-heading rooms-header">
+            <div>
+              <p class="eyebrow">QUẢN LÝ KHÁCH HÀNG</p>
+              <h2>Khách hàng</h2>
+              <p class="muted">Thông tin liên hệ và lịch sử đặt phòng của khách lưu trú.</p>
+            </div>
+            <button type="button" class="primary-button room-view-action" id="customer-form-toggle">+ Thêm khách hàng</button>
+          </div>
+          <div class="customer-toolbar">
+            <label class="booking-search" for="customer-search"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Tìm tên, số điện thoại, CCCD hoặc email..." autocomplete="off" /></label>
+            <span id="customer-count" class="muted" aria-live="polite"></span>
+          </div>
+          <article id="customer-form-card" class="management-form-card hidden-form">
+            <div class="management-form-heading">
+              <div><p class="eyebrow">HỒ SƠ KHÁCH</p><h3>Thêm khách hàng</h3></div>
+              <button type="button" class="cancel-button" id="customer-form-cancel">Đóng</button>
+            </div>
+            <form id="customer-form" class="management-form" novalidate>
+              <label>Họ và tên <span class="required-mark">*</span><input name="fullName" type="text" maxlength="150" autocomplete="name" required /></label>
+              <label>Số điện thoại <span class="required-mark">*</span><input name="phone" type="tel" maxlength="30" pattern="[+0-9() -]{7,30}" autocomplete="tel" required /></label>
+              <label>CCCD/Căn cước<input name="identityNumber" type="text" maxlength="40" /></label>
+              <label>Email<input name="email" type="email" maxlength="254" autocomplete="email" /></label>
+              <label class="wide-field">Địa chỉ<input name="address" type="text" maxlength="255" autocomplete="street-address" /></label>
+              <p id="customer-form-error" class="error wide-field" role="alert" aria-live="polite"></p>
+              <div class="management-form-actions wide-field">
+                <button type="button" class="cancel-button" id="customer-form-dismiss">Hủy</button>
+                <button type="submit" class="primary-button">Lưu khách hàng</button>
+              </div>
+            </form>
+          </article>
+          <div id="customer-list" class="customer-list" aria-live="polite"></div>
         </section>
         <section id="room-checkout-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">
@@ -1016,7 +1109,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261006-profile" defer></script>
-    <script src="/js/dashboard.js" defer></script>
+    <script src="/js/main.js?v=20261007-bookings-customers" defer></script>
+    <script src="/js/dashboard.js?v=20261007-checkout-actions" defer></script>
   </body>
 </html>
