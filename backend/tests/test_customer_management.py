@@ -98,9 +98,35 @@ def test_create_booking_saves_customer_guest_count_and_notes(monkeypatch, tmp_pa
     assert booking["customerName"] == "Nguyễn Văn An"
     assert booking["guestCount"] == 2
     assert booking["notes"] == "Phòng yên tĩnh"
+    assert booking["status"] == "pending"
 
     listed_booking = client.get("/api/bookings").get_json()["bookings"][0]
     listed_customer = client.get("/api/customers").get_json()["customers"][0]
     assert listed_booking["roomCode"] == "101"
     assert listed_booking["customerName"] == "Nguyễn Văn An"
     assert listed_customer["bookingCount"] == 1
+
+
+def test_create_booking_for_now_checks_customer_in_immediately(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    hotel_app.write_json(hotel_app.ROOMS_FILE, [{
+        "id": 1,
+        "room_code": "101",
+        "room_type": "Đơn",
+        "nightly_rate": 500000,
+        "status": "Phòng trống",
+    }])
+    check_in = datetime.now().replace(second=0, microsecond=0)
+    check_out = check_in + timedelta(days=1)
+
+    response = client.post("/api/bookings", json={
+        "roomId": 1,
+        "checkInAt": check_in.isoformat(timespec="minutes"),
+        "checkOutAt": check_out.isoformat(timespec="minutes"),
+    })
+
+    assert response.status_code == 201
+    result = response.get_json()
+    assert result["booking"]["status"] == "checked_in"
+    assert result["booking"]["actualCheckInAt"] is not None
+    assert result["room"]["status"] == "Đã thuê"

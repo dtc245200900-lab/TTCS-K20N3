@@ -1021,11 +1021,19 @@ def create_booking_api():
     data = request_data()
     try:
         room_id = int(data.get("roomId", data.get("room_id")))
-        check_in, check_out = validate_booking_window(data.get("checkInAt", data.get("check_in_at")), data.get("checkOutAt", data.get("check_out_at")))
+        booking_now = datetime.now()
+        check_in, check_out = validate_booking_window(
+            data.get("checkInAt", data.get("check_in_at")),
+            data.get("checkOutAt", data.get("check_out_at")),
+            booking_now,
+        )
         customer_id = int(data["customerId"]) if data.get("customerId") not in (None, "") else None
         guest_count = int(data.get("guestCount", 1))
     except (TypeError, ValueError, OverflowError):
         return jsonify(message="Vui lòng chọn thời gian nhận phòng và trả phòng hợp lệ."), 400
+    checked_in_now = check_in <= booking_now
+    initial_status = BOOKING_CHECKED_IN_STATUS if checked_in_now else BOOKING_PENDING_STATUS
+    actual_check_in_at = booking_now if checked_in_now else None
     if guest_count < 1 or guest_count > 20:
         return jsonify(message="Số khách phải từ 1 đến 20."), 400
     notes = re.sub(r"\s+", " ", str(data.get("notes", "")).strip()) or None
@@ -1054,10 +1062,10 @@ def create_booking_api():
             cursor.execute(
                 """
                 INSERT INTO bookings (room_id, customer_id, scheduled_check_in_at,
-                    scheduled_check_out_at, guest_count, notes, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    scheduled_check_out_at, guest_count, notes, status, actual_check_in_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (room_id, customer_id, check_in, check_out, guest_count, notes, BOOKING_PENDING_STATUS),
+                (room_id, customer_id, check_in, check_out, guest_count, notes, initial_status, actual_check_in_at),
             )
             booking_id = cursor.lastrowid
             connection.commit()
@@ -1100,8 +1108,8 @@ def create_booking_api():
         "scheduled_check_out_at": check_out.isoformat(),
         "guest_count": guest_count,
         "notes": notes or "",
-        "status": BOOKING_PENDING_STATUS,
-        "actual_check_in_at": None,
+        "status": initial_status,
+        "actual_check_in_at": actual_check_in_at.isoformat(timespec="seconds") if actual_check_in_at else None,
         "actual_check_out_at": None,
         "cleaning_until": None,
         "duration_minutes": None,
