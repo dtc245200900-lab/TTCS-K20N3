@@ -3,6 +3,7 @@ import math
 import os
 import re
 import sys
+import threading
 import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
@@ -37,8 +38,11 @@ BOOKING_CHECKED_IN_STATUS = "checked_in"
 BOOKING_CHECKED_OUT_STATUS = "checked_out"
 BOOKING_CANCELLED_STATUS = "cancelled"
 CLEANING_TIMEOUT_MINUTES = 30
+CHECKOUT_LIFECYCLE_INTERVAL_SECONDS = 15
 BOOKINGS_FILE = DATA_DIR / "bookings.json"
 CUSTOMERS_FILE = DATA_DIR / "customers.json"
+RENTAL_LIFECYCLE_LOCK = threading.Lock()
+RENTAL_LIFECYCLE_STOP = threading.Event()
 
 load_dotenv(BASE_DIR / ".env")
 
@@ -543,6 +547,267 @@ def refresh_booking_lifecycles(now=None, database_available=None):
         write_json(BOOKINGS_FILE, bookings)
 
 
+def process_expired_rentals(now=None, database_available=None):
+    current_time = now or datetime.now()
+    if not RENTAL_LIFECYCLE_LOCK.acquire(blocking=False):
+        return []
+    try:
+        if database_available is None:
+            database_available = db_available()
+        if database_available:
+            return process_expired_database_rentals(current_time)
+        return process_expired_json_rentals(current_time)
+    finally:
+        RENTAL_LIFECYCLE_LOCK.release()
+
+
+def process_expired_database_rentals(current_time):
+    expired = query(
+        "SELECT id FROM bookings WHERE status = %s AND scheduled_check_out_at <= %s ORDER BY id",
+        (BOOKING_CHECKED_IN_STATUS, current_time),
+        fetch=True,
+    )["rows"]
+    checked_out_rooms = []
+    for row in expired:
+        connection = None
+        cursor = None
+        try:
+            connection = db_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT b.*, r.room_code, r.room_type, r.hourly_rate AS room_hourly_rate,
+                    rt.hourly_rate AS type_hourly_rate
+                FROM bookings b
+                JOIN rooms r ON r.id = b.room_id
+                LEFT JOIN room_types rt ON rt.name = r.room_type
+                WHERE b.id = %s
+                FOR UPDATE
+                """,
+                (row["id"],),
+            )
+            booking = cursor.fetchone()
+            if not booking or booking["status"] != BOOKING_CHECKED_IN_STATUS:
+                connection.rollback()
+                continue
+            scheduled_check_out = parse_datetime_value(booking["scheduled_check_out_at"])
+            if scheduled_check_out is None or scheduled_check_out > current_time:
+                connection.rollback()
+                continue
+            checked_in_at = parse_datetime_value(booking["actual_check_in_at"])
+            if checked_in_at is None:
+                raise ValueError(f"Booking {booking['id']} is missing actual check-in time.")
+            returned_at = scheduled_check_out
+            scheduled_check_in = booking.get("scheduled_check_in_at")
+            duration = scheduled_rental_duration_minutes(scheduled_check_in, scheduled_check_out, checked_in_at)
+            hourly_rate = booking.get("hourly_rate") or booking.get("room_hourly_rate") or booking.get("type_hourly_rate")
+            total = calculate_hourly_rental_total(hourly_rate, duration)
+            cursor.execute(
+                """
+                INSERT INTO rental_history
+                    (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (booking["room_id"], checked_in_at, scheduled_check_out, returned_at, duration, total),
+            )
+            cursor.execute(
+                """
+                UPDATE bookings
+                SET status = %s, actual_check_out_at = %s, cleaning_until = %s,
+                    duration_minutes = %s, rental_total = %s
+                WHERE id = %s AND status = %s
+                """,
+                (
+                    BOOKING_CHECKED_OUT_STATUS,
+                    returned_at,
+                    returned_at + timedelta(minutes=CLEANING_TIMEOUT_MINUTES),
+                    duration,
+                    total,
+                    booking["id"],
+                    BOOKING_CHECKED_IN_STATUS,
+                ),
+            )
+            connection.commit()
+            checked_out_rooms.append(booking["room_code"])
+        except (mysql.connector.Error, ValueError, TypeError, InvalidOperation):
+            if connection:
+                connection.rollback()
+            app.logger.exception("Automatic checkout failed for booking %s.", row["id"])
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+
+    connection = None
+    cursor = None
+    try:
+        connection = db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT rooms.*, room_types.hourly_rate AS type_hourly_rate
+            FROM rooms
+            LEFT JOIN room_types ON room_types.name = rooms.room_type
+            WHERE rooms.status = %s AND rooms.checked_out_at IS NOT NULL
+                AND rooms.checked_out_at <= %s
+                AND NOT EXISTS (
+                    SELECT 1 FROM bookings
+                    WHERE bookings.room_id = rooms.id AND bookings.status = %s
+                )
+            FOR UPDATE
+            """,
+            (ROOM_OCCUPIED_STATUS, current_time, BOOKING_CHECKED_IN_STATUS),
+        )
+        rooms = cursor.fetchall()
+        for room in rooms:
+            checked_in_at = parse_datetime_value(room.get("checked_in_at"))
+            scheduled_check_out = parse_datetime_value(room.get("checked_out_at"))
+            if checked_in_at is None or scheduled_check_out is None:
+                continue
+            returned_at = scheduled_check_out
+            duration = max(0, math.ceil((returned_at - checked_in_at).total_seconds() / 60))
+            hourly_rate = room.get("hourly_rate") or room.get("type_hourly_rate")
+            total = calculate_hourly_rental_total(hourly_rate, duration)
+            cursor.execute(
+                """
+                INSERT INTO rental_history
+                    (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (room["id"], checked_in_at, scheduled_check_out, returned_at, duration, total),
+            )
+            cursor.execute(
+                """
+                UPDATE rooms
+                SET status = %s, checked_in_at = NULL, checked_out_at = NULL,
+                    rental_duration_seconds = NULL, rental_duration_minutes = NULL,
+                    rental_days = NULL, rental_total = NULL,
+                    last_cleaning_started_at = %s, cleaning_started_at = %s
+                WHERE id = %s AND status = %s
+                """,
+                (
+                    ROOM_CLEANING_STATUS,
+                    returned_at,
+                    returned_at,
+                    room["id"],
+                    ROOM_OCCUPIED_STATUS,
+                ),
+            )
+            checked_out_rooms.append(room["room_code"])
+        connection.commit()
+    except (mysql.connector.Error, ValueError, TypeError, InvalidOperation):
+        if connection:
+            connection.rollback()
+        app.logger.exception("Automatic checkout failed for direct room rentals.")
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+    return checked_out_rooms
+
+
+def process_expired_json_rentals(current_time):
+    bookings = read_json(BOOKINGS_FILE, [])
+    rooms = read_json(ROOMS_FILE, [])
+    rooms_by_id = {str(room.get("id")): room for room in rooms}
+    changed_bookings = False
+    changed_rooms = False
+    checked_out_rooms = []
+
+    for booking in bookings:
+        normalized = normalize_booking(booking)
+        if normalized["status"] != BOOKING_CHECKED_IN_STATUS:
+            continue
+        scheduled_check_out = parse_datetime_value(normalized["scheduledCheckOutAt"])
+        if scheduled_check_out is None or scheduled_check_out > current_time:
+            continue
+        checked_in_at = parse_datetime_value(normalized["actualCheckInAt"])
+        if checked_in_at is None:
+            app.logger.error("Automatic checkout skipped for booking %s: missing actual check-in time.", normalized["id"])
+            continue
+        duration = max(0, math.ceil((scheduled_check_out - checked_in_at).total_seconds() / 60))
+        room = rooms_by_id.get(str(normalized["roomId"]))
+        hourly_rate = normalized["hourlyRate"] or room_hourly_rate(room)
+        try:
+            total = calculate_hourly_rental_total(hourly_rate, duration)
+        except ValueError:
+            app.logger.exception("Automatic checkout skipped for booking %s: invalid hourly rate.", normalized["id"])
+            continue
+        booking.update({
+            "status": BOOKING_CHECKED_OUT_STATUS,
+            "actual_check_out_at": scheduled_check_out.isoformat(timespec="seconds"),
+            "cleaning_until": (scheduled_check_out + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)).isoformat(timespec="seconds"),
+            "duration_minutes": duration,
+            "rental_total": float(total),
+            "updated_at": current_time.isoformat(timespec="seconds"),
+        })
+        changed_bookings = True
+        checked_out_rooms.append(room.get("roomCode", room.get("room_code", "")) if room else normalized["roomCode"])
+
+    active_booking_room_ids = {
+        str(booking.get("room_id", booking.get("roomId")))
+        for booking in bookings
+        if booking.get("status") == BOOKING_CHECKED_IN_STATUS
+    }
+    for room in rooms:
+        if normalized_status(room.get("status")) != ROOM_OCCUPIED_STATUS:
+            continue
+        if str(room.get("id")) in active_booking_room_ids:
+            continue
+        checked_in_at = parse_datetime_value(room.get("checked_in_at", room.get("checkInAt")))
+        scheduled_check_out = parse_datetime_value(room.get("checked_out_at", room.get("checkOutAt")))
+        if checked_in_at is None or scheduled_check_out is None or scheduled_check_out > current_time:
+            continue
+        duration = max(0, math.ceil((scheduled_check_out - checked_in_at).total_seconds() / 60))
+        try:
+            total = calculate_hourly_rental_total(room_hourly_rate(room), duration)
+        except ValueError:
+            app.logger.exception("Automatic checkout skipped for room %s: invalid hourly rate.", room.get("id"))
+            continue
+        room.setdefault("rentalHistory", []).append({
+            "checkedInAt": checked_in_at.isoformat(timespec="minutes"),
+            "scheduledCheckOutAt": scheduled_check_out.isoformat(timespec="minutes"),
+            "returnedAt": scheduled_check_out.isoformat(timespec="minutes"),
+            "durationMinutes": duration,
+            "rentalTotal": float(total),
+        })
+        room.update({
+            "status": ROOM_CLEANING_STATUS,
+            "checkInAt": None,
+            "checkOutAt": None,
+            "checked_in_at": None,
+            "checked_out_at": None,
+            "rentalDurationSeconds": None,
+            "rentalDurationMinutes": None,
+            "rentalDays": None,
+            "rentalTotal": None,
+            "rental_duration_seconds": None,
+            "rental_duration_minutes": None,
+            "rental_days": None,
+            "rental_total": None,
+            "last_cleaning_started_at": scheduled_check_out.isoformat(timespec="seconds"),
+            "cleaning_started_at": scheduled_check_out.isoformat(timespec="seconds"),
+        })
+        changed_rooms = True
+        checked_out_rooms.append(room.get("roomCode", room.get("room_code", "")))
+
+    if changed_bookings:
+        write_json(BOOKINGS_FILE, bookings)
+    if changed_rooms:
+        write_json(ROOMS_FILE, rooms)
+    return checked_out_rooms
+
+
+def rental_lifecycle_worker():
+    while not RENTAL_LIFECYCLE_STOP.wait(CHECKOUT_LIFECYCLE_INTERVAL_SECONDS):
+        try:
+            process_expired_rentals()
+        except Exception:
+            app.logger.exception("Rental lifecycle worker failed.")
+
+
 def booking_rows_for_room(room_id):
     refresh_booking_lifecycles()
     if db_available():
@@ -701,6 +966,11 @@ def normalize_room(room):
     rate = room_hourly_rate(room)
     if isinstance(rate, Decimal):
         rate = float(rate)
+    cleaning_started_at = get("last_cleaning_started_at", "cleaning_started_at")
+    cleaning_until = get("cleaning_until", "cleaningUntil")
+    parsed_cleaning_started_at = parse_datetime_value(cleaning_started_at) if cleaning_started_at is not None else None
+    if cleaning_until is None and parsed_cleaning_started_at is not None:
+        cleaning_until = parsed_cleaning_started_at + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)
     return {
         "id": get("id"),
         "roomCode": get("room_code", "roomCode", "roomNumber", default=""),
@@ -716,6 +986,10 @@ def normalize_room(room):
         "rentalDays": get("rental_days", "rentalDays"),
         "rentalTotal": float(get("rental_total", "rentalTotal")) if get("rental_total", "rentalTotal") is not None else None,
         "currentRentalTotal": current_room_rental_total(room),
+        "bookingId": get("bookingId", "booking_id"),
+        "bookingStatus": get("bookingStatus", "booking_status"),
+        "cleaningStartedAt": iso_value(cleaning_started_at),
+        "cleaningUntil": iso_value(cleaning_until),
         "createdAt": iso_value(get("created_at", "createdAt")),
     }
 
@@ -811,6 +1085,14 @@ def calculate_hourly_rental_total(hourly_rate, duration_minutes):
         raise ValueError("Thời gian thuê phải lớn hơn 0 phút.")
     billable_hours = (Decimal(duration_minutes) / Decimal(60)).to_integral_value(rounding=ROUND_CEILING)
     return (rate * billable_hours).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def scheduled_rental_duration_minutes(check_in, check_out, fallback_check_in=None):
+    scheduled_start = parse_datetime_value(check_in) or parse_datetime_value(fallback_check_in)
+    scheduled_end = parse_datetime_value(check_out)
+    if scheduled_start is None or scheduled_end is None or scheduled_end <= scheduled_start:
+        raise ValueError("Thời gian thuê đã đặt không hợp lệ.")
+    return math.ceil((scheduled_end - scheduled_start).total_seconds() / 60)
 
 
 def norm_name(value):
@@ -924,6 +1206,7 @@ def find_room_type(name):
 
 
 def list_rooms():
+    process_expired_rentals()
     database_available = db_available()
     refresh_booking_lifecycles(database_available=database_available)
     if database_available:
@@ -942,11 +1225,13 @@ def list_rooms():
                 SELECT bookings.*
                 FROM bookings
                 INNER JOIN (
-                    SELECT room_id, MAX(id) AS id
+                    SELECT room_id,
+                        COALESCE(MAX(CASE WHEN status = %s THEN id END), MAX(id)) AS id
                     FROM bookings
                     GROUP BY room_id
                 ) latest ON latest.id = bookings.id
                 """,
+                (BOOKING_CHECKED_IN_STATUS,),
                 fetch=True,
             )["rows"]
             latest_bookings = latest_bookings_by_room(booking_rows)
@@ -980,7 +1265,11 @@ def latest_bookings_by_room(bookings):
             continue
         key = str(room_id)
         current = latest.get(key)
-        if current is None or (booking["id"] or 0) > (current["id"] or 0):
+        is_checked_in = booking["status"] == BOOKING_CHECKED_IN_STATUS
+        current_is_checked_in = current and current["status"] == BOOKING_CHECKED_IN_STATUS
+        if current is None or (is_checked_in and not current_is_checked_in) or (
+            is_checked_in == current_is_checked_in and (booking["id"] or 0) > (current["id"] or 0)
+        ):
             latest[key] = booking
     return latest
 
@@ -1305,6 +1594,7 @@ def list_bookings_api():
     denied = require_auth()
     if denied:
         return denied
+    process_expired_rentals()
     refresh_booking_lifecycles()
     room_id = request.args.get("roomId") or request.args.get("room_id")
     if room_id is not None:
@@ -1536,7 +1826,12 @@ def check_out_booking_api(booking_id):
             room = room_by_id(booking["room_id"])
             duration = max(0, math.ceil((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() / 60))
             hourly_rate = booking.get("hourly_rate") or room.get("hourlyRate")
-            total = calculate_hourly_rental_total(hourly_rate, duration)
+            booked_duration = scheduled_rental_duration_minutes(
+                booking.get("scheduled_check_in_at"),
+                booking.get("scheduled_check_out_at"),
+                booking.get("actual_check_in_at"),
+            )
+            total = calculate_hourly_rental_total(hourly_rate, booked_duration)
             cleaning_until = now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)
             cursor.execute("INSERT INTO rental_history (room_id, checked_in_at, scheduled_check_out_at, returned_at, duration_minutes, rental_total) VALUES (%s, %s, %s, %s, %s, %s)", (
                 booking["room_id"], booking["actual_check_in_at"], booking["scheduled_check_out_at"], now, duration, total,
@@ -1562,7 +1857,12 @@ def check_out_booking_api(booking_id):
     room = next((item for item in read_json(ROOMS_FILE, []) if str(item.get("id")) == str(booking["room_id"])), None)
     duration = max(0, math.ceil((now - parse_datetime_value(booking["actual_check_in_at"])).total_seconds() / 60))
     hourly_rate = booking.get("hourly_rate") or room_hourly_rate(room)
-    total = calculate_hourly_rental_total(hourly_rate, duration)
+    booked_duration = scheduled_rental_duration_minutes(
+        booking.get("scheduled_check_in_at", booking.get("scheduledCheckInAt")),
+        booking.get("scheduled_check_out_at", booking.get("scheduledCheckOutAt")),
+        booking.get("actual_check_in_at", booking.get("actualCheckInAt")),
+    )
+    total = calculate_hourly_rental_total(hourly_rate, booked_duration)
     booking.update({"status": BOOKING_CHECKED_OUT_STATUS, "actual_check_out_at": now.isoformat(), "cleaning_until": (now + timedelta(minutes=CLEANING_TIMEOUT_MINUTES)).isoformat(), "duration_minutes": duration, "rental_total": float(total), "updated_at": now.isoformat()})
     save_booking(booking)
     return jsonify(message="Trả phòng thành công. Đang dọn phòng trong 30 phút.", booking=normalize_booking(booking), room=normalize_room(derive_room_with_booking(room)))
@@ -1638,7 +1938,6 @@ def update_profile():
 
     full_name = str(request.form.get("fullName", "")).strip()
     username = normalize_username(request.form.get("username", ""))
-    email = str(request.form.get("email", "")).strip().lower()
     date_of_birth = str(request.form.get("dateOfBirth", "")).strip()
     gender = str(request.form.get("gender", "")).strip()
     phone = str(request.form.get("phone", "")).strip()
@@ -1647,8 +1946,6 @@ def update_profile():
         return jsonify(message="Họ và tên phải có từ 2 đến 150 ký tự."), 400
     if not 3 <= len(username) <= 50:
         return jsonify(message="Tên đăng nhập phải có từ 3 đến 50 ký tự."), 400
-    if len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
-        return jsonify(message="Vui lòng nhập địa chỉ email hợp lệ."), 400
     try:
         parsed_date = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
         if parsed_date > date.today():
@@ -1668,6 +1965,7 @@ def update_profile():
     user = next((item for item in all_users if str(item.get("id")) == str(current_user.get("id"))), None)
     if not user:
         return jsonify(message="Không tìm thấy tài khoản người dùng."), 404
+    email = user.get("email", "")
     normalized_phone = normalize_phone(phone)
     if any(
         str(item.get("id")) != str(user.get("id"))
@@ -1681,13 +1979,6 @@ def update_profile():
         for item in all_users
     ):
         return jsonify(message="Tên đăng nhập này đã được sử dụng."), 409
-    if any(
-        str(item.get("id")) != str(user.get("id"))
-        and str(item.get("email", "")).strip().lower() == email
-        for item in all_users
-    ):
-        return jsonify(message="Email này đã được sử dụng."), 409
-
     avatar = request.files.get("avatar")
     if avatar and avatar.filename:
         allowed_extensions = {
@@ -2270,7 +2561,14 @@ def update_room_status(room_id):
                         raise ValueError
                     returned_at = datetime.now()
                     stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
-                    rental_total = calculate_hourly_rental_total(room_hourly_rate(room), stored_minutes)
+                    rental_total = room.get("rental_total", room.get("rentalTotal"))
+                    if rental_total is None:
+                        booked_minutes = scheduled_rental_duration_minutes(
+                            checked_in_at,
+                            scheduled_check_out,
+                            checked_in_at,
+                        )
+                        rental_total = calculate_hourly_rental_total(room_hourly_rate(room), booked_minutes)
                 except (TypeError, ValueError, InvalidOperation):
                     connection.rollback()
                     return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
@@ -2359,7 +2657,14 @@ def update_room_status(room_id):
                     raise ValueError
                 returned_at = datetime.now()
                 stored_minutes = max(0, int((returned_at - checked_in_at).total_seconds() // 60))
-                rental_total = calculate_hourly_rental_total(room_hourly_rate(room), stored_minutes)
+                rental_total = room.get("rental_total", room.get("rentalTotal"))
+                if rental_total is None:
+                    booked_minutes = scheduled_rental_duration_minutes(
+                        checked_in_at,
+                        scheduled_check_out,
+                        checked_in_at,
+                    )
+                    rental_total = calculate_hourly_rental_total(room_hourly_rate(room), booked_minutes)
             except (TypeError, ValueError, InvalidOperation):
                 return jsonify(message="Không thể lưu lịch sử: thông tin lượt thuê hiện tại không hợp lệ."), 409
             history = room.setdefault("rentalHistory", [])
@@ -2589,4 +2894,5 @@ if __name__ == "__main__":
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     initialize_database()
+    threading.Thread(target=rental_lifecycle_worker, name="rental-lifecycle", daemon=True).start()
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "3001")), debug=False)

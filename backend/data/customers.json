@@ -28,5 +28,17 @@
     "gender": "male",
     "notes": "moiaff",
     "createdAt": "2026-10-08T16:15:29.454365"
+  },
+  {
+    "id": 4,
+    "fullName": "tuât nghiêm",
+    "phone": "14141515",
+    "identityNumber": "41465611414",
+    "email": "DTC245300153@ictu.edu.vn",
+    "address": "ggafadgwegg",
+    "dateOfBirth": "2006-06-08",
+    "gender": "male",
+    "notes": "",
+    "createdAt": "2026-10-08T21:26:01.729239"
   }
 ]

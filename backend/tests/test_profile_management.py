@@ -37,7 +37,7 @@ def profile_form(**overrides):
     }
 
 
-def test_profile_update_saves_email_and_username_and_updates_session(monkeypatch, tmp_path):
+def test_profile_update_keeps_email_unchanged_and_updates_session(monkeypatch, tmp_path):
     client, _ = authenticated_client(monkeypatch, tmp_path)
 
     response = client.put("/api/profile", data=profile_form(
@@ -50,12 +50,12 @@ def test_profile_update_saves_email_and_username_and_updates_session(monkeypatch
     assert user["fullName"] == "Nguyễn Thị An"
     assert user["dateOfBirth"] == "1995-05-20"
     assert user["phone"] == "0912345678"
-    assert user["email"] == "changed@example.com"
+    assert user["email"] == "member@example.com"
     assert user["username"] == "new-member"
     assert client.get("/api/session").get_json()["user"] == user
 
 
-def test_profile_update_rejects_duplicate_email_and_username(monkeypatch, tmp_path):
+def test_profile_update_rejects_duplicate_username(monkeypatch, tmp_path):
     client, _ = authenticated_client(monkeypatch, tmp_path)
     users = hotel_app.read_json(hotel_app.USERS_FILE, [])
     users.append({
@@ -67,11 +67,8 @@ def test_profile_update_rejects_duplicate_email_and_username(monkeypatch, tmp_pa
     })
     hotel_app.write_json(hotel_app.USERS_FILE, users)
 
-    duplicate_email = client.put("/api/profile", data=profile_form(email="OTHER@example.com"))
     duplicate_username = client.put("/api/profile", data=profile_form(username="OTHER-MEMBER"))
 
-    assert duplicate_email.status_code == 409
-    assert "Email này" in duplicate_email.get_json()["message"]
     assert duplicate_username.status_code == 409
     assert "Tên đăng nhập" in duplicate_username.get_json()["message"]
 

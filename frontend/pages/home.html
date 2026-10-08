@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | Hotel Manager</title>
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/dashboard.css?v=20261008-customer-actions-v2" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=20261008-checkout-view-v1" />
   </head>
   <body class="dashboard-page">
     <header class="topbar">
@@ -648,16 +648,44 @@
           </article>
         </section>
         <section id="room-checkout-view" class="room-view hidden-view">
-          <div class="view-heading room-view-heading rooms-header">
+          <div class="checkout-banner">
             <div>
               <p class="eyebrow">QUẢN LÝ PHÒNG</p>
               <h2>Trả phòng</h2>
-              <p class="muted">
-                Danh sách phòng đang có khách. Chọn trả phòng để cập nhật trạng thái phòng.
-              </p>
+              <p>Danh sách phòng đang có khách. Chọn trả phòng, hủy đặt phòng hoặc xem chi tiết.</p>
             </div>
           </div>
-          <p id="checkout-room-count" class="room-count" aria-live="polite"></p>
+          <div class="checkout-toolbar">
+            <div class="checkout-status-filters" role="group" aria-label="Lọc theo trạng thái">
+              <span>Trạng thái phòng</span>
+              <button type="button" class="active" data-checkout-filter="all" aria-pressed="true">Tất cả (<b id="checkout-count-all">0</b>)</button>
+              <button type="button" data-checkout-filter="checked_in" aria-pressed="false"><i class="checkout-filter-dot occupied"></i>Đang ở (<b id="checkout-count-checked-in">0</b>)</button>
+              <button type="button" data-checkout-filter="pending" aria-pressed="false"><i class="checkout-filter-dot pending"></i>Đang chờ (<b id="checkout-count-pending">0</b>)</button>
+              <button type="button" data-checkout-filter="cleaning" aria-pressed="false"><i class="checkout-filter-dot cleaning"></i>Đang dọn (<b id="checkout-count-cleaning">0</b>)</button>
+            </div>
+            <label class="checkout-filter-field" for="checkout-type-filter">
+              <span>Loại phòng</span>
+              <select id="checkout-type-filter"><option value="">Tất cả</option></select>
+            </label>
+            <label class="checkout-filter-field checkout-date-filter" for="checkout-from-date">
+              <span>Thời gian</span>
+              <input id="checkout-from-date" type="date" aria-label="Từ ngày" />
+              <input id="checkout-to-date" type="date" aria-label="Đến ngày" />
+            </label>
+            <label class="checkout-filter-field checkout-search-field" for="checkout-search">
+              <span>Tìm kiếm nhanh</span>
+              <input id="checkout-search" type="search" placeholder="Nhập mã phòng, tên khách, SĐT, CCCD..." />
+            </label>
+          </div>
+          <div class="checkout-results-heading">
+            <p id="checkout-room-count" aria-live="polite"></p>
+            <label for="checkout-sort">Sắp xếp:
+              <select id="checkout-sort">
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
+            </label>
+          </div>
           <div id="checkout-room-grid" class="room-grid"></div>
         </section>
         <section id="room-list-view" class="room-view hidden-view">
@@ -906,6 +934,21 @@
             <div class="checkout-dialog-actions">
               <button type="button" class="cancel-button" data-close-checkout>Đóng</button>
               <button type="button" class="primary-button" data-checkout-view-list>Xem danh sách phòng</button>
+            </div>
+          </section>
+        </dialog>
+        <dialog id="checkout-details-dialog" class="checkout-details-dialog" aria-labelledby="checkout-details-title">
+          <section>
+            <div class="checkout-dialog-heading">
+              <div>
+                <p class="eyebrow">CHI TIẾT PHÒNG ĐANG THUÊ</p>
+                <h2 id="checkout-details-title">Thông tin phòng</h2>
+              </div>
+              <button type="button" class="rent-room-close" data-close-checkout-details aria-label="Đóng">×</button>
+            </div>
+            <div id="checkout-details-content"></div>
+            <div class="checkout-dialog-actions">
+              <button type="button" class="cancel-button" data-close-checkout-details>Đóng</button>
             </div>
           </section>
         </dialog>
@@ -1291,8 +1334,8 @@
                 <label for="profile-account-type">Loại tài khoản
                   <input id="profile-account-type" type="text" value="Thành viên" readonly />
                 </label>
-                <label for="profile-email">Email <span class="required-mark">*</span>
-                  <input id="profile-email" name="email" type="email" maxlength="254" autocomplete="email" required />
+                <label for="profile-email">Email
+                  <input id="profile-email" name="email" type="email" maxlength="254" autocomplete="email" readonly />
                 </label>
                 <label for="profile-account-status">Trạng thái tài khoản
                   <span class="profile-status-field" id="profile-account-status"><span aria-hidden="true">✓</span> Đang hoạt động</span>
@@ -1398,7 +1441,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261008-customer-actions-v1" defer></script>
+    <script src="/js/main.js?v=20261008-checkout-active-booking-v2" defer></script>
     <script src="/js/dashboard.js?v=20261007-sakura-dashboard-v13" defer></script>
   </body>
 </html>

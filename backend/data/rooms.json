@@ -1,91 +1,5 @@
 [
   {
-    "id": 20,
-    "roomCode": "P302",
-    "shortDescription": "Giá cắt cổ",
-    "imagePath": "/uploads/1791127329901-OIP_4.jpg",
-    "roomType": "Deluxe",
-    "nightlyRate": 9999999.0,
-    "status": "Đã thuê",
-    "checkInAt": "2026-10-06T16:23:00",
-    "checkOutAt": "2026-10-06T17:23:00",
-    "rentalDurationSeconds": 3600,
-    "rentalDurationMinutes": 60,
-    "rentalDays": null,
-    "rentalTotal": 416666.63,
-    "checked_in_at": "2026-10-06T16:23:00",
-    "checked_out_at": "2026-10-06T17:23:00",
-    "rental_duration_seconds": 3600,
-    "rental_duration_minutes": 60,
-    "rental_days": null,
-    "rental_total": 416666.63,
-    "rentalHistory": [
-      {
-        "checkedInAt": "2026-10-04T22:22",
-        "scheduledCheckOutAt": "2026-10-04T23:22",
-        "returnedAt": "2026-10-04T22:23",
-        "durationMinutes": 1,
-        "rentalTotal": 6944.44
-      },
-      {
-        "checkedInAt": "2026-10-04T22:23",
-        "scheduledCheckOutAt": "2026-10-05T12:24",
-        "returnedAt": "2026-10-04T22:23",
-        "durationMinutes": 0,
-        "rentalTotal": 0.0
-      }
-    ]
-  },
-  {
-    "id": 19,
-    "roomCode": "P301",
-    "shortDescription": "ngầu bá khí",
-    "imagePath": "/uploads/1791127277593-OIP_3.jpg",
-    "roomType": "mới",
-    "nightlyRate": 2310000.0,
-    "status": "Phòng trống",
-    "bookings": [
-      {
-        "id": 2,
-        "checkInAt": "2026-10-07T22:31",
-        "checkOutAt": "2026-10-07T23:31",
-        "status": "booked",
-        "durationMinutes": 60,
-        "rentalTotal": 96250.0,
-        "customer": null
-      }
-    ]
-  },
-  {
-    "id": 18,
-    "roomCode": "P209",
-    "shortDescription": "đầm ấm",
-    "imagePath": "/uploads/1791127207242-OIP.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 2300000.0,
-    "status": "Phòng trống",
-    "bookings": [
-      {
-        "id": 3,
-        "checkInAt": "2026-10-07T22:37",
-        "checkOutAt": "2026-10-07T23:37",
-        "status": "booked",
-        "durationMinutes": 60,
-        "rentalTotal": 95833.33,
-        "customer": null
-      }
-    ]
-  },
-  {
-    "id": 17,
-    "roomCode": "P208",
-    "shortDescription": "wowww",
-    "imagePath": "/uploads/1791127139756-OIP_2.jpg",
-    "roomType": "Deluxe",
-    "nightlyRate": 3500099.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 16,
     "roomCode": "P207",
     "shortDescription": "Phòng dubai",
@@ -115,15 +29,6 @@
     "status": "Phòng trống"
   },
   {
-    "id": 14,
-    "roomCode": "p206",
-    "shortDescription": "ấm",
-    "imagePath": "/uploads/1791126977957-OIP_3.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 2500000.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 13,
     "roomCode": "P204",
     "shortDescription": "xịn xò",
@@ -133,22 +38,14 @@
     "status": "Phòng trống"
   },
   {
-    "id": 12,
-    "roomCode": "P203",
-    "shortDescription": "phòng bá khí",
-    "imagePath": "/uploads/1791126858660-OIP_4.jpg",
-    "roomType": "mới",
-    "nightlyRate": 2100000.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 11,
     "roomCode": "P202",
     "shortDescription": "bá cháy",
     "imagePath": "/uploads/1791126670511-OIP.jpg",
     "roomType": "Đôi",
     "nightlyRate": 2000000.0,
-    "status": "Phòng trống"
+    "status": "Phòng trống",
+    "hourlyRate": 1000000.0
   },
   {
     "id": 10,
@@ -205,15 +102,6 @@
     "status": "Phòng trống"
   },
   {
-    "id": 4,
-    "roomCode": "P104",
-    "shortDescription": "xịn",
-    "imagePath": "/uploads/1791126270526-OIP_3.jpg",
-    "roomType": "phòng gia đình",
-    "nightlyRate": 2500000.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 3,
     "roomCode": "P103",
     "shortDescription": "đẹp",
@@ -230,35 +118,5 @@
     "roomType": "đơn",
     "nightlyRate": 1500000.0,
     "status": "Phòng trống"
-  },
-  {
-    "id": 1,
-    "roomCode": "P101",
-    "shortDescription": "view đẹp",
-    "imagePath": "/uploads/1791123866686-OIP.jpg",
-    "roomType": "Đôi",
-    "nightlyRate": 2500000.0,
-    "status": "Đã thuê",
-    "checkInAt": "2026-10-04T22:13:00",
-    "checkOutAt": "2026-10-04T23:13:00",
-    "rentalDurationSeconds": 3600,
-    "rentalDurationMinutes": 60,
-    "rentalDays": null,
-    "rentalTotal": 104166.67,
-    "checked_in_at": "2026-10-04T22:13:00",
-    "checked_out_at": "2026-10-04T23:13:00",
-    "rental_duration_seconds": 3600,
-    "rental_duration_minutes": 60,
-    "rental_days": null,
-    "rental_total": 104166.67,
-    "rentalHistory": [
-      {
-        "checkedInAt": "2026-10-04T21:24",
-        "scheduledCheckOutAt": "2026-10-04T23:25",
-        "returnedAt": "2026-10-04T22:12",
-        "durationMinutes": 48,
-        "rentalTotal": 83333.33
-      }
-    ]
   }
 ]

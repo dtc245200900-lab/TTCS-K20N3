@@ -165,6 +165,8 @@ def test_booking_keeps_hourly_rate_snapshot(monkeypatch, tmp_path):
 def test_checkout_charges_started_hours_using_booking_rate_snapshot(monkeypatch, tmp_path):
     client = authenticated_client(monkeypatch, tmp_path)
     checked_in = datetime.now() - timedelta(minutes=60)
+    scheduled_check_in = checked_in - timedelta(hours=1)
+    scheduled_check_out = checked_in + timedelta(hours=2)
     hotel_app.write_json(hotel_app.ROOMS_FILE, [{
         "id": 7,
         "roomCode": "H101",
@@ -177,11 +179,37 @@ def test_checkout_charges_started_hours_using_booking_rate_snapshot(monkeypatch,
         "room_id": 7,
         "status": hotel_app.BOOKING_CHECKED_IN_STATUS,
         "actual_check_in_at": checked_in.isoformat(timespec="seconds"),
+        "scheduled_check_in_at": scheduled_check_in.isoformat(timespec="seconds"),
+        "scheduled_check_out_at": scheduled_check_out.isoformat(timespec="seconds"),
         "hourly_rate": 80000,
     }])
 
     response = client.patch("/api/bookings/9/check-out")
 
     assert response.status_code == 200
-    assert response.get_json()["booking"]["rentalTotal"] == 160000
+    assert response.get_json()["booking"]["rentalTotal"] == 240000
     assert response.get_json()["booking"]["durationMinutes"] >= 61
+
+
+def test_early_direct_checkout_keeps_original_booked_total(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    checked_in = datetime.now() - timedelta(minutes=15)
+    scheduled_check_out = datetime.now() + timedelta(hours=3)
+    hotel_app.write_json(hotel_app.ROOMS_FILE, [{
+        "id": 8,
+        "roomCode": "H102",
+        "roomType": "Phòng theo giờ",
+        "hourlyRate": 100000,
+        "status": "Đã thuê",
+        "checked_in_at": checked_in.isoformat(timespec="seconds"),
+        "checked_out_at": scheduled_check_out.isoformat(timespec="seconds"),
+        "rental_duration_minutes": 180,
+        "rental_total": 300000,
+    }])
+
+    response = client.patch("/api/rooms/8/status", json={"status": "Phòng trống"})
+
+    assert response.status_code == 200
+    history = hotel_app.read_json(hotel_app.ROOMS_FILE, [])[0]["rentalHistory"][-1]
+    assert history["rentalTotal"] == 300000
+    assert history["durationMinutes"] < 180

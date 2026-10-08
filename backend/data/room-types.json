@@ -3,31 +3,31 @@
     "code": "LP001",
     "name": "đơn",
     "description": "",
-    "hourlyRate": 1000.0
+    "hourlyRate": 40000.0
   },
   {
     "code": "LP002",
     "name": "Đôi",
     "description": "",
-    "hourlyRate": null
+    "hourlyRate": 70000.0
   },
   {
     "code": "LP003",
     "name": "VIP",
     "description": "",
-    "hourlyRate": null
+    "hourlyRate": 500000.0
   },
   {
     "code": "LP004",
     "name": "Deluxe",
     "description": "",
-    "hourlyRate": null
+    "hourlyRate": 50000.0
   },
   {
     "code": "LP005",
     "name": "phòng gia đình",
     "description": "",
-    "hourlyRate": null
+    "hourlyRate": 200000.0
   },
   {
     "code": "LP007",
