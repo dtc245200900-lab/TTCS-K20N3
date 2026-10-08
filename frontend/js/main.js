@@ -5,6 +5,8 @@ let bookingCache = [];
 let customerCache = [];
 let selectedBookingId = null;
 let selectedCustomerId = null;
+let editingCustomerId = null;
+let openCustomerEditForm = null;
 let customerPage = 1;
 let customerPageSize = 8;
 let bookingPage = 1;
@@ -637,6 +639,7 @@ function renderCustomerList() {
   if (!tableBody) return;
   const query = (document.querySelector('#customer-search')?.value || '').trim().toLocaleLowerCase('vi');
   const statusFilter = document.querySelector('#customer-status-filter')?.value || 'all';
+  const genderFilter = document.querySelector('#customer-gender-filter')?.value || 'all';
   const sortBy = document.querySelector('#customer-sort')?.value || 'recent';
   const statusForCustomer = (customer) => {
     const customerBookings = bookingCache.filter(booking => String(booking.customerId) === String(customer.id));
@@ -646,10 +649,15 @@ function renderCustomerList() {
     if (customerBookings.some(booking => booking.status === 'cancelled')) return 'cancelled';
     return 'none';
   };
-  const matchingCustomers = customerCache.filter(customer =>
-    `${customer.fullName} ${customer.phone} ${customer.identityNumber || ''} ${customer.email || ''}`
-      .toLocaleLowerCase('vi').includes(query)
-  ).filter(customer => statusFilter === 'all' || statusForCustomer(customer) === statusFilter);
+  const matchingCustomers = customerCache.filter(customer => {
+    const matchesQuery = `${customer.fullName} ${customer.phone} ${customer.identityNumber || ''} ${customer.email || ''}`
+      .toLocaleLowerCase('vi').includes(query);
+    const status = statusForCustomer(customer);
+    const matchesStatus = statusFilter === 'all'
+      || (statusFilter === 'not-staying' ? status !== 'staying' : status === statusFilter);
+    const matchesGender = genderFilter === 'all' || customer.gender === genderFilter;
+    return matchesQuery && matchesStatus && matchesGender;
+  });
   const customers = [...matchingCustomers].sort((a, b) => {
     if (sortBy === 'name') return String(a.fullName || '').localeCompare(String(b.fullName || ''), 'vi');
     if (sortBy === 'bookings') return Number(b.bookingCount || 0) - Number(a.bookingCount || 0);
@@ -665,12 +673,23 @@ function renderCustomerList() {
   }).length;
   const stayingBookings = bookingCache.filter(booking => booking.status === 'checked_in');
   const stayingCustomers = new Set(stayingBookings.map(booking => String(booking.customerId)));
-  const servedBookings = bookingCache.filter(booking => booking.status === 'checked_out').length;
   document.querySelector('#customer-stat-total').textContent = customerCache.length.toLocaleString('vi-VN');
   document.querySelector('#customer-stat-new').textContent = newThisMonth.toLocaleString('vi-VN');
   document.querySelector('#customer-stat-staying').textContent = stayingCustomers.size.toLocaleString('vi-VN');
-  document.querySelector('#customer-stat-served').textContent = servedBookings.toLocaleString('vi-VN');
-
+  document.querySelector('#customer-stat-not-staying').textContent = Math.max(0, customerCache.length - stayingCustomers.size).toLocaleString('vi-VN');
+  const statusCounts = {
+    all: customerCache.length,
+    staying: stayingCustomers.size,
+    'not-staying': Math.max(0, customerCache.length - stayingCustomers.size)
+  };
+  document.querySelectorAll('[data-customer-status]').forEach(button => {
+    const status = button.dataset.customerStatus;
+    const countElement = button.querySelector('span');
+    if (countElement) countElement.textContent = statusCounts[status].toLocaleString('vi-VN');
+    const active = status === statusFilter;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
   const count = document.querySelector('#customer-count');
   if (count) count.textContent = `Hiển thị ${customers.length} / ${customerCache.length} khách hàng`;
   const pageCount = Math.max(1, Math.ceil(customers.length / customerPageSize));
@@ -689,19 +708,36 @@ function renderCustomerList() {
         const latestBooking = bookingCache
           .filter(booking => String(booking.customerId) === String(customer.id))
           .sort((a, b) => String(b.scheduledCheckInAt || '').localeCompare(String(a.scheduledCheckInAt || '')))[0];
-        const rowNumber = (customerPage - 1) * customerPageSize + index + 1;
-        return `<tr class="${String(customer.id) === String(selectedCustomerId) ? 'is-selected' : ''}" data-customer-id="${escapeHtml(customer.id)}" tabindex="0" aria-selected="${String(customer.id) === String(selectedCustomerId)}">
-          <td>${rowNumber}</td>
-          <td><strong>${escapeHtml(customer.fullName || '—')}</strong></td>
-          <td>${escapeHtml(customer.phone || '—')}</td>
-          <td>${escapeHtml(customer.identityNumber || '—')}</td>
-          <td>${escapeHtml(customer.email || '—')}</td>
-          <td>${Number(customer.bookingCount || 0)}</td>
-          <td>${latestBooking ? escapeHtml(formatBookingDate(latestBooking.scheduledCheckInAt)) : '—'}</td>
-          <td><span class="customer-status-badge ${status[1]}">${status[0]}</span></td>
-        </tr>`;
+        const initials = String(customer.fullName || '?').trim().split(/\s+/).slice(-2).map(name => name[0]).join('').toUpperCase().slice(0, 2) || 'KH';
+        const roomCode = latestBooking?.roomCode || latestBooking?.room_code || '—';
+        const selected = String(customer.id) === String(selectedCustomerId);
+        const customerStatus = status[1] === 'staying' ? ['Đang ở', 'staying'] : ['Chưa ở', 'none'];
+        return `<article class="customer-card ${selected ? 'is-selected' : ''}" data-customer-id="${escapeHtml(customer.id)}" tabindex="0" aria-selected="${selected}">
+          <div class="customer-card-header">
+            <div class="customer-avatar" aria-hidden="true">${escapeHtml(initials)}</div>
+            <div class="customer-card-details">
+              <div class="customer-card-meta-top">
+                <h4>${escapeHtml(customer.fullName || '—')}</h4>
+                <span class="customer-status-badge ${customerStatus[1]}"><i></i>${customerStatus[0]}</span>
+              </div>
+            </div>
+          </div>
+          <div class="customer-contact-list">
+            <div class="customer-contact-item"><span class="contact-icon" aria-hidden="true">☎</span><span>${escapeHtml(customer.phone || '—')}</span></div>
+            <div class="customer-contact-item"><span class="contact-icon" aria-hidden="true">▣</span><span>${escapeHtml(customer.identityNumber || '—')}</span></div>
+            <div class="customer-contact-item"><span class="contact-icon" aria-hidden="true">✉</span><span>${escapeHtml(customer.email || '—')}</span></div>
+          </div>
+          <div class="customer-card-meta customer-card-summary">
+            <span><i aria-hidden="true">▦</i> ${Number(customer.bookingCount || 0)} lần đặt</span>
+            <span><i aria-hidden="true">▰</i> ${escapeHtml(roomCode)}</span>
+          </div>
+          <div class="customer-card-actions">
+            <button type="button" class="customer-card-view" data-customer-id="${escapeHtml(customer.id)}"><span aria-hidden="true">◉</span> Chi tiết</button>
+            <button type="button" class="customer-card-edit secondary" data-customer-id="${escapeHtml(customer.id)}"><span aria-hidden="true">✎</span> Chỉnh sửa</button>
+          </div>
+        </article>`;
       }).join('')
-    : `<tr><td colspan="8" class="customer-table-empty">${customerCache.length ? 'Không tìm thấy khách hàng phù hợp.' : 'Chưa có khách hàng. Hãy thêm khách hàng để bắt đầu tạo đặt phòng.'}</td></tr>`;
+    : `<div class="customer-card-empty">${customerCache.length ? 'Không tìm thấy khách hàng phù hợp.' : 'Chưa có khách hàng. Hãy thêm khách hàng để bắt đầu tạo đặt phòng.'}</div>`;
   document.querySelector('#customer-page-summary').textContent = customers.length
     ? `Hiển thị ${(customerPage - 1) * customerPageSize + 1} - ${Math.min(customerPage * customerPageSize, customers.length)} trong ${customers.length} khách hàng`
     : 'Không có khách hàng';
@@ -733,7 +769,8 @@ function renderCustomerDetails() {
   const completedSpend = history
     .filter(booking => booking.status === 'checked_out')
     .reduce((sum, booking) => sum + (Number(booking.rentalTotal) || 0), 0);
-  panel.innerHTML = `<div class="customer-detail-heading"><span class="customer-avatar">${escapeHtml(initials)}</span><div><h3>${escapeHtml(customer.fullName || '—')}</h3><p>Mã khách hàng: KH${escapeHtml(String(customer.id).padStart(4, '0'))}</p></div></div>
+  panel.innerHTML = `<div class="customer-detail-dialog">
+    <div class="customer-detail-heading"><span class="customer-avatar">${escapeHtml(initials)}</span><div><h3>${escapeHtml(customer.fullName || '—')}</h3><p>Mã khách hàng: KH${escapeHtml(String(customer.id).padStart(4, '0'))}</p></div><button type="button" id="customer-detail-close" class="customer-modal-close" aria-label="Đóng chi tiết khách hàng">×</button></div>
     <dl class="customer-detail-fields">
       <div><dt>Điện thoại</dt><dd>${escapeHtml(customer.phone || 'Chưa cập nhật')}</dd></div>
       <div><dt>CCCD/Căn cước</dt><dd>${escapeHtml(customer.identityNumber || 'Chưa cập nhật')}</dd></div>
@@ -750,7 +787,8 @@ function renderCustomerDetails() {
           const status = labels[booking.status] || ['Không rõ', 'none'];
           return `<div class="customer-history-row"><span><strong>Phòng ${escapeHtml(booking.roomCode || '—')}</strong><small>${escapeHtml(formatBookingDateTime(booking.scheduledCheckInAt))}</small></span><span class="customer-status-badge ${status[1]}">${status[0]}</span></div>`;
         }).join('')
-      : '<p class="muted">Khách hàng chưa có lịch sử đặt phòng.</p>'}</div>`;
+      : '<p class="muted">Khách hàng chưa có lịch sử đặt phòng.</p>'}</div>
+    </div>`;
 }
 
 function updateBookingCustomerOptions() {
@@ -1019,22 +1057,45 @@ if (bookingForm && bookingFormCard) {
 const customerForm = document.querySelector('#customer-form');
 const customerFormCard = document.querySelector('#customer-form-card');
 if (customerForm && customerFormCard) {
-  const showCustomerForm = () => {
+  const customerFormTitle = document.querySelector('#customer-form-title');
+  const customerFormDescription = document.querySelector('#customer-form-description');
+  const customerSubmitButton = customerForm.querySelector('[type="submit"]');
+  const showCustomerForm = (customer = null) => {
+    editingCustomerId = customer?.id ?? null;
     customerForm.reset();
+    if (customer) {
+      for (const field of ['fullName', 'phone', 'identityNumber', 'email', 'dateOfBirth', 'address', 'notes']) {
+        customerForm.elements.namedItem(field).value = customer[field] || '';
+      }
+      const genderInput = customerForm.querySelector(`[name="gender"][value="${CSS.escape(customer.gender || '')}"]`);
+      if (genderInput) genderInput.checked = true;
+    }
     const birthDateInput = customerForm.querySelector('[name="dateOfBirth"]');
     const today = new Date();
     birthDateInput.max = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    customerFormTitle.textContent = customer ? 'Chỉnh sửa khách hàng' : 'Thêm khách hàng';
+    customerFormDescription.textContent = customer
+      ? 'Cập nhật thông tin hồ sơ khách hàng.'
+      : 'Nhập thông tin khách hàng mới vào hệ thống.';
+    customerSubmitButton.innerHTML = customer
+      ? '<span aria-hidden="true">✎</span> Lưu thay đổi'
+      : '<span aria-hidden="true">▣</span> Thêm khách hàng';
     document.querySelector('#customer-form-error').textContent = '';
     customerFormCard.classList.remove('hidden-form');
     document.body.classList.add('customer-modal-open');
     customerFormCard.focus();
     customerForm.querySelector('[name="fullName"]').focus();
   };
+  openCustomerEditForm = showCustomerForm;
   const hideCustomerForm = () => {
     customerForm.reset();
     document.querySelector('#customer-form-error').textContent = '';
     customerFormCard.classList.add('hidden-form');
     document.body.classList.remove('customer-modal-open');
+    editingCustomerId = null;
+    customerFormTitle.textContent = 'Thêm khách hàng';
+    customerFormDescription.textContent = 'Nhập thông tin khách hàng mới vào hệ thống.';
+    customerSubmitButton.innerHTML = '<span aria-hidden="true">▣</span> Thêm khách hàng';
     document.querySelector('#customer-form-toggle')?.focus();
   };
   document.querySelector('#customer-form-toggle')?.addEventListener('click', showCustomerForm);
@@ -1052,30 +1113,38 @@ if (customerForm && customerFormCard) {
     errorMessage.textContent = '';
     if (!customerForm.reportValidity()) return;
     const payload = Object.fromEntries(new FormData(customerForm).entries());
-    const submitButton = customerForm.querySelector('[type="submit"]');
-    submitButton.disabled = true;
+    const isEditing = editingCustomerId !== null;
+    customerSubmitButton.disabled = true;
     try {
-      const response = await fetch('/api/customers', {
-        method: 'POST',
+      const endpoint = isEditing ? `/api/customers/${encodeURIComponent(editingCustomerId)}` : '/api/customers';
+      const response = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Không thể thêm khách hàng.');
-      customerCache = [...customerCache, result.customer];
+      if (!response.ok) throw new Error(result.message || (isEditing ? 'Không thể cập nhật khách hàng.' : 'Không thể thêm khách hàng.'));
+      if (isEditing) {
+        customerCache = customerCache.map(customer => String(customer.id) === String(result.customer.id)
+          ? result.customer
+          : customer);
+      } else {
+        customerCache = [...customerCache, result.customer];
+        document.querySelector('#customer-search').value = '';
+        document.querySelector('#customer-status-filter').value = 'all';
+        document.querySelector('#customer-gender-filter').value = 'all';
+        document.querySelector('#customer-sort').value = 'recent';
+      }
       selectedCustomerId = result.customer.id;
       customerPage = 1;
-      document.querySelector('#customer-search').value = '';
-      document.querySelector('#customer-status-filter').value = 'all';
-      document.querySelector('#customer-sort').value = 'recent';
       document.dispatchEvent(new Event('dashboard-data-updated'));
       hideCustomerForm();
       renderCustomerList();
-      showRoomFeedback(result.message || 'Đã thêm khách hàng.');
+      showRoomFeedback(result.message || (isEditing ? 'Đã cập nhật khách hàng.' : 'Đã thêm khách hàng.'));
     } catch (error) {
-      errorMessage.textContent = error.message || 'Không thể thêm khách hàng.';
+      errorMessage.textContent = error.message || (isEditing ? 'Không thể cập nhật khách hàng.' : 'Không thể thêm khách hàng.');
     } finally {
-      submitButton.disabled = false;
+      customerSubmitButton.disabled = false;
     }
   });
 }
@@ -1085,6 +1154,18 @@ document.querySelector('#customer-search')?.addEventListener('input', () => {
   renderCustomerList();
 });
 document.querySelector('#customer-status-filter')?.addEventListener('change', () => {
+  customerPage = 1;
+  renderCustomerList();
+});
+document.querySelectorAll('[data-customer-status]').forEach(button => {
+  button.addEventListener('click', () => {
+    const statusFilter = document.querySelector('#customer-status-filter');
+    if (!statusFilter) return;
+    statusFilter.value = button.dataset.customerStatus;
+    statusFilter.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+});
+document.querySelector('#customer-gender-filter')?.addEventListener('change', () => {
   customerPage = 1;
   renderCustomerList();
 });
@@ -1106,18 +1187,47 @@ document.querySelector('#customer-page-next')?.addEventListener('click', () => {
   renderCustomerList();
 });
 document.querySelector('#customer-table-body')?.addEventListener('click', (event) => {
-  const row = event.target.closest('tr[data-customer-id]');
-  if (!row) return;
-  selectedCustomerId = row.dataset.customerId;
+  const actionButton = event.target.closest('button[data-customer-id]');
+  if (actionButton) {
+    event.stopPropagation();
+    const customer = customerCache.find(item => String(item.id) === String(actionButton.dataset.customerId));
+    if (!customer) return;
+    selectedCustomerId = customer.id;
+    if (actionButton.classList.contains('customer-card-view')) {
+      renderCustomerDetails();
+      const detailPanel = document.querySelector('#customer-detail-panel');
+      detailPanel.classList.remove('hidden-view');
+      detailPanel.querySelector('#customer-detail-close')?.focus();
+    } else if (actionButton.classList.contains('customer-card-edit')) {
+      openCustomerEditForm?.(customer);
+    }
+    return;
+  }
+  const card = event.target.closest('.customer-card[data-customer-id]');
+  if (!card) return;
+  selectedCustomerId = card.dataset.customerId;
   renderCustomerList();
 });
 document.querySelector('#customer-table-body')?.addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' && event.key !== ' ') return;
-  const row = event.target.closest('tr[data-customer-id]');
-  if (!row) return;
+  const card = event.target.closest('.customer-card[data-customer-id]');
+  if (!card) return;
+  if (event.target !== card) return;
   event.preventDefault();
-  selectedCustomerId = row.dataset.customerId;
+  selectedCustomerId = card.dataset.customerId;
   renderCustomerList();
+});
+document.querySelector('#customer-detail-panel')?.addEventListener('click', (event) => {
+  const panel = event.currentTarget;
+  if (event.target === panel || event.target.closest('#customer-detail-close')) {
+    panel.classList.add('hidden-view');
+  }
+});
+document.addEventListener('keydown', event => {
+  const detailPanel = document.querySelector('#customer-detail-panel');
+  if (event.key === 'Escape' && detailPanel && !detailPanel.classList.contains('hidden-view')) {
+    detailPanel.classList.add('hidden-view');
+  }
 });
 document.querySelector('#booking-search')?.addEventListener('input', renderBookingList);
 document.querySelector('#booking-from-date')?.addEventListener('change', renderBookingList);

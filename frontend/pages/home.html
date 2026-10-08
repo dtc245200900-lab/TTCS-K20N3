@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | Hotel Manager</title>
     <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/dashboard.css?v=20261008-customer-modal-v20" />
+    <link rel="stylesheet" href="/css/dashboard.css?v=20261008-customer-actions-v2" />
   </head>
   <body class="dashboard-page">
     <header class="topbar">
@@ -548,41 +548,65 @@
             <div>
               <p class="eyebrow">QUẢN LÝ KHÁCH HÀNG</p>
               <h2>Khách hàng</h2>
-              <p>Quản lý thông tin khách hàng, lịch sử đặt phòng và chăm sóc khách hàng.</p>
+              <p>Quản lý thông tin khách hàng, lịch sử đặt phòng và các thông tin liên quan.</p>
             </div>
-            <button type="button" class="primary-button room-view-action" id="customer-form-toggle">+ Thêm khách hàng</button>
           </header>
           <div class="customer-stats-grid" aria-label="Thống kê khách hàng">
-            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">♧</span><div><span>Tổng khách hàng</span><strong id="customer-stat-total">—</strong><small>Trong hệ thống</small></div></article>
-            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">♙</span><div><span>Khách mới</span><strong id="customer-stat-new">—</strong><small>Trong tháng này</small></div></article>
-            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">▣</span><div><span>Đang lưu trú</span><strong id="customer-stat-staying">—</strong><small>Hiện tại</small></div></article>
-            <article class="customer-stat-card"><span class="customer-stat-icon" aria-hidden="true">◷</span><div><span>Lượt đã phục vụ</span><strong id="customer-stat-served">—</strong><small>Lượt trả phòng hoàn tất</small></div></article>
+            <article class="customer-stat-card">
+              <span class="customer-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+              <div><span>Tổng khách hàng</span><strong id="customer-stat-total">—</strong><small>Trong hệ thống</small></div>
+            </article>
+            <article class="customer-stat-card">
+              <span class="customer-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 18V6m18 12V9M3 15h18M7 15v-5h11a3 3 0 0 1 3 3v2M3 10h4V7H3"></path></svg></span>
+              <div><span>Khách đang ở</span><strong id="customer-stat-staying">—</strong><small>Hiện đang lưu trú</small></div>
+            </article>
+            <article class="customer-stat-card">
+              <span class="customer-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a8 8 0 0 1 16 0v1z"></path></svg></span>
+              <div><span>Khách chưa ở</span><strong id="customer-stat-not-staying">—</strong><small>Chưa lưu trú hiện tại</small></div>
+            </article>
+            <article class="customer-stat-card">
+              <span class="customer-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"></circle><path d="M2 21v-1a7 7 0 0 1 14 0v1M19 8v6M16 11h6"></path></svg></span>
+              <div><span>Khách mới</span><strong id="customer-stat-new">—</strong><small>Trong tháng này</small></div>
+            </article>
           </div>
           <div class="customer-workspace">
             <article class="customer-directory-card">
-              <div class="customer-directory-heading">
-                <div><h3><span aria-hidden="true">♧</span> Danh sách khách hàng</h3><p id="customer-count" class="muted" aria-live="polite"></p></div>
-              </div>
               <div class="customer-toolbar">
-                <label class="booking-search" for="customer-search"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Tìm tên, số điện thoại, CCCD hoặc email..." autocomplete="off" /></label>
-                <select id="customer-status-filter" aria-label="Lọc theo trạng thái đặt phòng">
-                  <option value="all">Tất cả khách hàng</option>
-                  <option value="staying">Đang lưu trú</option>
-                  <option value="upcoming">Có đặt phòng</option>
-                  <option value="served">Đã trả phòng</option>
-                </select>
-                <select id="customer-sort" aria-label="Sắp xếp khách hàng">
-                  <option value="recent">Mới thêm trước</option>
-                  <option value="name">Tên A–Z</option>
-                  <option value="bookings">Đặt phòng nhiều nhất</option>
-                </select>
+                <label class="booking-search" for="customer-search"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Tìm kiếm theo tên, số điện thoại, CCCD, email..." autocomplete="off" /></label>
+                <div class="customer-status-filter-wrap">
+                  <span class="customer-filter-label">Trạng thái lưu trú</span>
+                  <div class="customer-status-tabs" role="group" aria-label="Lọc theo trạng thái lưu trú">
+                    <button type="button" class="active" data-customer-status="all" aria-pressed="true">Tất cả (<span id="customer-status-count-total">0</span>)</button>
+                    <button type="button" data-customer-status="staying" aria-pressed="false"><i></i> Đang ở (<span id="customer-status-count-staying">0</span>)</button>
+                    <button type="button" data-customer-status="not-staying" aria-pressed="false"><i></i> Chưa ở (<span id="customer-status-count-not-staying">0</span>)</button>
+                  </div>
+                  <select id="customer-status-filter" aria-label="Lọc theo trạng thái đặt phòng">
+                    <option value="all">Tất cả</option>
+                    <option value="staying">Đang ở</option>
+                    <option value="not-staying">Chưa ở</option>
+                  </select>
+                </div>
+                <label class="customer-filter-field customer-gender-filter" for="customer-gender-filter">
+                  <span>Giới tính</span>
+                  <select id="customer-gender-filter" aria-label="Lọc theo giới tính">
+                    <option value="all">Tất cả</option>
+                    <option value="female">Nữ</option>
+                    <option value="male">Nam</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </label>
+                <label class="customer-filter-field" for="customer-sort">
+                  <span>Sắp xếp</span>
+                  <select id="customer-sort" aria-label="Sắp xếp khách hàng">
+                    <option value="recent">Mới nhất</option>
+                    <option value="name">Tên A–Z</option>
+                    <option value="bookings">Nhiều lần đặt</option>
+                  </select>
+                </label>
+                <button type="button" class="primary-button customer-add-button" id="customer-form-toggle"><span aria-hidden="true">＋</span> Thêm khách hàng</button>
               </div>
-              <div class="customer-table-scroll">
-                <table class="customer-table">
-                  <thead><tr><th>#</th><th>Tên khách hàng</th><th>Số điện thoại</th><th>CCCD/Căn cước</th><th>Email</th><th>Số lần đặt</th><th>Lần đặt gần nhất</th><th>Trạng thái</th></tr></thead>
-                  <tbody id="customer-table-body"></tbody>
-                </table>
-              </div>
+              <p id="customer-count" class="customer-count muted" aria-live="polite"></p>
+              <div id="customer-table-body" class="customer-card-grid" aria-live="polite"></div>
               <div class="customer-pagination">
                 <span id="customer-page-summary" class="muted"></span>
                 <div class="customer-page-controls">
@@ -593,7 +617,7 @@
                 </div>
               </div>
             </article>
-            <aside id="customer-detail-panel" class="customer-detail-panel" aria-live="polite"></aside>
+            <aside id="customer-detail-panel" class="customer-detail-panel hidden-view" role="dialog" aria-modal="true" aria-label="Chi tiết khách hàng" aria-live="polite"></aside>
           </div>
           <article id="customer-form-card" class="management-form-card customer-modal hidden-form" role="dialog" aria-modal="true" aria-labelledby="customer-form-title" aria-describedby="customer-form-description" tabindex="-1">
             <div class="management-form-heading">
@@ -1374,7 +1398,7 @@
         </section>
       </main>
     </div>
-    <script src="/js/main.js?v=20261008-customer-modal-v19" defer></script>
+    <script src="/js/main.js?v=20261008-customer-actions-v1" defer></script>
     <script src="/js/dashboard.js?v=20261007-sakura-dashboard-v13" defer></script>
   </body>
 </html>

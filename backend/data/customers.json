@@ -16,5 +16,17 @@
     "email": "admin@hotel.local",
     "address": "ngày đo chpwo",
     "createdAt": "2026-10-07T22:45:00.471573"
+  },
+  {
+    "id": 3,
+    "fullName": "ầqf",
+    "phone": "14141414",
+    "identityNumber": "1441413556",
+    "email": "dtc245210005@ictu.edu.vn",
+    "address": "ầgrgsfafaaf",
+    "dateOfBirth": "2026-10-02",
+    "gender": "male",
+    "notes": "moiaff",
+    "createdAt": "2026-10-08T16:15:29.454365"
   }
 ]

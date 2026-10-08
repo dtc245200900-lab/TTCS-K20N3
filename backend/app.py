@@ -1190,6 +1190,116 @@ def create_customer_api():
     return jsonify(message="Đã thêm khách hàng.", customer=normalize_customer(customer)), 201
 
 
+@app.put("/api/customers/<int:customer_id>")
+def update_customer_api(customer_id):
+    denied = require_auth()
+    if denied:
+        return denied
+    data = request_data()
+    full_name = re.sub(r"\s+", " ", str(data.get("fullName", data.get("full_name", ""))).strip())
+    phone = re.sub(r"\s+", "", str(data.get("phone", "")).strip())
+    identity_number = str(data.get("identityNumber", data.get("identity_number", ""))).strip() or None
+    email = str(data.get("email", "")).strip() or None
+    address = re.sub(r"\s+", " ", str(data.get("address", "")).strip()) or None
+    date_of_birth = str(data.get("dateOfBirth", data.get("date_of_birth", ""))).strip() or None
+    gender = str(data.get("gender", "")).strip() or None
+    notes = str(data.get("notes", "")).strip()
+    if not full_name or len(full_name) > 150:
+        return jsonify(message="Vui lòng nhập họ tên khách hàng hợp lệ."), 400
+    if not re.fullmatch(r"[+0-9() -]{7,30}", phone):
+        return jsonify(message="Vui lòng nhập số điện thoại hợp lệ."), 400
+    if identity_number and len(identity_number) > 40:
+        return jsonify(message="Số CCCD/CMND không được vượt quá 40 ký tự."), 400
+    if email and (len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)):
+        return jsonify(message="Vui lòng nhập email hợp lệ."), 400
+    if address and len(address) > 255:
+        return jsonify(message="Địa chỉ không được vượt quá 255 ký tự."), 400
+    if date_of_birth:
+        try:
+            if datetime.strptime(date_of_birth, "%Y-%m-%d").date() > date.today():
+                raise ValueError
+        except ValueError:
+            return jsonify(message="Vui lòng nhập ngày sinh hợp lệ, không ở trong tương lai."), 400
+    if gender and gender not in {"female", "male", "other"}:
+        return jsonify(message="Vui lòng chọn giới tính hợp lệ."), 400
+    if len(notes) > 1000:
+        return jsonify(message="Ghi chú không được vượt quá 1000 ký tự."), 400
+
+    if db_available():
+        try:
+            existing = query(
+                "SELECT * FROM customers WHERE id = %s",
+                (customer_id,),
+                fetch=True,
+            )["rows"]
+            if not existing:
+                return jsonify(message="Không tìm thấy khách hàng."), 404
+            query(
+                """
+                UPDATE customers
+                SET full_name = %s, phone = %s, identity_number = %s, email = %s,
+                    address = %s, date_of_birth = %s, gender = %s, notes = %s
+                WHERE id = %s
+                """,
+                (full_name, phone, identity_number, email, address, date_of_birth, gender, notes or None, customer_id),
+            )
+            customer = query(
+                """
+                SELECT c.*, COUNT(b.id) AS booking_count
+                FROM customers c
+                LEFT JOIN bookings b ON b.customer_id = c.id
+                WHERE c.id = %s
+                GROUP BY c.id
+                """,
+                (customer_id,),
+                fetch=True,
+            )["rows"][0]
+            return jsonify(message="Đã cập nhật khách hàng.", customer=normalize_customer(customer, customer.get("booking_count", 0)))
+        except mysql.connector.IntegrityError:
+            return jsonify(message="Số điện thoại hoặc CCCD/CMND đã được sử dụng."), 409
+        except mysql.connector.Error as error:
+            return jsonify(message=str(error) or "Không thể cập nhật khách hàng."), 500
+
+    customers = read_json(CUSTOMERS_FILE, [])
+    customer = next((item for item in customers if str(item.get("id")) == str(customer_id)), None)
+    if not customer:
+        return jsonify(message="Không tìm thấy khách hàng."), 404
+    if any(
+        str(item.get("id")) != str(customer_id)
+        and (
+            str(item.get("phone", "")).strip() == phone
+            or (identity_number and str(item.get("identityNumber", item.get("identity_number", ""))).strip() == identity_number)
+        )
+        for item in customers
+    ):
+        return jsonify(message="Số điện thoại hoặc CCCD/CMND đã được sử dụng."), 409
+    values = {
+        "full_name": full_name,
+        "phone": phone,
+        "identity_number": identity_number or "",
+        "email": email or "",
+        "address": address or "",
+        "date_of_birth": date_of_birth or "",
+        "gender": gender or "",
+        "notes": notes,
+    }
+    aliases = {
+        "full_name": "fullName",
+        "identity_number": "identityNumber",
+        "date_of_birth": "dateOfBirth",
+    }
+    for key, value in values.items():
+        target = key if key in customer else aliases.get(key, key)
+        customer[target] = value
+    write_json(CUSTOMERS_FILE, customers)
+    bookings = read_json(BOOKINGS_FILE, [])
+    booking_count = sum(
+        str(booking.get("customer_id", booking.get("customerId"))) == str(customer_id)
+        for booking in bookings
+    )
+    return jsonify(message="Đã cập nhật khách hàng.", customer=normalize_customer(customer, booking_count))
+
+
 @app.get("/api/bookings")
 def list_bookings_api():
     denied = require_auth()

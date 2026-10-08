@@ -76,6 +76,63 @@ def test_customer_phone_must_be_unique(monkeypatch, tmp_path):
     assert "đã được sử dụng" in duplicate.get_json()["message"]
 
 
+def test_update_customer_persists_changes_and_preserves_booking_count(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    customer = client.post("/api/customers", json={
+        "fullName": "Nguyễn Văn An",
+        "phone": "0987654321",
+        "identityNumber": "001234567890",
+        "email": "an@example.com",
+    }).get_json()["customer"]
+    hotel_app.write_json(hotel_app.BOOKINGS_FILE, [{
+        "id": 10,
+        "customerId": customer["id"],
+    }])
+
+    response = client.put(f"/api/customers/{customer['id']}", json={
+        "fullName": "Nguyễn Văn An Updated",
+        "phone": "0901234567",
+        "identityNumber": "009876543210",
+        "email": "updated@example.com",
+        "address": "Hà Nội",
+        "dateOfBirth": "1995-05-20",
+        "gender": "female",
+        "notes": "Đã cập nhật",
+    })
+
+    assert response.status_code == 200
+    updated_customer = response.get_json()["customer"]
+    assert updated_customer["fullName"] == "Nguyễn Văn An Updated"
+    assert updated_customer["phone"] == "0901234567"
+    assert updated_customer["bookingCount"] == 1
+    assert updated_customer["notes"] == "Đã cập nhật"
+    assert client.get("/api/customers").get_json()["customers"][0] == updated_customer
+
+
+def test_update_customer_rejects_duplicate_phone_and_unknown_customer(monkeypatch, tmp_path):
+    client = authenticated_client(monkeypatch, tmp_path)
+    first = client.post("/api/customers", json={
+        "fullName": "Nguyễn Văn An",
+        "phone": "0987654321",
+    }).get_json()["customer"]
+    second = client.post("/api/customers", json={
+        "fullName": "Trần Thị Mai",
+        "phone": "0901234567",
+    }).get_json()["customer"]
+
+    duplicate = client.put(f"/api/customers/{second['id']}", json={
+        "fullName": "Trần Thị Mai",
+        "phone": first["phone"],
+    })
+    unknown = client.put("/api/customers/999", json={
+        "fullName": "Không tồn tại",
+        "phone": "0912345678",
+    })
+
+    assert duplicate.status_code == 409
+    assert unknown.status_code == 404
+
+
 def test_normalize_booking_includes_customer_and_guest_details():
     booking = hotel_app.normalize_booking({
         "id": 12,
