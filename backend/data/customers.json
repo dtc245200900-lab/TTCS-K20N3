@@ -40,5 +40,17 @@
     "gender": "male",
     "notes": "",
     "createdAt": "2026-10-08T21:26:01.729239"
+  },
+  {
+    "id": 5,
+    "fullName": "huy",
+    "phone": "0933424663",
+    "identityNumber": "09458384727",
+    "email": "dtc245200900@ictu.edu.vn",
+    "address": "đường trần nhân tông",
+    "dateOfBirth": "2005-06-09",
+    "gender": "male",
+    "notes": "",
+    "createdAt": "2026-10-09T13:28:36.580980"
   }
 ]

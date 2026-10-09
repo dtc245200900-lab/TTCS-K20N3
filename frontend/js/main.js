@@ -1123,6 +1123,7 @@ if (bookingForm && bookingFormCard) {
       updateBookingRoomOptions();
       await loadCustomers();
       document.dispatchEvent(new Event('rooms-updated'));
+      document.querySelector('.room-navigation [data-room-view="list"]')?.click();
       if (result.booking) showBookingSuccess(result.booking);
       else showRoomFeedback(result.message || 'Đặt phòng thành công.');
     } catch (error) {
@@ -1937,6 +1938,7 @@ if (rentRoomDialog && rentRoomForm) {
       renderRoomList();
       document.dispatchEvent(new Event('rooms-updated'));
       rentRoomDialog.close();
+      document.querySelector('.room-navigation [data-room-view="list"]')?.click();
       showRoomFeedback('Đặt phòng thành công!');
     } catch (error) {
       rentalError.textContent = error.message || 'Không thể cho thuê phòng.';
