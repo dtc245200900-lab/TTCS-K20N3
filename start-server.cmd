@@ -9,8 +9,8 @@ echo.
 
 powershell.exe -NoProfile -Command "$health = $null; try { $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3001/health' -TimeoutSec 2 } catch {}; if ($health.status -eq 'ok' -and $health.runtime -eq 'python') { exit 0 } elseif ($health.status -eq 'ok') { exit 2 } else { exit 1 }"
 if not errorlevel 1 (
-	echo Hotel management app is alreaunning at http://localhost:3001
-	exit /b 0dy r
+	echo Hotel management app is already running at http://localhost:3001
+	exit /b 0
 )
 if errorlevel 2 (
 	echo A server using the previous backend is already running on port 3001.

@@ -177,6 +177,24 @@ def test_rental_total_uses_fixed_daily_rate():
     assert calculate_rental_total(500000, 720) == 250000
 
 
+def test_current_year_income_summary_counts_checked_out_bookings_only():
+    bookings = [
+        {"status": "checked_out", "actual_check_out_at": "2026-01-10T12:00:00", "rental_total": 100000},
+        {"status": "checked_out", "actual_check_out_at": "2026-01-15T12:00:00", "rental_total": 250000},
+        {"status": "checked_out", "actual_check_out_at": "2025-12-31T12:00:00", "rental_total": 999999},
+        {"status": "checked_in", "actual_check_out_at": None, "rental_total": 999999},
+    ]
+
+    summary = hotel_app.current_year_income_summary(bookings, 2026)
+
+    assert summary["year"] == 2026
+    assert summary["months"][0]["month"] == 1
+    assert summary["months"][0]["total"] == 350000
+    assert summary["months"][1]["total"] == 0
+    assert summary["total"] == 350000
+    assert all(item["total"] == 0 for item in summary["months"][1:])
+
+
 def test_list_rooms_uses_latest_bookings_without_per_room_lookups(monkeypatch, tmp_path):
     monkeypatch.setattr(hotel_app, "db_available", lambda: False)
     monkeypatch.setattr(hotel_app, "ROOMS_FILE", tmp_path / "rooms.json")
