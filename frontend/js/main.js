@@ -2382,7 +2382,6 @@ if (roomForm) {
     add: document.querySelector('#room-add-view'),
     customers: document.querySelector('#customer-view'),
     types: document.querySelector('#room-types-view'),
-    income: document.querySelector('#income-view'),
     profile: document.querySelector('#profile-view'),
     password: document.querySelector('#password-view'),
     settings: document.querySelector('#settings-view')
@@ -2427,7 +2426,7 @@ if (roomForm) {
       if (button.dataset.roomView === viewName) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', customers: 'Khách hàng', types: 'Thể loại phòng', income: 'Thống kê thu nhập', profile: 'Thông tin cá nhân', password: 'Đổi mật khẩu', settings: 'Cài đặt chung' }[viewName];
+    document.querySelector('#page-title').textContent = { overview: 'Tổng quan', list: 'Phòng', booking: 'Đặt phòng', checkout: 'Trả phòng', add: 'Thông tin phòng', customers: 'Khách hàng', types: 'Thể loại phòng', profile: 'Thông tin cá nhân', password: 'Đổi mật khẩu', settings: 'Cài đặt chung' }[viewName];
     if (['booking', 'checkout', 'customers'].includes(viewName)) loadBookingList();
     if (viewName === 'booking' || viewName === 'customers') loadCustomers();
     if (viewName === 'booking') updateBookingRoomOptions();

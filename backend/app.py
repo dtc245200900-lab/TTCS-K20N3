@@ -498,45 +498,6 @@ def normalize_customer(customer, booking_count=0):
     }
 
 
-def current_year_income_summary(bookings, year=None):
-    target_year = int(year or datetime.now().year)
-    monthly_totals = {month: Decimal("0") for month in range(1, 13)}
-
-    for booking in bookings or []:
-        if not isinstance(booking, dict):
-            continue
-        if str(booking.get("status", "")).strip() != BOOKING_CHECKED_OUT_STATUS:
-            continue
-        actual_check_out = booking.get("actual_check_out_at") or booking.get("actualCheckOutAt")
-        if actual_check_out in (None, ""):
-            continue
-        checked_out_at = parse_datetime_value(actual_check_out)
-        if checked_out_at is None or checked_out_at.year != target_year:
-            continue
-        value = booking.get("rental_total")
-        if value is None:
-            value = booking.get("rentalTotal")
-        if value in (None, ""):
-            continue
-        try:
-            monthly_totals[checked_out_at.month] += Decimal(str(value))
-        except (InvalidOperation, TypeError, ValueError):
-            continue
-
-    months = []
-    annual_total = Decimal("0")
-    for month in range(1, 13):
-        total = monthly_totals[month].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        months.append({"month": month, "total": float(total)})
-        annual_total += total
-
-    return {
-        "year": target_year,
-        "months": months,
-        "total": float(annual_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-    }
-
-
 def apply_booking_lifecycle(booking, now=None):
     if not booking or booking.get("status") != BOOKING_PENDING_STATUS:
         return booking
@@ -1676,29 +1637,6 @@ def list_bookings_api():
     return jsonify(bookings=bookings)
 
 
-@app.get("/api/income-summary")
-def income_summary_api():
-    denied = require_auth()
-    if denied:
-        return denied
-    process_expired_rentals()
-    year_value = request.args.get("year") or datetime.now().year
-    try:
-        year = int(year_value)
-    except (TypeError, ValueError):
-        return jsonify(message="Năm không hợp lệ."), 400
-    if db_available():
-        rows = query(
-            "SELECT status, actual_check_out_at AS actual_check_out_at, rental_total FROM bookings WHERE status = %s AND actual_check_out_at IS NOT NULL",
-            (BOOKING_CHECKED_OUT_STATUS,),
-            fetch=True,
-        )["rows"]
-        summary = current_year_income_summary([normalize_booking(row) for row in rows], year)
-    else:
-        summary = current_year_income_summary(read_json(BOOKINGS_FILE, []), year)
-    return jsonify(summary)
-
-
 @app.post("/api/bookings")
 def create_booking_api():
     denied = require_auth()
@@ -2550,11 +2488,10 @@ def update_room_status(room_id):
             return jsonify(message="Thời gian vào và trả phòng phải chính xác đến phút."), 400
 
     connection = None
-    if db_available():
-        try:
-            connection = db_connection()
-        except mysql.connector.Error:
-            connection = None
+    try:
+        connection = db_connection()
+    except mysql.connector.Error:
+        pass
 
     if connection:
         cursor = None

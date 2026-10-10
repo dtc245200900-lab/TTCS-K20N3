@@ -132,20 +132,6 @@
                 <path d="M8 8h8M8 12h8M8 16h5" /></svg></span
             >Thể loại phòng
           </button>
-          <button type="button" class="room-nav-link" data-room-view="income" aria-label="Thống kê thu nhập" title="Thống kê thu nhập">
-            <span class="nav-icon" aria-hidden="true"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6" /></svg></span
-            >Thống kê thu nhập
-          </button>
         </nav>
         <div class="sidebar-scenery" aria-hidden="true"></div>
         <div class="sidebar-account">
@@ -470,63 +456,6 @@
               </div>
               <div class="calendar-legend"><span><i class="calendar-dot pending"></i>Đã đặt</span><span><i class="calendar-dot checked-in"></i>Đang ở</span><span><i class="calendar-dot checked-out"></i>Đã trả</span></div>
             </article>
-          </div>
-        </section>
-        <section id="income-view" class="room-view hidden-view" aria-label="Thống kê thu nhập">
-          <div class="income-report-board">
-            <div class="income-report-header">
-              <h2>Thống kê thu nhập</h2>
-            </div>
-
-            <div class="income-report-toolbar">
-              <div class="income-report-filter">
-                <span class="income-filter-icon" aria-hidden="true">◌</span>
-                <span class="income-filter-label">Bộ lọc:</span>
-                <label class="income-year-chip" for="income-year-select">
-                  <span>Chọn năm:</span>
-                  <select id="income-year-select" aria-label="Chọn năm thống kê thu nhập">
-                    <option value="2026">2026</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="income-report-actions">
-                <button type="button" class="income-nav-button" id="income-prev-year" aria-label="Năm trước">◀ Năm trước</button>
-                <button type="button" class="income-nav-button" id="income-next-year" aria-label="Năm sau">Năm sau ▶</button>
-                <button type="button" class="income-export-button">Xuất báo cáo</button>
-              </div>
-            </div>
-
-            <div class="income-report-summary">
-              <div class="income-total-row">
-                <span>Tổng thu nhập năm <strong id="income-year-label">2026</strong>:</span>
-                <strong id="income-year-total">0đ</strong>
-              </div>
-              <div class="income-peak-row">
-                <span>Tháng cao nhất:</span>
-                <strong id="income-peak-label">T7 (0đ)</strong>
-              </div>
-            </div>
-
-            <div class="income-report-table-wrap">
-              <table class="income-report-table">
-                <thead>
-                  <tr>
-                    <th>Tháng</th>
-                    <th>Tổng Thu Nhập (VNĐ)</th>
-                    <th>Trạng Thái</th>
-                  </tr>
-                </thead>
-                <tbody id="income-table-body"></tbody>
-                <tfoot>
-                  <tr>
-                    <th>TỔNG CỘNG 12 THÁNG</th>
-                    <th id="income-year-total-footer">0đ</th>
-                    <th></th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
           </div>
         </section>
         <section id="room-booking-view" class="room-view hidden-view">
