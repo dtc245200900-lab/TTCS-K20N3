@@ -1725,6 +1725,8 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
             ? { nextStatus: 'occupied', label: 'Đặt phòng' }
             : null
         : null;
+      const canBookRoom = !occupiedOnly && status.className === 'available'
+        && Number.isFinite(hourlyRate) && hourlyRate > 0;
       const readableStatus = status.className === 'occupied'
         ? 'Đang cho thuê'
         : status.className === 'available'
@@ -1747,8 +1749,9 @@ function renderRoomGrid(gridSelector, occupiedOnly = false) {
               <div class="room-time-item"><span>Giờ vào</span><strong>${escapeHtml(checkIn)}</strong></div>
               <div class="room-time-item"><span>Giờ ra</span><strong>${escapeHtml(checkOut)}</strong></div>
             </div>
-            <div class="room-meta${occupiedOnly ? ' checkout-room-meta' : ''}">
+            <div class="room-meta${occupiedOnly ? ' checkout-room-meta' : ''}${canBookRoom ? ' has-booking-action' : ''}">
               ${occupiedOnly ? '' : `<button type="button" class="edit-room-button" data-room-id="${escapeHtml(room.id)}" aria-label="Cập nhật phòng ${escapeHtml(roomCode)}"><span aria-hidden="true">ⓘ</span> Cập nhật</button>`}
+              ${canBookRoom ? `<button type="button" class="room-booking-button" data-book-room="${escapeHtml(room.id)}">Đặt phòng</button>` : ''}
               ${statusAction ? `<button type="button" class="room-status-toggle ${status.className}" data-room-id="${escapeHtml(room.id)}" data-next-status="${statusAction.nextStatus}">${statusAction.label}</button>` : ''}
               ${occupiedOnly ? '' : `<button type="button" class="delete-room-button" data-room-id="${escapeHtml(room.id)}" aria-label="Xóa phòng ${escapeHtml(roomCode)}"><span aria-hidden="true">▤</span> Xóa</button>`}
             </div>
@@ -2164,6 +2167,20 @@ if (roomTypeForm) {
 
 document.querySelectorAll('#room-grid, #checkout-room-grid').forEach(roomGrid => {
   roomGrid.addEventListener('click', async (event) => {
+    const bookRoomButton = event.target.closest('[data-book-room]');
+    if (bookRoomButton) {
+      const room = roomCache.find(item => String(item.id) === bookRoomButton.dataset.bookRoom);
+      if (!room || roomStatusInfo(room.status).className !== 'available') return;
+      document.querySelector('.room-navigation [data-room-view="booking"]')?.click();
+      const bookingRoomSelect = document.querySelector('#booking-room');
+      if (bookingRoomSelect && [...bookingRoomSelect.options].some(option => option.value === String(room.id))) {
+        bookingRoomSelect.value = String(room.id);
+        bookingRoomSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      document.querySelector('#booking-form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
     const bookingDetailButton = event.target.closest('[data-checkout-detail-booking]');
     if (bookingDetailButton) {
       selectedBookingId = bookingDetailButton.dataset.checkoutDetailBooking;

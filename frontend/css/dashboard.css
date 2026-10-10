@@ -874,10 +874,13 @@
 .dashboard-page .room-time-item strong { font-size: 12px; }
 .dashboard-page .room-meta { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; margin-top: 10px; }
 .dashboard-page #room-list-view.booking-view .room-meta,
+.dashboard-page #room-list-view .room-meta.has-booking-action,
 .dashboard-page #checkout-room-grid .room-meta { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .dashboard-page .room-meta button { min-width: 0; min-height: 31px; padding: 5px 6px; border-radius: 5px; font-size: 11px; line-height: 1.1; white-space: nowrap; }
 .dashboard-page .edit-room-button { border-color: #d9487a; color: #c22e62; background: #fff; }
 .dashboard-page .edit-room-button:hover:not(:disabled) { color: #fff; background: #c22e62; }
+.dashboard-page .room-booking-button { border-color: #347650; color: #fff; background: #347650; }
+.dashboard-page .room-booking-button:hover:not(:disabled) { border-color: #285e3f; background: #285e3f; }
 .dashboard-page .room-status-toggle.available { color: #fff; background: #347650; }
 .dashboard-page .room-status-toggle.occupied { color: #fff; background: #a53e36; }
 .dashboard-page .delete-room-button { border-color: #dc817b; color: #bd433d; }

@@ -57,15 +57,6 @@
     "status": "Phòng trống"
   },
   {
-    "id": 9,
-    "roomCode": "P109",
-    "shortDescription": "wow",
-    "imagePath": "/uploads/1791126558818-OIP_3.jpg",
-    "roomType": "mới",
-    "nightlyRate": 2700000.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 8,
     "roomCode": "P108",
     "shortDescription": "bá cháy",
