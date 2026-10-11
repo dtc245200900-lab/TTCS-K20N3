@@ -75,15 +75,6 @@
     "status": "Phòng trống"
   },
   {
-    "id": 6,
-    "roomCode": "P106",
-    "shortDescription": "xịn xò",
-    "imagePath": "/uploads/1791126380571-OIP_4.jpg",
-    "roomType": "mới",
-    "nightlyRate": 2100999.0,
-    "status": "Phòng trống"
-  },
-  {
     "id": 5,
     "roomCode": "P105",
     "shortDescription": "Giá rẻ",
