@@ -122,7 +122,10 @@
     const yearLabel = document.querySelector('#income-year-label');
     const totalCell = document.querySelector('#income-year-total');
     const totalFooterCell = document.querySelector('#income-year-total-footer');
-    const peakCell = document.querySelector('#income-peak-label');
+    const roomTotalCell = document.querySelector('#income-room-total');
+    const roomTotalFooterCell = document.querySelector('#income-room-total-footer');
+    const serviceTotalCell = document.querySelector('#income-service-total');
+    const bookingCountCell = document.querySelector('#income-booking-count');
     const yearSelect = document.querySelector('#income-year-select');
     if (!body) return;
 
@@ -147,24 +150,49 @@
     }
     const totals = getMonthlyIncomeForYear(selectedYear);
     const totalYear = totals.reduce((sum, amount) => sum + amount, 0);
-    const currentMonth = new Date().getMonth();
-    const monthIndexWithMax = totals.reduce((best, amount, index, arr) => amount > arr[best] ? index : best, 0);
-    const peakMonth = totals[monthIndexWithMax] > 0 ? 'T' + (monthIndexWithMax + 1) + ' (' + Number(totals[monthIndexWithMax]).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ)' : 'T' + (monthIndexWithMax + 1) + ' (0đ)';
+    const previousYearTotals = getMonthlyIncomeForYear(selectedYear - 1);
+    const completedBookings = bookingCache.filter(booking => {
+      if (booking.status !== 'checked_out' || !booking.actualCheckOutAt) return false;
+      const actualDate = new Date(booking.actualCheckOutAt);
+      return Number.isFinite(actualDate.getTime()) && actualDate.getFullYear() === selectedYear;
+    }).length;
+    const formatCurrency = amount => Number(amount).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ';
 
     body.innerHTML = totals.map((amount, index) => {
-      const monthLabel = 'Tháng ' + (index + 1);
-      const statusValue = index > currentMonth && selectedYear === currentYear ? 'pending' : (amount > 0 ? 'complete' : 'empty');
-      const statusLabel = index > currentMonth && selectedYear === currentYear ? 'Chưa phát sinh' : (amount > 0 ? 'Đã hoàn tất' : 'Không có thu nhập');
-      return '<tr><td>' + monthLabel + '</td><td>' + Number(amount).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ</td><td><span class="income-status ' + statusValue + '">' + statusLabel + '</span></td></tr>';
+      const previousAmount = previousYearTotals[index];
+      const change = previousAmount > 0
+        ? Math.round((amount - previousAmount) / previousAmount * 100)
+        : amount > 0 ? null : 0;
+      const changeClass = change === null || change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
+      const changeLabel = change === null ? 'Mới' : change > 0 ? '↑ ' + change + '%' : change < 0 ? '↓ ' + Math.abs(change) + '%' : '—';
+      return '<tr><td>Tháng ' + (index + 1) + '</td><td>' + formatCurrency(amount) +
+        '</td><td>0đ</td><td>' + formatCurrency(amount) +
+        '</td><td><span class="income-change ' + changeClass + '">' + changeLabel + '</span></td></tr>';
     }).join('');
 
     if (yearLabel) yearLabel.textContent = String(selectedYear);
-    if (totalCell) totalCell.textContent = Number(totalYear).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ';
-    if (totalFooterCell) totalFooterCell.textContent = Number(totalYear).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ';
-    if (peakCell) peakCell.textContent = peakMonth;
+    if (totalCell) totalCell.textContent = formatCurrency(totalYear);
+    if (totalFooterCell) totalFooterCell.textContent = formatCurrency(totalYear);
+    if (roomTotalCell) roomTotalCell.textContent = formatCurrency(totalYear);
+    if (roomTotalFooterCell) roomTotalFooterCell.textContent = formatCurrency(totalYear);
+    if (serviceTotalCell) serviceTotalCell.textContent = '0đ';
+    if (bookingCountCell) bookingCountCell.textContent = String(completedBookings);
+
+    const chart = document.querySelector('#income-monthly-chart');
+    if (chart) {
+      const maxAmount = Math.max(...totals, 1);
+      chart.innerHTML = totals.map((amount, index) => {
+        const barHeight = amount > 0 ? Math.max(1, amount / maxAmount * 100) : 0;
+        return '<div class="income-chart-month" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
+          '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i>' +
+          '<i class="service-revenue" style="--bar-height:0%"></i></div>' +
+          '<span>Th' + (index + 1) + '</span></div>';
+      }).join('');
+      chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear) + '. Chưa có dữ liệu doanh thu dịch vụ.');
+    }
 
     const table = document.querySelector('#income-view .income-report-table');
-    if (table) table.setAttribute('aria-label', 'Thống kê thu nhập năm ' + selectedYear + ': ' + Number(totalYear).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' đồng');
+    if (table) table.setAttribute('aria-label', 'Thống kê thu nhập năm ' + selectedYear + ': ' + formatCurrency(totalYear));
   }
 
   document.querySelector('#income-prev-year')?.addEventListener('click', () => {
