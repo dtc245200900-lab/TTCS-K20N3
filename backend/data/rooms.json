@@ -100,5 +100,77 @@
     "roomType": "đơn",
     "nightlyRate": 1500000.0,
     "status": "Phòng trống"
+  },
+  {
+    "id": 17,
+    "roomCode": "P301",
+    "shortDescription": "Phòng đơn mẫu tầng 3 - gần thang máy",
+    "imagePath": "",
+    "roomType": "Đơn",
+    "hourlyRate": 40000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 18,
+    "roomCode": "P302",
+    "shortDescription": "Phòng đôi mẫu tầng 3 - hướng vườn",
+    "imagePath": "",
+    "roomType": "Đôi",
+    "hourlyRate": 70000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 19,
+    "roomCode": "P303",
+    "shortDescription": "Phòng VIP mẫu tầng 3 - ban công",
+    "imagePath": "",
+    "roomType": "VIP",
+    "hourlyRate": 500000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 20,
+    "roomCode": "P304",
+    "shortDescription": "Phòng đơn mẫu tầng 3 - cửa sổ lớn",
+    "imagePath": "",
+    "roomType": "Đơn",
+    "hourlyRate": 40000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 21,
+    "roomCode": "P305",
+    "shortDescription": "Phòng đôi mẫu tầng 3 - yên tĩnh",
+    "imagePath": "",
+    "roomType": "Đôi",
+    "hourlyRate": 70000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 22,
+    "roomCode": "P306",
+    "shortDescription": "Phòng VIP mẫu tầng 4 - góc riêng",
+    "imagePath": "",
+    "roomType": "VIP",
+    "hourlyRate": 500000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 23,
+    "roomCode": "P307",
+    "shortDescription": "Phòng đơn mẫu tầng 4 - cuối hành lang",
+    "imagePath": "",
+    "roomType": "Đơn",
+    "hourlyRate": 40000,
+    "status": "Phòng trống"
+  },
+  {
+    "id": 24,
+    "roomCode": "P308",
+    "shortDescription": "Phòng đôi mẫu tầng 4 - gần thang máy",
+    "imagePath": "",
+    "roomType": "Đôi",
+    "hourlyRate": 70000,
+    "status": "Phòng trống"
   }
 ]
