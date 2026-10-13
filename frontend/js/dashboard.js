@@ -371,4 +371,140 @@
       openRoomList();
     });
   }
+  const exportPdfButton = document.querySelector('#income-export-pdf');
+
+
+if (exportPdfButton) {
+    exportPdfButton.addEventListener('click', () => {
+        const year = document.querySelector('#income-year-select')?.value || '2026';
+        const report = document.querySelector('#income-view');
+
+        if (!report) {
+            alert('Không tìm thấy báo cáo thu nhập!');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+
+        if (!printWindow) {
+            alert('Vui lòng cho phép mở cửa sổ để xuất PDF!');
+            return;
+        }
+
+        const styles = `
+    <link rel="stylesheet" href="/css/dashboard.css">
+`;
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <base href="${document.baseURI}">
+                <title>Thong_ke_thu_nhap_${year}</title>
+                ${styles}
+                
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+#income-monthly-chart {
+    display: flex !important;
+    align-items: flex-end !important;
+    min-height: 200px !important;
+}
+
+.income-chart-month {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    flex: 1 !important;
+}
+
+.income-chart-bars {
+    display: flex !important;
+    align-items: flex-end !important;
+    height: 180px !important;
+}
+
+.income-chart-bars .room-revenue {
+    height: var(--bar-height, 0%) !important;
+    background: #df3476 !important;
+    min-width: 12px !important;
+}
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 10px;
+        background: white !important;
+        font-family: Arial, sans-serif;
+    }
+
+    #income-view {
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    #income-view svg {
+        width: 20px !important;
+        height: 20px !important;
+        max-width: 20px !important;
+        max-height: 20px !important;
+    }
+
+    #income-view .income-report-actions,
+    #income-export-pdf {
+        display: none !important;
+    }
+
+    #income-view table {
+        width: 100% !important;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    #income-view canvas {
+        max-width: 100% !important;
+    }
+
+    .income-report-summary,
+    .income-summary-card,
+    table,
+    tr {
+        break-inside: avoid;
+    }
+</style>
+
+</head>
+<body class="dashboard-page">
+    ${report.outerHTML.replace(/(<select[^>]*id="income-year-select"[^>]*>)[\s\S]*?(<\/select>)/, '$1<option selected value="' + year + '">' + year + '</option>$2')}
+</body>
+</html>
+`);
+
+printWindow.document.close();
+
+printWindow.onload = async () => {
+    await printWindow.document.fonts.ready;
+
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 1000);
+};
+});
+}
 })();
