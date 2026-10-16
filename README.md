@@ -39,7 +39,7 @@ Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai; da them luon
 
 ## Database
 
-Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, room_types, reservations va payments. Gia mac dinh theo gio cua the loai phong duoc dung cho phong tao moi; gia theo gio cua phong da ton tai van duoc quan ly rieng trong cap nhat phong. Thoi gian le duoi mot gio duoc lam tron len mot gio khi tinh tien. Cac cot gia theo ngay cu duoc giu lai de tuong thich du lieu, khong tu dong chuyen gia/ngay thanh gia/gio; can nhap gia theo gio cho cac the loai cu truoc khi tiep tuc cho thue/dat phong. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
+Chay `database/databasehotel.sql` tren MySQL 8 de tao database va cac bang roles, users, guests, rooms, room_types, reservations va payments. Gia mac dinh theo gio cua the loai phong duoc dung cho phong tao moi; gia theo gio cua phong da ton tai van duoc quan ly rieng trong cap nhat phong. Dat phong duoi 24 gio tinh theo gio, phan le duoi mot gio lam tron len; tu 24 gio tro len hien thi va tinh theo ngay (24 gio) cong voi so gio le, moi gio le duoc lam tron len. Gia mot ngay bang 24 lan gia theo gio. Cac cot gia theo ngay cu duoc giu lai de tuong thich du lieu, khong tu dong chuyen gia/ngay thanh gia/gio; can nhap gia theo gio cho cac the loai cu truoc khi tiep tuc cho thue/dat phong. Ung dung hien tai van luu tai khoan trong `backend/data/users.json`; schema SQL la nen tang rieng, chua duoc noi vao API.
 
 ## API
 
