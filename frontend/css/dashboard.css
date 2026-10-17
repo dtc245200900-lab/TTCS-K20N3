@@ -2971,3 +2971,147 @@
     body.dashboard-page #income-view .income-report-actions { display: none; }
     body.dashboard-page { background: #fff; }
 }
+
+.dashboard-page .income-export-dialog {
+    width: min(950px, calc(100vw - 32px));
+    max-width: none;
+    max-height: min(90vh, 820px);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #eadde3;
+    border-radius: 12px;
+    color: #493242;
+    background: #fff;
+    box-shadow: 0 22px 70px rgba(54, 29, 43, .3);
+    --income-export-accent: #d93670;
+}
+.dashboard-page .income-export-dialog::backdrop { background: rgba(37, 24, 34, .48); backdrop-filter: blur(3px); }
+.dashboard-page .income-export-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: min(90vh, 820px); }
+.dashboard-page .income-export-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 20px 12px; border-bottom: 1px solid #f0e5e9; background: linear-gradient(100deg, #fffafd 55%, #fdf0f4); }
+.dashboard-page .income-export-modal-header > div { display: flex; align-items: center; gap: 12px; }
+.dashboard-page .income-export-document-icon { display: grid; place-items: center; width: 32px; height: 38px; color: var(--income-export-accent); font-size: 28px; }
+.dashboard-page .income-export-modal-header h2 { margin: 0; color: #651b39; font: 700 20px/1.2 var(--font-display); }
+.dashboard-page .income-export-modal-header p { margin: 3px 0 0; color: #746774; font-size: 10px; }
+.dashboard-page .income-export-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; color: #8c6577; background: #f9edf1; font-size: 22px; line-height: 1; cursor: pointer; }
+.dashboard-page .income-export-modal-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .96fr); gap: 14px; min-height: 0; padding: 12px 18px; overflow: auto; }
+.dashboard-page .income-export-settings { display: grid; align-content: start; gap: 0; min-width: 0; }
+.dashboard-page .income-export-section { padding: 3px 0 10px; border-bottom: 1px solid #f1e8ec; }
+.dashboard-page .income-export-section + .income-export-section { padding-top: 9px; }
+.dashboard-page .income-export-section > h3,
+.dashboard-page .income-export-preview-column > h3 { margin: 0 0 7px; color: #60384c; font-size: 11px; font-weight: 800; }
+.dashboard-page .income-export-section > h3 > span { color: var(--income-export-accent); }
+.dashboard-page .income-export-period-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dashboard-page .income-export-period-options,
+.dashboard-page .income-export-themes { display: grid; gap: 3px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.dashboard-page .income-export-period-options label,
+.dashboard-page .income-export-checkboxes label { display: flex; align-items: center; gap: 7px; min-height: 19px; margin: 0; color: #4f4650; font-size: 10px; font-weight: 500; cursor: pointer; }
+.dashboard-page .income-export-period-options label:has(input:checked) { color: var(--income-export-accent); font-weight: 700; }
+.dashboard-page .income-export-dialog input[type="radio"],
+.dashboard-page .income-export-dialog input[type="checkbox"] { width: 14px; height: 14px; flex: 0 0 14px; margin: 0; accent-color: var(--income-export-accent); }
+.dashboard-page .income-export-date-fields { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.dashboard-page .income-export-date-fields label,
+.dashboard-page .income-export-title-field { display: grid; gap: 3px; margin: 0; color: #6c5e6a; font-size: 9px; font-weight: 600; }
+.dashboard-page .income-export-date-fields select,
+.dashboard-page .income-export-date-fields input,
+.dashboard-page .income-export-title-field input { width: 100%; min-width: 0; min-height: 29px; padding: 5px 8px; border: 1px solid #eadde3; border-radius: 5px; color: #473644; background: #fff; font-size: 10px; }
+.dashboard-page .income-export-checkboxes { display: grid; gap: 2px; }
+.dashboard-page .income-export-brand-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center; margin-top: 9px; }
+.dashboard-page .income-export-logo-control { display: grid; justify-items: start; gap: 4px; margin: 0; color: #6c5e6a; font-size: 9px; font-weight: 600; }
+.dashboard-page .income-export-logo-control input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.dashboard-page .income-export-upload-button { display: inline-flex; align-items: center; min-height: 27px; padding: 5px 9px; border: 1px solid #eadde3; border-radius: 5px; color: #554250; background: #fff; font-size: 9px; cursor: pointer; }
+.dashboard-page .income-export-logo-control small { color: #8c7e88; font-size: 8px; font-weight: 400; }
+.dashboard-page .income-export-themes { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.dashboard-page .income-export-themes legend { width: 100%; margin-bottom: 3px; color: #6c5e6a; font-size: 9px; font-weight: 600; }
+.dashboard-page .income-export-themes label { display: grid; place-items: center; width: 18px; height: 18px; margin: 0; cursor: pointer; }
+.dashboard-page .income-export-themes input { position: absolute; width: 1px !important; height: 1px !important; opacity: 0; }
+.dashboard-page .income-export-themes label > span { width: 12px; height: 12px; border-radius: 50%; background: var(--theme-color); }
+.dashboard-page .income-export-themes input:checked + span { outline: 2px solid var(--theme-color); outline-offset: 2px; }
+.dashboard-page .income-export-error { margin: 7px 0 0; color: #b4233d; font-size: 10px; }
+.dashboard-page .income-export-preview-column { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0; min-width: 0; min-height: 0; }
+.dashboard-page .income-export-preview-column > h3 { color: #754052; }
+.dashboard-page .income-export-preview-viewport { display: grid; justify-items: center; min-height: 0; padding: 8px; overflow: auto; border: 1px solid #eee6e9; border-radius: 6px; background: #f7f4f5; }
+.dashboard-page .income-export-preview-paper {
+    width: 100%;
+    min-height: 100%;
+    padding: 11px;
+    color: #493242;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(54, 29, 43, .12);
+    --income-export-accent: #d93670;
+}
+.dashboard-page .income-export-preview-brand { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 0 0 5px; color: var(--income-export-accent); font-size: 9px; font-weight: 800; }
+.dashboard-page .income-export-preview-brand img { max-width: 38px; max-height: 25px; object-fit: contain; }
+.dashboard-page .income-export-preview-paper > h2 { margin: 2px 0; color: var(--income-export-accent); font: 700 13px/1.2 var(--font-display); text-align: center; }
+.dashboard-page .income-export-preview-period { margin: 0 0 7px; color: #776c76; font-size: 7px; text-align: center; }
+.dashboard-page .income-export-preview-paper .income-report-board { padding: 0; border: 0; background: #fff; box-shadow: none; }
+.dashboard-page .income-export-preview-paper .income-report-header,
+.dashboard-page .income-export-preview-paper .income-report-toolbar,
+.dashboard-page .income-export-preview-paper .income-report-actions { display: none !important; }
+.dashboard-page .income-export-preview-paper .income-report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin: 0 0 6px; }
+.dashboard-page .income-export-preview-paper .income-summary-card { display: grid; gap: 3px; min-width: 0; min-height: 42px; padding: 4px; border-color: #f2e7eb; border-radius: 3px; box-shadow: none; }
+.dashboard-page .income-export-preview-paper .income-summary-icon { display: none; }
+.dashboard-page .income-export-preview-paper .income-summary-card h3 { font-size: 6px; }
+.dashboard-page .income-export-preview-paper .income-summary-card strong { color: var(--income-export-accent); font-size: 8px; }
+.dashboard-page .income-export-preview-paper .income-summary-card small { font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-report-panels,
+.dashboard-page .income-export-preview-paper .income-report-lower-panels { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 5px; margin: 0 0 5px; }
+.dashboard-page .income-export-preview-paper .income-panel { min-width: 0; padding: 5px; border-radius: 3px; box-shadow: none; }
+.dashboard-page .income-export-preview-paper .income-panel-heading { min-height: 0; margin-bottom: 4px; }
+.dashboard-page .income-export-preview-paper .income-panel-heading h3 { font-size: 7px; }
+.dashboard-page .income-export-preview-paper .income-chart-legend { gap: 3px; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-chart-axis { font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-chart-month { height: 70px; }
+.dashboard-page .income-export-preview-paper .income-chart-bars { height: 56px; }
+.dashboard-page .income-export-preview-paper .income-chart-month > span { padding-top: 2px; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-chart-bars i { min-width: 2px; }
+.dashboard-page .income-export-preview-paper .income-chart-bars .room-revenue { background: var(--income-export-accent); }
+.dashboard-page .income-export-preview-paper .income-chart-total-line polyline { stroke: var(--income-export-accent); }
+.dashboard-page .income-export-preview-paper .income-chart-total-line circle { fill: var(--income-export-accent); }
+.dashboard-page .income-export-preview-paper .income-composition-content { min-height: 75px; gap: 4px; }
+.dashboard-page .income-export-preview-paper .income-composition-chart { width: 62px; height: 62px; flex-basis: 62px; }
+.dashboard-page .income-export-preview-paper .income-composition-chart > div { width: 42px; height: 42px; }
+.dashboard-page .income-export-preview-paper .income-composition-chart strong { font-size: 9px; }
+.dashboard-page .income-export-preview-paper .income-composition-chart span,
+.dashboard-page .income-export-preview-paper .income-composition-legend li { font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-composition-legend { gap: 4px; }
+.dashboard-page .income-export-preview-paper .income-composition-legend strong { font-size: 6px; }
+.dashboard-page .income-export-preview-paper .income-top-rooms-panel,
+.dashboard-page .income-export-preview-paper .income-activity-panel { display: none; }
+.dashboard-page .income-export-preview-paper [hidden] { display: none !important; }
+.dashboard-page .income-export-preview-paper .income-top-rooms-panel:not([hidden]),
+.dashboard-page .income-export-preview-paper .income-activity-panel:not([hidden]) { display: block; }
+.dashboard-page .income-export-preview-paper .income-report-side-panels:not([hidden]) { display: grid; }
+.dashboard-page .income-export-preview-paper .income-top-rooms li { grid-template-columns: 14px 32px minmax(0, 1fr); gap: 3px; }
+.dashboard-page .income-export-preview-paper .income-top-rooms img { width: 32px; height: 24px; }
+.dashboard-page .income-export-preview-paper .income-room-info strong,
+.dashboard-page .income-export-preview-paper .income-room-info small { font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-room-revenue { grid-column: 3; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-report-table { min-width: 0; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-report-table thead th,
+.dashboard-page .income-export-preview-paper .income-report-table tbody td,
+.dashboard-page .income-export-preview-paper .income-report-table tfoot th { padding: 3px 2px; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-change { min-width: 0; padding: 0; font-size: 5px; }
+.dashboard-page .income-export-preview-paper .income-data-note { margin-top: 3px; font-size: 5px; }
+.dashboard-page .income-export-preview-footer { display: flex; justify-content: space-between; margin-top: 7px; padding-top: 4px; border-top: 1px solid #eee6e9; color: #867b84; font-size: 6px; }
+.dashboard-page .income-export-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; border-top: 1px solid #f0e5e9; background: #fff; }
+.dashboard-page .income-export-modal-footer > div { display: flex; gap: 8px; }
+.dashboard-page .income-export-modal-footer button { min-height: 33px; padding: 7px 12px; border: 1px solid #eadde3; border-radius: 5px; color: #65495a; background: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
+.dashboard-page .income-export-modal-footer .income-export-preview-button { color: var(--income-export-accent); }
+.dashboard-page .income-export-modal-footer .income-export-confirm { border-color: var(--income-export-accent); color: #fff; background: var(--income-export-accent); }
+.dashboard-page .income-export-modal-footer button:hover { filter: brightness(.97); }
+@media (max-width: 700px) {
+    .dashboard-page .income-export-dialog { width: min(560px, calc(100vw - 16px)); max-height: 94vh; }
+    .dashboard-page .income-export-modal { max-height: 94vh; }
+    .dashboard-page .income-export-modal-body { grid-template-columns: 1fr; gap: 12px; padding: 10px 12px; }
+    .dashboard-page .income-export-preview-viewport { max-height: 390px; }
+    .dashboard-page .income-export-preview-paper { min-height: 410px; }
+    .dashboard-page .income-export-modal-footer { padding: 9px 12px; }
+    .dashboard-page .income-export-modal-footer button { padding-inline: 8px; font-size: 9px; }
+}
+@media (max-width: 390px) {
+    .dashboard-page .income-export-period-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+    .dashboard-page .income-export-modal-header { padding-inline: 12px; }
+    .dashboard-page .income-export-modal-header h2 { font-size: 17px; }
+    .dashboard-page .income-export-modal-footer { align-items: stretch; flex-direction: column; }
+    .dashboard-page .income-export-modal-footer > div { justify-content: flex-end; }
+}

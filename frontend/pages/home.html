@@ -618,6 +618,98 @@
             </div>
           </div>
         </section>
+        <dialog id="income-export-dialog" class="income-export-dialog" aria-labelledby="income-export-title">
+          <div class="income-export-modal">
+            <header class="income-export-modal-header">
+              <div>
+                <span class="income-export-document-icon" aria-hidden="true">▤</span>
+                <div>
+                  <h2 id="income-export-title">Xuất báo cáo PDF</h2>
+                  <p>Tùy chọn nội dung và định dạng báo cáo thống kê thu nhập</p>
+                </div>
+              </div>
+              <button type="button" class="income-export-close" data-income-export-close aria-label="Đóng">×</button>
+            </header>
+            <div class="income-export-modal-body">
+              <div class="income-export-settings">
+                <section class="income-export-section">
+                  <h3><span>1.</span> Chọn khoảng thời gian</h3>
+                  <div class="income-export-period-grid">
+                    <fieldset class="income-export-period-options">
+                      <legend class="visually-hidden">Khoảng thời gian báo cáo</legend>
+                      <label><input type="radio" name="income-export-period" value="today"><span>Hôm nay</span></label>
+                      <label><input type="radio" name="income-export-period" value="7days"><span>7 ngày gần đây</span></label>
+                      <label><input type="radio" name="income-export-period" value="30days"><span>30 ngày gần đây</span></label>
+                      <label><input type="radio" name="income-export-period" value="month"><span>Tháng này</span></label>
+                      <label><input type="radio" name="income-export-period" value="quarter"><span>Quý này</span></label>
+                      <label><input type="radio" name="income-export-period" value="year" checked><span>Năm này</span></label>
+                      <label><input type="radio" name="income-export-period" value="custom"><span>Tùy chọn khác</span></label>
+                    </fieldset>
+                    <div class="income-export-date-fields">
+                      <label for="income-export-year">Năm
+                        <select id="income-export-year"></select>
+                      </label>
+                      <label for="income-export-from">Từ ngày
+                        <input id="income-export-from" type="date">
+                      </label>
+                      <label for="income-export-to">Đến ngày
+                        <input id="income-export-to" type="date">
+                      </label>
+                    </div>
+                  </div>
+                </section>
+                <section class="income-export-section">
+                  <h3><span>2.</span> Chọn nội dung báo cáo</h3>
+                  <div class="income-export-checkboxes">
+                    <label><input type="checkbox" data-export-section="summary" checked><span>Tổng quan doanh thu</span></label>
+                    <label><input type="checkbox" data-export-section="chart" checked><span>Biểu đồ doanh thu theo tháng</span></label>
+                    <label><input type="checkbox" data-export-section="table" checked><span>Bảng thống kê chi tiết theo tháng</span></label>
+                    <label><input type="checkbox" data-export-section="composition" checked><span>Cơ cấu doanh thu (phòng/dịch vụ)</span></label>
+                    <label><input type="checkbox" data-export-section="topRooms"><span>Top phòng có doanh thu cao nhất</span></label>
+                    <label><input type="checkbox" data-export-section="activity"><span>Tình hình hoạt động</span></label>
+                    <label><input type="checkbox" data-export-section="notes"><span>Ghi chú và nhận xét</span></label>
+                  </div>
+                </section>
+                <section class="income-export-section income-export-display-settings">
+                  <h3><span>3.</span> Thiết lập hiển thị</h3>
+                  <label class="income-export-title-field" for="income-export-custom-title">Tiêu đề báo cáo
+                    <input id="income-export-custom-title" type="text" maxlength="100" value="Báo cáo thống kê thu nhập năm 2026">
+                  </label>
+                  <div class="income-export-brand-row">
+                    <label class="income-export-logo-control" for="income-export-logo">Logo khách sạn
+                      <span class="income-export-upload-button">⇧　Chọn ảnh</span>
+                      <input id="income-export-logo" type="file" accept="image/png,image/jpeg">
+                      <small id="income-export-logo-status" role="status">Hỗ trợ PNG, JPG (tối đa 2MB)</small>
+                    </label>
+                    <fieldset class="income-export-themes">
+                      <legend>Màu chủ đạo</legend>
+                      <label style="--theme-color:#d93670"><input type="radio" name="income-export-theme" value="#d93670" checked aria-label="Hồng"><span></span></label>
+                      <label style="--theme-color:#8146b8"><input type="radio" name="income-export-theme" value="#8146b8" aria-label="Tím"><span></span></label>
+                      <label style="--theme-color:#e97955"><input type="radio" name="income-export-theme" value="#e97955" aria-label="Cam"><span></span></label>
+                      <label style="--theme-color:#1976c9"><input type="radio" name="income-export-theme" value="#1976c9" aria-label="Xanh dương"><span></span></label>
+                      <label style="--theme-color:#209667"><input type="radio" name="income-export-theme" value="#209667" aria-label="Xanh lá"><span></span></label>
+                      <label style="--theme-color:#e5a325"><input type="radio" name="income-export-theme" value="#e5a325" aria-label="Vàng"><span></span></label>
+                    </fieldset>
+                  </div>
+                  <p id="income-export-error" class="income-export-error" role="alert" hidden></p>
+                </section>
+              </div>
+              <section class="income-export-preview-column" aria-labelledby="income-export-preview-title">
+                <h3 id="income-export-preview-title">4. Xem trước mẫu báo cáo</h3>
+                <div class="income-export-preview-viewport">
+                  <article id="income-export-preview" class="income-export-preview-paper"></article>
+                </div>
+              </section>
+            </div>
+            <footer class="income-export-modal-footer">
+              <button type="button" class="income-export-preview-button" id="income-export-preview-full">◉　Xem trước toàn bộ</button>
+              <div>
+                <button type="button" class="income-export-cancel" data-income-export-close>Hủy</button>
+                <button type="button" class="income-export-confirm" id="income-export-confirm">▤　Xuất PDF</button>
+              </div>
+            </footer>
+          </div>
+        </dialog>
         <section id="room-booking-view" class="room-view hidden-view">
           <div class="view-heading room-view-heading rooms-header">
             <div>
