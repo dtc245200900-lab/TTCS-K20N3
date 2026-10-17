@@ -119,7 +119,6 @@
 
   function renderIncomeReport() {
     const body = document.querySelector('#income-table-body');
-    const yearLabel = document.querySelector('#income-year-label');
     const totalCell = document.querySelector('#income-year-total');
     const totalFooterCell = document.querySelector('#income-year-total-footer');
     const roomTotalCell = document.querySelector('#income-room-total');
@@ -151,26 +150,37 @@
     const totals = getMonthlyIncomeForYear(selectedYear);
     const totalYear = totals.reduce((sum, amount) => sum + amount, 0);
     const previousYearTotals = getMonthlyIncomeForYear(selectedYear - 1);
+    const previousYearTotal = previousYearTotals.reduce((sum, amount) => sum + amount, 0);
     const completedBookings = bookingCache.filter(booking => {
       if (booking.status !== 'checked_out' || !booking.actualCheckOutAt) return false;
       const actualDate = new Date(booking.actualCheckOutAt);
       return Number.isFinite(actualDate.getTime()) && actualDate.getFullYear() === selectedYear;
     }).length;
     const formatCurrency = amount => Number(amount).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ';
+    const formatChange = (amount, previousAmount) => previousAmount > 0
+      ? (amount >= previousAmount ? '↑ ' : '↓ ') + Math.round(Math.abs(amount - previousAmount) / previousAmount * 100) + '%'
+      : amount > 0 ? 'Mới' : '—';
+    const yearChange = document.querySelector('#income-year-change');
+    const yearChangeFooter = document.querySelector('#income-year-change-footer');
+    const periodLabel = document.querySelector('#income-period-label');
+    const topRoomsPeriod = document.querySelector('#income-top-rooms-period');
+    if (periodLabel) periodLabel.textContent = '01/01/' + selectedYear + ' - 31/12/' + selectedYear;
+    if (topRoomsPeriod) topRoomsPeriod.textContent = String(selectedYear);
+    if (yearChange) {
+      yearChange.textContent = formatChange(totalYear, previousYearTotal);
+      yearChange.className = totalYear >= previousYearTotal ? 'positive' : 'negative';
+    }
+    if (yearChangeFooter) yearChangeFooter.textContent = formatChange(totalYear, previousYearTotal);
 
     body.innerHTML = totals.map((amount, index) => {
-      const previousAmount = previousYearTotals[index];
-      const change = previousAmount > 0
-        ? Math.round((amount - previousAmount) / previousAmount * 100)
-        : amount > 0 ? null : 0;
-      const changeClass = change === null || change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-      const changeLabel = change === null ? 'Mới' : change > 0 ? '↑ ' + change + '%' : change < 0 ? '↓ ' + Math.abs(change) + '%' : '—';
+      const previousAmount = index === 0 ? 0 : totals[index - 1];
+      const changeClass = index === 0 ? 'neutral' : amount >= previousAmount ? 'positive' : 'negative';
+      const changeLabel = index === 0 ? '—' : formatChange(amount, previousAmount);
       return '<tr><td>Tháng ' + (index + 1) + '</td><td>' + formatCurrency(amount) +
         '</td><td>0đ</td><td>' + formatCurrency(amount) +
         '</td><td><span class="income-change ' + changeClass + '">' + changeLabel + '</span></td></tr>';
     }).join('');
 
-    if (yearLabel) yearLabel.textContent = String(selectedYear);
     if (totalCell) totalCell.textContent = formatCurrency(totalYear);
     if (totalFooterCell) totalFooterCell.textContent = formatCurrency(totalYear);
     if (roomTotalCell) roomTotalCell.textContent = formatCurrency(totalYear);
@@ -178,18 +188,94 @@
     if (serviceTotalCell) serviceTotalCell.textContent = '0đ';
     if (bookingCountCell) bookingCountCell.textContent = String(completedBookings);
 
+    const maxChartAmount = Math.max(...totals, 1);
     const chart = document.querySelector('#income-monthly-chart');
     if (chart) {
-      const maxAmount = Math.max(...totals, 1);
+      const points = totals.map((amount, index) => {
+        const x = (index + 0.5) / totals.length * 1200;
+        const y = 145 - (amount / maxChartAmount) * 116;
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      });
       chart.innerHTML = totals.map((amount, index) => {
-        const barHeight = amount > 0 ? Math.max(1, amount / maxAmount * 100) : 0;
+        const barHeight = amount > 0 ? Math.max(1, amount / maxChartAmount * 100) : 0;
         return '<div class="income-chart-month" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
           '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i>' +
           '<i class="service-revenue" style="--bar-height:0%"></i></div>' +
           '<span>Th' + (index + 1) + '</span></div>';
-      }).join('');
+      }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
+        points.join(' ') + '"></polyline>' + points.map(point => {
+          const [x, y] = point.split(',');
+          return '<circle cx="' + x + '" cy="' + y + '" r="4"></circle>';
+        }).join('') + '</svg>';
       chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear) + '. Chưa có dữ liệu doanh thu dịch vụ.');
     }
+
+    const chartAxis = document.querySelector('#income-chart-axis');
+    if (chartAxis) {
+      chartAxis.innerHTML = [1, .75, .5, .25, 0].map(fraction =>
+        '<span>' + formatCurrency(maxChartAmount * fraction) + '</span>'
+      ).join('');
+    }
+
+    const compositionChart = document.querySelector('#income-composition-chart');
+    const compositionLegend = document.querySelector('#income-composition-legend');
+    const roomShare = totalYear > 0 ? 100 : 0;
+    if (compositionChart) {
+      compositionChart.style.setProperty('--room-share', roomShare + '%');
+      compositionChart.style.background = totalYear > 0
+        ? 'conic-gradient(#cf3c70 0 ' + roomShare + '%, #f3a5ba ' + roomShare + '%)'
+        : '#f1ecef';
+      compositionChart.setAttribute('aria-label', 'Doanh thu phòng: ' + formatCurrency(totalYear) + ' (' + roomShare +
+        '%). Doanh thu dịch vụ: 0đ.');
+      compositionChart.innerHTML = '<div><strong>' + escapeHtml((totalYear / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })) +
+        '</strong><span>triệu đồng</span></div>';
+    }
+    if (compositionLegend) {
+      compositionLegend.innerHTML =
+        '<li><i class="room-revenue"></i><span>Doanh thu phòng</span><strong>' + formatCurrency(totalYear) + ' <small>(' + roomShare + '%)</small></strong></li>' +
+        '<li><i class="service-revenue"></i><span>Doanh thu dịch vụ</span><strong>0đ <small>(0%)</small></strong></li>';
+    }
+
+    const topRoomsList = document.querySelector('#income-top-rooms');
+    if (topRoomsList) {
+      const roomTotals = new Map();
+      bookingCache.forEach(booking => {
+        if (booking.status !== 'checked_out' || !booking.actualCheckOutAt) return;
+        const checkOutDate = new Date(booking.actualCheckOutAt);
+        if (!Number.isFinite(checkOutDate.getTime()) || checkOutDate.getFullYear() !== selectedYear) return;
+        const room = roomCache.find(item => String(item.id) === String(booking.roomId));
+        const roomKey = String(booking.roomId || booking.roomCode || room?.roomCode || 'unknown');
+        const value = roomTotals.get(roomKey) || {
+          code: booking.roomCode || room?.roomCode || room?.room_code || room?.roomNumber || 'Chưa rõ phòng',
+          type: roomTypeLabel(room?.roomType || room?.room_type || booking.roomType || ''),
+          image: room?.imagePath || room?.image_path || '/assets/room-placeholder.svg',
+          amount: 0,
+          bookings: 0
+        };
+        value.amount += Number(booking.rentalTotal) || 0;
+        value.bookings += 1;
+        roomTotals.set(roomKey, value);
+      });
+      const topRooms = [...roomTotals.values()].sort((a, b) => b.amount - a.amount).slice(0, 5);
+      topRoomsList.innerHTML = topRooms.length ? topRooms.map((room, index) =>
+        '<li><span class="income-room-rank">' + (index + 1) + '</span><img src="' + escapeHtml(room.image) +
+        '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/room-placeholder.svg\'"><span class="income-room-info"><strong>' +
+        escapeHtml(room.code) + (room.type ? ' - ' + escapeHtml(room.type) : '') + '</strong><small>' + room.bookings +
+        ' lượt trả phòng</small></span><strong class="income-room-revenue">' + formatCurrency(room.amount) + '</strong></li>'
+      ).join('') : '<li class="income-room-empty">Chưa có dữ liệu doanh thu phòng trong năm này.</li>';
+    }
+
+    const occupiedRooms = roomCache.filter(room => statusOf(room) === 'occupied').length;
+    const occupancy = roomCache.length ? Math.round(occupiedRooms / roomCache.length * 100) : 0;
+    const averageRevenue = completedBookings ? totalYear / completedBookings : 0;
+    const occupancyCell = document.querySelector('#income-occupancy-rate');
+    const checkoutCell = document.querySelector('#income-activity-checkouts');
+    const roomCountCell = document.querySelector('#income-activity-room-count');
+    const averageRevenueCell = document.querySelector('#income-average-booking-revenue');
+    if (occupancyCell) occupancyCell.textContent = occupancy + '%';
+    if (checkoutCell) checkoutCell.textContent = String(completedBookings);
+    if (roomCountCell) roomCountCell.textContent = String(roomCache.length);
+    if (averageRevenueCell) averageRevenueCell.textContent = formatCurrency(averageRevenue);
 
     const table = document.querySelector('#income-view .income-report-table');
     if (table) table.setAttribute('aria-label', 'Thống kê thu nhập năm ' + selectedYear + ': ' + formatCurrency(totalYear));
@@ -214,6 +300,7 @@
   });
 
   document.querySelector('#income-year-select')?.addEventListener('change', renderIncomeReport);
+  document.querySelector('#income-export-pdf')?.addEventListener('click', () => window.print());
 
   function renderRecentLists() {
     const statusLabels = { pending: 'Đang chờ', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' };
