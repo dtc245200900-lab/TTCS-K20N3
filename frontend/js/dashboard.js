@@ -24,6 +24,8 @@
   const statusOf = room => roomStatusInfo(room.status).className;
   const chartColors = ['#f26b9b', '#ffa88f', '#ffc36d', '#bd8be9', '#72c7b4', '#7aa8ed', '#f27e72'];
   let calendarDate = new Date(date.getFullYear(), date.getMonth(), 1);
+  let selectedRevenueMonth = null;
+  let selectedRevenueDay = null;
   let bookingLoadState = 'loading';
   let customerLoadState = 'loading';
   const monthNames = new Intl.DateTimeFormat('vi-VN', { month: 'long' });
@@ -86,6 +88,125 @@
       totals[closedAt.getMonth()] += Number(booking.rentalTotal) || 0;
     });
     return totals;
+  }
+
+  function renderRevenueDailyDetail(containerId, year) {
+    const container = document.querySelector('#' + containerId);
+    if (!container) return;
+    if (!selectedRevenueMonth || selectedRevenueMonth.year !== year) {
+      container.hidden = true;
+      container.innerHTML = '';
+      return;
+    }
+
+    const { month } = selectedRevenueMonth;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, () => ({
+      bookings: new Map(),
+      total: 0
+    }));
+    const formatCurrency = amount => Number(amount).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ';
+    const roomInfoFor = booking => {
+      const room = roomCache.find(item => String(item.id) === String(booking.roomId));
+      return {
+        key: String(booking.roomId || booking.roomCode || room?.roomCode || 'unknown'),
+        code: booking.roomCode || room?.roomCode || room?.room_code || 'Chưa rõ phòng',
+        type: roomTypeLabel(room?.roomType || room?.room_type || booking.roomType || 'Chưa phân loại')
+      };
+    };
+    const addBookingEvent = (day, booking, label, revenue = 0) => {
+      const key = String(booking.id || booking.roomId || booking.roomCode);
+      let entry = day.bookings.get(key);
+      if (!entry) {
+        entry = { booking, labels: new Set(), revenue: 0, room: roomInfoFor(booking) };
+        day.bookings.set(key, entry);
+      }
+      entry.labels.add(label);
+      entry.revenue += revenue;
+    };
+
+    bookingCache.forEach(booking => {
+      if (booking.status === 'cancelled') return;
+      const addDateEvent = (value, label, revenue = 0) => {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!match || Number(match[1]) !== year || Number(match[2]) !== month + 1) return;
+        const dayNumber = Number(match[3]);
+        if (dayNumber < 1 || dayNumber > daysInMonth) return;
+        const day = days[dayNumber - 1];
+        addBookingEvent(day, booking, label, revenue);
+        day.total += revenue;
+      };
+      addDateEvent(booking.scheduledCheckInAt, 'Nhận phòng');
+      addDateEvent(booking.scheduledCheckOutAt, 'Ngày trả dự kiến');
+      if (booking.actualCheckOutAt) {
+        const revenue = booking.status === 'checked_out' ? Number(booking.rentalTotal) || 0 : 0;
+        addDateEvent(booking.actualCheckOutAt, 'Đã trả phòng', revenue);
+      }
+    });
+
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+    const cells = Array(firstWeekday).fill('<span class="revenue-calendar-empty" aria-hidden="true"></span>');
+    for (let index = 0; index < daysInMonth; index += 1) {
+      const dayNumber = index + 1;
+      const hasData = days[index].bookings.size > 0;
+      const selected = selectedRevenueDay?.year === year
+        && selectedRevenueDay.month === month
+        && selectedRevenueDay.day === dayNumber;
+      const title = hasData
+        ? dayNumber + ' tháng ' + (month + 1) + ': ' + days[index].bookings.size + ' lượt đặt/trả phòng'
+        : dayNumber + ' tháng ' + (month + 1) + ': Chưa có dữ liệu';
+      cells.push('<button type="button" class="revenue-calendar-day' + (hasData ? ' has-data' : '') +
+        '" data-revenue-day="' + dayNumber + '" data-revenue-month="' + month + '" data-revenue-year="' + year +
+        '" aria-pressed="' + selected + '" aria-label="' + escapeHtml(title) + '"><span>' + dayNumber +
+        '</span><i aria-hidden="true"></i></button>');
+    }
+    while (cells.length % 7) cells.push('<span class="revenue-calendar-empty" aria-hidden="true"></span>');
+
+    const monthLabel = new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' })
+      .format(new Date(year, month, 1));
+    container.hidden = false;
+    container.innerHTML = '<h4>Chi tiết ' + escapeHtml(monthLabel) + '</h4>' +
+      '<div class="revenue-calendar-weekdays" aria-hidden="true"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div>' +
+      '<div class="revenue-calendar-grid" role="group" aria-label="Lịch ' + escapeHtml(monthLabel) + '">' + cells.join('') + '</div>' +
+      '<p class="revenue-daily-note"><i class="revenue-calendar-dot has-data"></i>Có dữ liệu đặt/trả phòng <i class="revenue-calendar-dot"></i>Chưa có dữ liệu</p>' +
+      '<section class="revenue-selected-day" aria-live="polite">' + renderSelectedRevenueDay(days, year, month, formatCurrency) + '</section>';
+  }
+
+  function renderSelectedRevenueDay(days, year, month, formatCurrency) {
+    const selected = selectedRevenueDay;
+    if (!selected || selected.year !== year || selected.month !== month) {
+      return '<p class="revenue-day-placeholder">Chọn một ngày trên lịch để xem chi tiết đặt phòng và doanh thu.</p>';
+    }
+
+    const day = days[selected.day - 1];
+    const dateLabel = new Intl.DateTimeFormat('vi-VN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).format(new Date(year, month, selected.day));
+    const rows = [...day.bookings.values()];
+    const bookingRows = rows.map(({ booking, labels, revenue, room }) => {
+      const statusLabels = {
+        pending: 'Đang chờ',
+        checked_in: 'Đang ở',
+        checked_out: 'Đã trả',
+        cancelled: 'Đã hủy'
+      };
+      return '<article class="revenue-booking-detail"><header><span><strong>' + escapeHtml(room.code) +
+        '</strong><small>' + escapeHtml(room.type) + '</small></span><span class="revenue-booking-status">' +
+        escapeHtml(statusLabels[booking.status] || 'Chưa rõ') + '</span></header><p>' +
+        escapeHtml([...labels].join(' · ')) + ' · Khách: ' + escapeHtml(booking.customerName || '—') +
+        '</p><p>Thời gian: ' + escapeHtml(formatBookingDateTime(booking.scheduledCheckInAt)) +
+        ' – ' + escapeHtml(formatBookingDateTime(booking.scheduledCheckOutAt)) + '</p>' +
+        (revenue > 0 ? '<strong class="revenue-booking-amount">Doanh thu phòng: ' +
+          formatCurrency(revenue) + '</strong>' : '') + '</article>';
+    }).join('');
+    return '<div class="revenue-selected-day-heading"><h5>' + escapeHtml(dateLabel) +
+      '</h5><strong>Tổng doanh thu ngày: ' + formatCurrency(day.total) +
+      '</strong></div><p class="revenue-selected-day-summary">' + rows.length +
+      ' lượt đặt/trả phòng · ' + formatCurrency(day.total) + ' doanh thu</p>' +
+      (bookingRows || '<p class="revenue-day-placeholder">Ngày này chưa có dữ liệu đặt hoặc trả phòng.</p>');
   }
 
   function renderRevenue() {
@@ -198,10 +319,12 @@
       });
       chart.innerHTML = totals.map((amount, index) => {
         const barHeight = amount > 0 ? Math.max(1, amount / maxChartAmount * 100) : 0;
-        return '<div class="income-chart-month" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
-          '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i>' +
-          '<i class="service-revenue" style="--bar-height:0%"></i></div>' +
-          '<span>Th' + (index + 1) + '</span></div>';
+          const selected = selectedRevenueMonth?.year === selectedYear && selectedRevenueMonth.month === index;
+          return '<button type="button" class="income-chart-month" data-revenue-select-month="' + index + '" data-revenue-year="' + selectedYear +
+            '" aria-pressed="' + selected + '" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
+            '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i>' +
+            '<i class="service-revenue" style="--bar-height:0%"></i></div>' +
+            '<span>Th' + (index + 1) + '</span></button>';
       }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
         points.join(' ') + '"></polyline>' + points.map(point => {
           const [x, y] = point.split(',');
@@ -277,6 +400,8 @@
     if (roomCountCell) roomCountCell.textContent = String(roomCache.length);
     if (averageRevenueCell) averageRevenueCell.textContent = formatCurrency(averageRevenue);
 
+    renderRevenueDailyDetail('income-daily-detail', selectedYear);
+
     const table = document.querySelector('#income-view .income-report-table');
     if (table) table.setAttribute('aria-label', 'Thống kê thu nhập năm ' + selectedYear + ': ' + formatCurrency(totalYear));
   }
@@ -300,6 +425,25 @@
   });
 
   document.querySelector('#income-year-select')?.addEventListener('change', renderIncomeReport);
+  document.querySelector('#income-view .income-chart-panel')?.addEventListener('click', event => {
+    const dayButton = event.target.closest('button[data-revenue-day]');
+    if (dayButton) {
+      selectedRevenueDay = {
+        year: Number(dayButton.dataset.revenueYear),
+        month: Number(dayButton.dataset.revenueMonth),
+        day: Number(dayButton.dataset.revenueDay)
+      };
+    } else {
+      const monthButton = event.target.closest('button[data-revenue-select-month]');
+      if (!monthButton) return;
+      selectedRevenueMonth = {
+        year: Number(monthButton.dataset.revenueYear),
+        month: Number(monthButton.dataset.revenueSelectMonth)
+      };
+      selectedRevenueDay = null;
+    }
+    renderIncomeReport();
+  });
   const incomeExportDialog = document.querySelector('#income-export-dialog');
   const incomeExportYear = document.querySelector('#income-export-year');
   const incomeExportFrom = document.querySelector('#income-export-from');
