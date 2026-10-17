@@ -231,11 +231,14 @@
     chart.innerHTML = totals.map((amount, index) => {
       const height = amount > 0 ? Math.max(5, Math.round(amount / max * 100)) : 2;
       const label = new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
-      return '<div class="revenue-month" title="' + (index + 1) + '/' + selectedYear + ': ' + label + '">' +
+      const selected = selectedRevenueMonth?.year === selectedYear && selectedRevenueMonth.month === index;
+      return '<button type="button" class="revenue-month" data-revenue-select-month="' + index + '" data-revenue-year="' + selectedYear +
+        '" aria-pressed="' + selected + '" title="' + (index + 1) + '/' + selectedYear + ': ' + label + '">' +
         '<span class="revenue-value">' + (amount ? escapeHtml(label) : '') + '</span>' +
-        '<i style="--bar-height:' + height + '%"></i><span class="revenue-month-label">T' + (index + 1) + '</span></div>';
+        '<i style="--bar-height:' + height + '%"></i><span class="revenue-month-label">T' + (index + 1) + '</span></button>';
     }).join('');
     chart.setAttribute('aria-label', 'Doanh thu năm ' + selectedYear + ': ' + new Intl.NumberFormat('vi-VN').format(totals.reduce((sum, amount) => sum + amount, 0)) + ' đồng');
+    renderRevenueDailyDetail('revenue-daily-detail', selectedYear);
   }
 
   function renderIncomeReport() {
@@ -332,6 +335,7 @@
         }).join('') + '</svg>';
       chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear) + '. Chưa có dữ liệu doanh thu dịch vụ.');
     }
+    renderRevenueDailyDetail('income-daily-detail', selectedYear);
 
     const chartAxis = document.querySelector('#income-chart-axis');
     if (chartAxis) {
@@ -821,6 +825,26 @@
   document.querySelector('#income-export-preview-full')?.addEventListener('click', () => openExportDocument(false));
   document.querySelector('#income-export-confirm')?.addEventListener('click', () => openExportDocument(true));
 
+  document.querySelector('.revenue-card')?.addEventListener('click', event => {
+    const dayButton = event.target.closest('button[data-revenue-day]');
+    if (dayButton) {
+      selectedRevenueDay = {
+        year: Number(dayButton.dataset.revenueYear),
+        month: Number(dayButton.dataset.revenueMonth),
+        day: Number(dayButton.dataset.revenueDay)
+      };
+    } else {
+      const monthButton = event.target.closest('button[data-revenue-select-month]');
+      if (!monthButton) return;
+      selectedRevenueMonth = {
+        year: Number(monthButton.dataset.revenueYear),
+        month: Number(monthButton.dataset.revenueSelectMonth)
+      };
+      selectedRevenueDay = null;
+    }
+    renderRevenue();
+    renderIncomeReport();
+  });
   function renderRecentLists() {
     const statusLabels = { pending: 'Đang chờ', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' };
     const latestBookings = [...bookingCache].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5);
@@ -977,4 +1001,139 @@
       openRoomList();
     });
   }
+  const exportPdfButton = document.querySelector('#income-export-pdf');
+
+
+if (exportPdfButton) {
+    exportPdfButton.addEventListener('click', () => {
+        const year = document.querySelector('#income-year-select')?.value || '2026';
+        const report = document.querySelector('#income-view');
+
+        if (!report) {
+            alert('Không tìm thấy báo cáo thu nhập!');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+
+        if (!printWindow) {
+            alert('Vui lòng cho phép mở cửa sổ để xuất PDF!');
+            return;
+        }
+
+        const styles = `
+    <link rel="stylesheet" href="/css/dashboard.css">
+`;
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <base href="${document.baseURI}">
+                <title>Thong_ke_thu_nhap_${year}</title>
+                ${styles}
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+#income-monthly-chart {
+    display: flex !important;
+    align-items: flex-end !important;
+    min-height: 200px !important;
+}
+
+.income-chart-month {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    flex: 1 !important;
+}
+
+.income-chart-bars {
+    display: flex !important;
+    align-items: flex-end !important;
+    height: 180px !important;
+}
+
+.income-chart-bars .room-revenue {
+    height: var(--bar-height, 0%) !important;
+    background: #df3476 !important;
+    min-width: 12px !important;
+}
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 10px;
+        background: white !important;
+        font-family: Arial, sans-serif;
+    }
+
+    #income-view {
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    #income-view svg {
+        width: 20px !important;
+        height: 20px !important;
+        max-width: 20px !important;
+        max-height: 20px !important;
+    }
+
+    #income-view .income-report-actions,
+    #income-export-pdf {
+        display: none !important;
+    }
+
+    #income-view table {
+        width: 100% !important;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    #income-view canvas {
+        max-width: 100% !important;
+    }
+
+    .income-report-summary,
+    .income-summary-card,
+    table,
+    tr {
+        break-inside: avoid;
+    }
+</style>
+
+</head>
+<body class="dashboard-page">
+    ${report.outerHTML.replace(/(<select[^>]*id="income-year-select"[^>]*>)[\s\S]*?(<\/select>)/, '$1<option selected value="' + year + '">' + year + '</option>$2')}
+</body>
+</html>
+`);
+
+printWindow.document.close();
+
+printWindow.onload = async () => {
+    await printWindow.document.fonts.ready;
+
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 1000);
+};
+});
+}
 })();

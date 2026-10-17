@@ -132,6 +132,8 @@ def test_hourly_rental_rounds_up_partial_hours():
     assert hotel_app.calculate_hourly_rental_total(100000, 60) == 100000
     assert hotel_app.calculate_hourly_rental_total(100000, 61) == 200000
     assert hotel_app.calculate_hourly_rental_total(100000, 121) == 300000
+    assert hotel_app.calculate_hourly_rental_total(100000, 1440) == 2400000
+    assert hotel_app.calculate_hourly_rental_total(100000, 1501) == 2600000
 
 
 def test_booking_keeps_hourly_rate_snapshot(monkeypatch, tmp_path):

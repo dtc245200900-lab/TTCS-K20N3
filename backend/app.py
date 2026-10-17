@@ -1123,7 +1123,9 @@ def calculate_hourly_rental_total(hourly_rate, duration_minutes):
     if duration_minutes <= 0:
         raise ValueError("Thời gian thuê phải lớn hơn 0 phút.")
     billable_hours = (Decimal(duration_minutes) / Decimal(60)).to_integral_value(rounding=ROUND_CEILING)
-    return (rate * billable_hours).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    billable_days, remaining_hours = divmod(int(billable_hours), 24)
+    total = rate * (Decimal(billable_days * 24) + Decimal(remaining_hours))
+    return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def scheduled_rental_duration_minutes(check_in, check_out, fallback_check_in=None):

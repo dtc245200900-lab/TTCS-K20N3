@@ -232,6 +232,18 @@ function formatBookingDate(value) {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
 
+function calculateHourlyRentalQuote(hourlyRate, durationMinutes) {
+  const rate = Number(hourlyRate);
+  if (!Number.isFinite(rate) || rate <= 0 || !Number.isFinite(durationMinutes) || durationMinutes <= 0) return null;
+  const billableHours = Math.ceil(durationMinutes / 60);
+  const days = Math.floor(billableHours / 24);
+  const remainingHours = billableHours % 24;
+  const durationLabel = days > 0
+    ? `${days} ngày${remainingHours ? ` ${remainingHours} giờ` : ''}`
+    : `${billableHours} giờ`;
+  return { billableHours, total: rate * billableHours, durationLabel };
+}
+
 function roomRentalPrice(room, now = Date.now()) {
   const hourlyRate = Number(room.hourlyRate ?? room.hourly_rate);
   const checkInValue = roomRentalField(room, 'checkInAt', 'checkInTime', 'check_in_time', 'checked_in_at');
@@ -278,7 +290,7 @@ function bookingRentalQuote(booking) {
   const checkOut = new Date(booking.scheduledCheckOutAt);
   if (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || !Number.isFinite(checkIn.getTime())
     || !Number.isFinite(checkOut.getTime()) || checkOut <= checkIn) return null;
-  return hourlyRate * Math.ceil((checkOut.getTime() - checkIn.getTime()) / 3600000);
+  return calculateHourlyRentalQuote(hourlyRate, (checkOut.getTime() - checkIn.getTime()) / 60000)?.total ?? null;
 }
 
 function updateLiveRoomPrices() {
@@ -585,9 +597,7 @@ function renderBookingList() {
     const checkIn = new Date(booking.scheduledCheckInAt);
     const checkOut = new Date(booking.scheduledCheckOutAt);
     const durationMinutes = (checkOut - checkIn) / 60000;
-    const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
-      ? hourlyRate * Math.ceil(durationMinutes / 60)
-      : null;
+    const estimatedTotal = calculateHourlyRentalQuote(hourlyRate, durationMinutes)?.total ?? null;
     const total = booking.rentalTotal ?? estimatedTotal;
     return total === null ? '—' : `${Number(total).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`;
   };
@@ -643,9 +653,7 @@ function renderBookingDetails(booking) {
   const checkIn = new Date(booking.scheduledCheckInAt);
   const checkOut = new Date(booking.scheduledCheckOutAt);
   const durationMinutes = (checkOut - checkIn) / 60000;
-  const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
-    ? hourlyRate * Math.ceil(durationMinutes / 60)
-    : null;
+  const estimatedTotal = calculateHourlyRentalQuote(hourlyRate, durationMinutes)?.total ?? null;
   const total = booking.rentalTotal ?? estimatedTotal;
   const actions = booking.status === 'pending'
     ? `<button type="button" class="booking-detail-action" data-booking-action="check-in" data-booking-id="${escapeHtml(booking.id)}">Nhận phòng</button><button type="button" class="booking-detail-action danger" data-booking-action="cancel" data-booking-id="${escapeHtml(booking.id)}">Hủy đặt phòng</button>`
@@ -914,7 +922,8 @@ async function loadCustomers() {
 
 const bookingForm = document.querySelector('#booking-form');
 const bookingFormCard = document.querySelector('#booking-form-card');
-if (bookingForm && bookingFormCard) {
+const bookingFormDialog = document.querySelector('#booking-form-dialog');
+if (bookingForm && bookingFormCard && bookingFormDialog instanceof HTMLDialogElement) {
   const bookingSuccessDialog = document.querySelector('#booking-success-dialog');
   let successfulBookingId = null;
   const showBookingSuccess = booking => {
@@ -927,9 +936,7 @@ if (bookingForm && bookingFormCard) {
     const hourlyRate = Number(booking.hourlyRate ?? room?.hourlyRate ?? room?.hourly_rate);
     const checkIn = new Date(booking.scheduledCheckInAt);
     const checkOut = new Date(booking.scheduledCheckOutAt);
-    const estimatedTotal = Number.isFinite(hourlyRate) && checkOut > checkIn
-      ? hourlyRate * Math.ceil((checkOut - checkIn) / 3600000)
-      : null;
+    const estimatedTotal = calculateHourlyRentalQuote(hourlyRate, (checkOut - checkIn) / 60000)?.total ?? null;
     const total = booking.rentalTotal ?? estimatedTotal;
     const statusLabel = { pending: 'Đã đặt', checked_in: 'Đang ở', checked_out: 'Đã trả', cancelled: 'Đã hủy' }[booking.status] || booking.status || 'Đã đặt';
     successfulBookingId = booking.id;
@@ -965,12 +972,10 @@ if (bookingForm && bookingFormCard) {
     const checkIn = new Date(document.querySelector('#booking-check-in').value);
     const checkOut = new Date(document.querySelector('#booking-check-out').value);
     const durationMinutes = checkOut > checkIn ? (checkOut - checkIn) / 60000 : null;
-    const billableHours = durationMinutes === null ? null : Math.ceil(durationMinutes / 60);
-    document.querySelector('#booking-night-count').textContent = billableHours === null
-      ? '—'
-      : `${billableHours} giờ (làm tròn lên)`;
-    document.querySelector('#booking-total').textContent = billableHours !== null && Number.isFinite(hourlyRate)
-      ? `${(hourlyRate * billableHours).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
+    const quote = durationMinutes === null ? null : calculateHourlyRentalQuote(hourlyRate, durationMinutes);
+    document.querySelector('#booking-night-count').textContent = quote?.durationLabel || '—';
+    document.querySelector('#booking-total').textContent = quote
+      ? `${quote.total.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} đ`
       : '—';
   };
   bookingSuccessDialog?.querySelectorAll('[data-booking-success-close]').forEach(button => {
@@ -1009,7 +1014,7 @@ if (bookingForm && bookingFormCard) {
     updateBookingRoomOptions();
     setDefaultBookingDates();
     updateBookingSummary();
-    bookingFormCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    bookingFormDialog.showModal();
     document.querySelector('#booking-customer-name').focus();
   };
   setDefaultBookingDates();
@@ -1020,7 +1025,11 @@ if (bookingForm && bookingFormCard) {
     updateBookingSummary();
   };
   document.querySelector('#booking-form-toggle')?.addEventListener('click', showBookingForm);
-  document.querySelector('#booking-form-dismiss')?.addEventListener('click', resetBookingForm);
+  document.querySelector('#booking-form-dismiss')?.addEventListener('click', () => bookingFormDialog.close());
+  bookingFormDialog.addEventListener('close', resetBookingForm);
+  bookingFormDialog.addEventListener('click', event => {
+    if (event.target === bookingFormDialog) bookingFormDialog.close();
+  });
   document.querySelector('#booking-customer-name')?.addEventListener('change', syncBookingCustomerDetails);
   document.querySelector('#booking-room')?.addEventListener('change', updateBookingSummary);
   document.querySelector('#booking-check-in')?.addEventListener('change', updateBookingSummary);
@@ -1117,7 +1126,7 @@ if (bookingForm && bookingFormCard) {
       if (!response.ok) throw new Error(result.message || 'Không thể tạo đặt phòng.');
       if (result.booking) upsertBookingCache(result.booking);
       if (result.room) roomCache = roomCache.map(room => String(room.id) === String(result.room.id) ? result.room : room);
-      resetBookingForm();
+      bookingFormDialog.close();
       renderBookingList();
       renderRoomList();
       updateBookingRoomOptions();
@@ -2177,7 +2186,7 @@ document.querySelectorAll('#room-grid, #checkout-room-grid').forEach(roomGrid =>
         bookingRoomSelect.value = String(room.id);
         bookingRoomSelect.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      document.querySelector('#booking-form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelector('#booking-form-toggle')?.click();
       return;
     }
 
