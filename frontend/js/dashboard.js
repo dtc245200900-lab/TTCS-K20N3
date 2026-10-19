@@ -247,7 +247,6 @@
     const totalFooterCell = document.querySelector('#income-year-total-footer');
     const roomTotalCell = document.querySelector('#income-room-total');
     const roomTotalFooterCell = document.querySelector('#income-room-total-footer');
-    const serviceTotalCell = document.querySelector('#income-service-total');
     const bookingCountCell = document.querySelector('#income-booking-count');
     const yearSelect = document.querySelector('#income-year-select');
     if (!body) return;
@@ -301,7 +300,7 @@
       const changeClass = index === 0 ? 'neutral' : amount >= previousAmount ? 'positive' : 'negative';
       const changeLabel = index === 0 ? '—' : formatChange(amount, previousAmount);
       return '<tr><td>Tháng ' + (index + 1) + '</td><td>' + formatCurrency(amount) +
-        '</td><td>0đ</td><td>' + formatCurrency(amount) +
+        '</td><td>' + formatCurrency(amount) +
         '</td><td><span class="income-change ' + changeClass + '">' + changeLabel + '</span></td></tr>';
     }).join('');
 
@@ -309,7 +308,6 @@
     if (totalFooterCell) totalFooterCell.textContent = formatCurrency(totalYear);
     if (roomTotalCell) roomTotalCell.textContent = formatCurrency(totalYear);
     if (roomTotalFooterCell) roomTotalFooterCell.textContent = formatCurrency(totalYear);
-    if (serviceTotalCell) serviceTotalCell.textContent = '0đ';
     if (bookingCountCell) bookingCountCell.textContent = String(completedBookings);
 
     const maxChartAmount = Math.max(...totals, 1);
@@ -325,15 +323,14 @@
           const selected = selectedRevenueMonth?.year === selectedYear && selectedRevenueMonth.month === index;
           return '<button type="button" class="income-chart-month" data-revenue-select-month="' + index + '" data-revenue-year="' + selectedYear +
             '" aria-pressed="' + selected + '" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
-            '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i>' +
-            '<i class="service-revenue" style="--bar-height:0%"></i></div>' +
+            '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i></div>' +
             '<span>Th' + (index + 1) + '</span></button>';
       }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
         points.join(' ') + '"></polyline>' + points.map(point => {
           const [x, y] = point.split(',');
           return '<circle cx="' + x + '" cy="' + y + '" r="4"></circle>';
         }).join('') + '</svg>';
-      chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear) + '. Chưa có dữ liệu doanh thu dịch vụ.');
+      chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear));
     }
     renderRevenueDailyDetail('income-daily-detail', selectedYear);
 
@@ -350,17 +347,16 @@
     if (compositionChart) {
       compositionChart.style.setProperty('--room-share', roomShare + '%');
       compositionChart.style.background = totalYear > 0
-        ? 'conic-gradient(#cf3c70 0 ' + roomShare + '%, #f3a5ba ' + roomShare + '%)'
+        ? 'conic-gradient(#cf3c70 0 ' + roomShare + '%, #cf3c70 ' + roomShare + '%)'
         : '#f1ecef';
       compositionChart.setAttribute('aria-label', 'Doanh thu phòng: ' + formatCurrency(totalYear) + ' (' + roomShare +
-        '%). Doanh thu dịch vụ: 0đ.');
+        '%).');
       compositionChart.innerHTML = '<div><strong>' + escapeHtml((totalYear / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })) +
         '</strong><span>triệu đồng</span></div>';
     }
     if (compositionLegend) {
       compositionLegend.innerHTML =
-        '<li><i class="room-revenue"></i><span>Doanh thu phòng</span><strong>' + formatCurrency(totalYear) + ' <small>(' + roomShare + '%)</small></strong></li>' +
-        '<li><i class="service-revenue"></i><span>Doanh thu dịch vụ</span><strong>0đ <small>(0%)</small></strong></li>';
+        '<li><i class="room-revenue"></i><span>Doanh thu phòng</span><strong>' + formatCurrency(totalYear) + ' <small>(' + roomShare + '%)</small></strong></li>';
     }
 
     const topRoomsList = document.querySelector('#income-top-rooms');
@@ -600,7 +596,7 @@
           : item.amount > 0 ? 'Mới' : '—';
         const changeClass = index === 0 ? 'neutral' : item.amount >= previous ? 'positive' : 'negative';
         return '<tr><td>Tháng ' + (item.month + 1) + '/' + item.year + '</td><td>' + formatCurrency(item.amount) +
-          '</td><td>0đ</td><td>' + formatCurrency(item.amount) +
+          '</td><td>' + formatCurrency(item.amount) +
           '</td><td><span class="income-change ' + changeClass + '">' + change + '</span></td></tr>';
       }).join('');
     }
@@ -622,7 +618,7 @@
         const height = item.amount > 0 ? Math.max(1, item.amount / maxAmount * 100) : 0;
         return '<div class="income-chart-month" title="' + (item.month + 1) + '/' + item.year + ': ' + formatCurrency(item.amount) +
           '"><div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + height +
-          '%"></i><i class="service-revenue" style="--bar-height:0%"></i></div><span>T' + (item.month + 1) + '</span></div>';
+          '%"></i></div><span>T' + (item.month + 1) + '</span></div>';
       }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
         points.join(' ') + '"></polyline>' + points.map(point => {
           const [x, y] = point.split(',');
@@ -635,15 +631,14 @@
     ).join('');
     const composition = clone.querySelector('#income-composition-chart');
     if (composition) {
-      composition.style.background = total > 0 ? 'conic-gradient(var(--income-export-accent) 0 100%, #f3a5ba 100%)' : '#f1ecef';
-      composition.setAttribute('aria-label', 'Doanh thu phòng: ' + formatCurrency(total) + ' (100%). Doanh thu dịch vụ: 0đ.');
+      composition.style.background = total > 0 ? 'var(--income-export-accent)' : '#f1ecef';
+      composition.setAttribute('aria-label', 'Doanh thu phòng: ' + formatCurrency(total) + ' (100%).');
       composition.innerHTML = '<div><strong>' + escapeHtml((total / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })) +
         '</strong><span>triệu đồng</span></div>';
     }
     const compositionLegend = clone.querySelector('#income-composition-legend');
     if (compositionLegend) compositionLegend.innerHTML =
-      '<li><i class="room-revenue"></i><span>Doanh thu phòng</span><strong>' + formatCurrency(total) + ' <small>(100%)</small></strong></li>' +
-      '<li><i class="service-revenue"></i><span>Doanh thu dịch vụ</span><strong>0đ <small>(0%)</small></strong></li>';
+      '<li><i class="room-revenue"></i><span>Doanh thu phòng</span><strong>' + formatCurrency(total) + ' <small>(100%)</small></strong></li>';
 
     const topRooms = clone.querySelector('#income-top-rooms');
     if (topRooms) {

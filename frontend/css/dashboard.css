@@ -2769,7 +2769,7 @@
   .dashboard-page .income-year-chip select { min-width: 120px; }
   .dashboard-page .income-nav-button { min-width: 105px; color: #a22a56; }
   .dashboard-page .income-nav-button:last-child { border-color: #d83d72; color: #fff; background: #d83d72; }
-  .dashboard-page .income-report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; padding: 0; border: 0; }
+  .dashboard-page .income-report-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; padding: 0; border: 0; }
   .dashboard-page .income-summary-card { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 88px; padding: 13px; border: 1px solid #f1e4e9; border-radius: 8px; background: rgba(255,255,255,.97); box-shadow: 0 4px 14px rgba(94,36,58,.05); }
   .dashboard-page .income-summary-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; color: #b72f61; background: #fce7ee; font-size: 22px; font-weight: 700; }
   .dashboard-page .income-summary-card > div { display: grid; min-width: 0; gap: 3px; }
@@ -2784,7 +2784,6 @@
   .dashboard-page .income-chart-legend { display: flex; flex-wrap: wrap; gap: 10px; color: #766b75; font-size: 10px; }
   .dashboard-page .income-chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
   .dashboard-page .income-chart-legend i { width: 8px; height: 8px; border-radius: 50%; background: #dc3c74; }
-  .dashboard-page .income-chart-legend i.service-revenue { background: #f4a1ba; }
   .dashboard-page .income-chart-axis { display: flex; justify-content: space-between; margin-bottom: 3px; color: #8d8290; font-size: 9px; }
   .dashboard-page .income-monthly-chart { display: grid; grid-template-columns: repeat(12, minmax(23px, 1fr)); gap: 2px; overflow-x: auto; }
   .dashboard-page .income-chart-month { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 23px; height: 225px; color: #736876; font-size: 9px; }
@@ -2793,13 +2792,13 @@
   .dashboard-page .income-chart-bars i.service-revenue { background: #f4a1ba; }
   .dashboard-page .income-chart-month > span { padding-top: 5px; white-space: nowrap; }
   .dashboard-page .income-report-table-wrap { overflow-x: auto; border: 0; }
-  .dashboard-page .income-report-table { min-width: 500px; font-size: 10px; }
+  .dashboard-page .income-report-table { min-width: 430px; font-size: 10px; }
   .dashboard-page .income-report-table thead th, .dashboard-page .income-report-table tbody td, .dashboard-page .income-report-table tfoot th { padding: 8px 6px; border-bottom-color: #f0e9ec; white-space: nowrap; }
   .dashboard-page .income-report-table thead th { color: #8f4260; background: #fff7f9; font-size: 9px; }
-  .dashboard-page .income-report-table tbody td:nth-child(2), .dashboard-page .income-report-table tbody td:nth-child(4) { color: #8f1e49; font-weight: 700; }
+  .dashboard-page .income-report-table tbody td:nth-child(2), .dashboard-page .income-report-table tbody td:nth-child(3) { color: #8f1e49; font-weight: 700; }
   .dashboard-page .income-report-table tbody tr:hover { background: #fffafd; }
   .dashboard-page .income-report-table tfoot th { padding-top: 10px; font-size: 10px; }
-  .dashboard-page .income-report-table tfoot th:nth-child(4) { color: #a4164c; }
+  .dashboard-page .income-report-table tfoot th:nth-child(3) { color: #a4164c; }
   .dashboard-page .income-change { display: inline-flex; justify-content: center; min-width: 38px; padding: 3px 5px; border-radius: 999px; background: #f3f1f3; color: #6e6570; font-size: 9px; font-weight: 700; }
   .dashboard-page .income-change.positive { color: #18804b; background: #e8f7ed; }
   .dashboard-page .income-change.negative { color: #b63b48; background: #fff0f0; }
@@ -2812,7 +2811,7 @@
     .dashboard-page .income-report-header h2 { font-size: 21px; }
     .dashboard-page .income-report-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; }
     .dashboard-page .income-report-actions { margin-left: 0; }
-    .dashboard-page .income-report-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dashboard-page .income-report-summary { grid-template-columns: 1fr; gap: 8px; }
     .dashboard-page .income-summary-card { min-height: 78px; gap: 8px; padding: 9px; }
     .dashboard-page .income-summary-icon { width: 34px; height: 34px; flex-basis: 34px; font-size: 18px; }
     .dashboard-page .income-summary-card h3 { font-size: 10px; }
@@ -2900,21 +2899,20 @@
 .dashboard-page .income-composition-legend { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .dashboard-page .income-composition-legend li { display: grid; grid-template-columns: 9px minmax(0, 1fr); gap: 2px 6px; align-items: center; color: #655865; font-size: 9px; }
 .dashboard-page .income-composition-legend li > i { grid-row: span 2; width: 9px; height: 9px; border-radius: 50%; background: #cf3c70; }
-.dashboard-page .income-composition-legend li > i.service-revenue { background: #f3a5ba; }
 .dashboard-page .income-composition-legend strong { grid-column: 2; color: #7c2445; font-size: 10px; }
 .dashboard-page .income-composition-legend small { color: #827782; font-size: 9px; }
 .dashboard-page .income-report-lower-panels { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(290px, 1fr); gap: 9px; align-items: start; }
 .dashboard-page .income-report-table-wrap { overflow-x: auto; border: 0; }
-.dashboard-page .income-report-table { min-width: 490px; font-size: 9px; }
+.dashboard-page .income-report-table { min-width: 430px; font-size: 9px; }
 .dashboard-page .income-report-table thead th,
 .dashboard-page .income-report-table tbody td,
 .dashboard-page .income-report-table tfoot th { padding: 6px 7px; border-bottom-color: #eee8eb; white-space: nowrap; }
 .dashboard-page .income-report-table thead th { color: #744355; background: #fff1f5; font-size: 8px; }
 .dashboard-page .income-report-table tbody td:nth-child(2),
 .dashboard-page .income-report-table tbody td:nth-child(4) { color: #553647; font-weight: 700; }
-.dashboard-page .income-report-table tbody td:nth-child(4) { color: #812548; }
+.dashboard-page .income-report-table tbody td:nth-child(3) { color: #812548; }
 .dashboard-page .income-report-table tfoot th { padding-top: 8px; color: #87264b; font-size: 9px; }
-.dashboard-page .income-report-table tfoot th:nth-child(4) { color: #a4164c; }
+.dashboard-page .income-report-table tfoot th:nth-child(3) { color: #a4164c; }
 .dashboard-page .income-change { min-width: 0; padding: 2px 4px; background: transparent; font-size: 8px; }
 .dashboard-page .income-report-side-panels { display: grid; gap: 8px; }
 .dashboard-page .income-panel-caption { color: #9c365d; font-size: 9px; font-weight: 700; }
@@ -2956,7 +2954,7 @@
     .dashboard-page .income-period-chip strong { min-width: 0; }
     .dashboard-page .income-report-actions { width: 100%; margin-left: 0; }
     .dashboard-page .income-report-actions button { flex: 1; }
-    .dashboard-page .income-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dashboard-page .income-report-summary { grid-template-columns: 1fr; }
     .dashboard-page .income-summary-card { min-height: 68px; padding: 7px; }
     .dashboard-page .income-summary-icon { width: 32px; height: 32px; flex-basis: 32px; }
     .dashboard-page .income-summary-card strong { font-size: 15px; }
@@ -3051,7 +3049,7 @@
 .dashboard-page .income-export-preview-paper .income-report-header,
 .dashboard-page .income-export-preview-paper .income-report-toolbar,
 .dashboard-page .income-export-preview-paper .income-report-actions { display: none !important; }
-.dashboard-page .income-export-preview-paper .income-report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin: 0 0 6px; }
+.dashboard-page .income-export-preview-paper .income-report-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; margin: 0 0 6px; }
 .dashboard-page .income-export-preview-paper .income-summary-card { display: grid; gap: 3px; min-width: 0; min-height: 42px; padding: 4px; border-color: #f2e7eb; border-radius: 3px; box-shadow: none; }
 .dashboard-page .income-export-preview-paper .income-summary-icon { display: none; }
 .dashboard-page .income-export-preview-paper .income-summary-card h3 { font-size: 6px; }
