@@ -35,7 +35,7 @@ Tai khoan thu nghiem mac dinh khi chua co `backend/data/users.json`:
 - So dien thoai: `0900000000`
 - Mat khau: `Admin@123`
 
-Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai; da them luong quen mat khau qua OTP (demo, tra ve ma OTP trong JSON de test local).
+Dang nhap hien tai ho tro ca ten dang nhap, email va so dien thoai. Luong quen mat khau cho phep chon Gmail hoac SMS. De gui OTP qua Gmail, them `GMAIL_USERNAME` va `GMAIL_APP_PASSWORD` (App Password) vao `backend/.env`. De gui SMS, can tai khoan Twilio co quyen gui SMS va cau hinh `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, va mot trong hai gia tri `TWILIO_FROM_NUMBER` hoac `TWILIO_MESSAGING_SERVICE_SID`. So dien thoai tai khoan duoc gui theo ma vung Viet Nam (+84). Khoi dong lai backend sau khi sua `.env`; khong commit/chia se cac thong tin xac thuc. OTP co hieu luc 5 phut. Neu kenh da chon chua duoc cau hinh hoac gui that bai, API tra loi loi va khong tao/tra OTP demo.
 
 ## Database
 

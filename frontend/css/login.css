@@ -253,7 +253,8 @@
   position: relative;
 }
 
-.login-page .input-wrap input {
+.login-page .input-wrap input,
+.login-page .input-wrap select {
   width: 100%;
   min-height: 40px;
   padding: 9px 42px;
@@ -265,12 +266,18 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.login-page .input-wrap select {
+  padding-right: 34px;
+  cursor: pointer;
+}
+
 .login-page .input-wrap input::placeholder {
   color: #8b7a80;
   opacity: 1;
 }
 
-.login-page .input-wrap input:focus {
+.login-page .input-wrap input:focus,
+.login-page .input-wrap select:focus {
   border-color: rgba(196, 97, 142, 0.8);
   box-shadow: 0 0 0 4px rgba(192, 93, 131, 0.12);
   outline: none;

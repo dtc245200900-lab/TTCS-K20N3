@@ -2,11 +2,14 @@ import json
 import math
 import os
 import re
+import secrets
+import smtplib
 import sys
 import threading
 import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
+from email.message import EmailMessage
 from pathlib import Path
 
 import bcrypt
@@ -374,6 +377,84 @@ def public_user(user):
 
 PASSWORD_RESET_TTL_SECONDS = 300
 PASSWORD_RESET_CODES = {}
+
+
+def gmail_smtp_credentials():
+    username = os.getenv("GMAIL_USERNAME", "").strip() or os.getenv("SMTP_EMAIL", "").strip()
+    app_password = os.getenv("GMAIL_APP_PASSWORD", "").strip() or os.getenv("SMTP_PASSWORD", "").strip()
+    return username, app_password
+
+
+def send_password_reset_email(recipient, otp):
+    message = EmailMessage()
+    message["Subject"] = "Mã OTP đặt lại mật khẩu - Hotel Manager"
+    username, app_password = gmail_smtp_credentials()
+    sender = (
+        os.getenv("GMAIL_SENDER", "").strip()
+        or username
+    )
+    smtp_host = os.getenv("GMAIL_SMTP_HOST", "").strip() or os.getenv("SMTP_HOST", "").strip() or "smtp.gmail.com"
+    smtp_port = os.getenv("GMAIL_SMTP_PORT", "").strip() or os.getenv("SMTP_PORT", "").strip() or "587"
+    message["From"] = sender
+    message["To"] = recipient
+    message.set_content(
+        f"Mã OTP đặt lại mật khẩu Hotel Manager của bạn là: {otp}\n"
+        f"Mã có hiệu lực trong {PASSWORD_RESET_TTL_SECONDS // 60} phút. "
+        "Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này."
+    )
+
+    with smtplib.SMTP(smtp_host, int(smtp_port), timeout=10) as server:
+        server.starttls()
+        server.login(username, app_password)
+        server.send_message(message)
+
+
+def send_password_reset_sms(recipient, otp):
+    account_sid = os.environ["TWILIO_ACCOUNT_SID"]
+    auth_token = os.environ["TWILIO_AUTH_TOKEN"]
+    messaging_service_sid = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "").strip()
+    sender_number = os.getenv("TWILIO_FROM_NUMBER", "").strip()
+    message_data = {
+        "To": recipient,
+        "Body": (
+            f"Ma OTP dat lai mat khau Hotel Manager: {otp}. "
+            f"Ma co hieu luc trong {PASSWORD_RESET_TTL_SECONDS // 60} phut."
+        ),
+    }
+    if messaging_service_sid:
+        message_data["MessagingServiceSid"] = messaging_service_sid
+    else:
+        message_data["From"] = sender_number
+
+    response = requests.post(
+        f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
+        data=message_data,
+        auth=(account_sid, auth_token),
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
+def masked_email(email):
+    local, separator, domain = email.partition("@")
+    if not separator:
+        return ""
+    return f"{local[:2]}***@{domain}"
+
+
+def vietnamese_phone_e164(phone):
+    normalized = normalize_phone(phone)
+    if normalized.startswith("0"):
+        normalized = normalized[1:]
+    elif normalized.startswith("84"):
+        normalized = normalized[2:]
+    if not 9 <= len(normalized) <= 10:
+        return ""
+    return f"+84{normalized}"
+
+
+def masked_phone(phone):
+    return f"*** *** {phone[-3:]}"
 
 
 def normalize_username(value):
@@ -2174,32 +2255,66 @@ def register():
 def forgot_password_request():
     data = request_data()
     username = normalize_username(data.get("username", ""))
-    phone = normalize_phone(data.get("phone", ""))
-    if len(username) < 3 or len(phone) < 9:
-        return jsonify(message="Vui lòng nhập tên đăng nhập và số điện thoại hợp lệ."), 400
-    user = next((item for item in users() if normalize_username(item.get("username", "")) == username and normalize_phone(item.get("phone", "")) == phone), None)
+    channel = str(data.get("channel", "email")).strip().lower()
+    if len(username) < 3:
+        return jsonify(message="Vui lòng nhập tên đăng nhập hợp lệ."), 400
+    if channel not in {"email", "sms"}:
+        return jsonify(message="Phương thức nhận OTP không hợp lệ."), 400
+    user = next((item for item in users() if normalize_username(item.get("username", "")) == username), None)
     if not user:
-        return jsonify(message="Tài khoản không tồn tại hoặc số điện thoại không khớp."), 404
+        return jsonify(message="Không tìm thấy tài khoản."), 404
 
-    import random
-    otp = f"{random.randint(100000, 999999)}"
+    phone = normalize_phone(user.get("phone", ""))
+
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    if channel == "email":
+        email = str(user.get("email", "")).strip()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            return jsonify(message="Tài khoản chưa có email hợp lệ để nhận mã OTP."), 400
+        gmail_username, gmail_app_password = gmail_smtp_credentials()
+        if gmail_username and gmail_app_password:
+            try:
+                send_password_reset_email(email, otp)
+            except (OSError, smtplib.SMTPException, ValueError):
+                app.logger.exception("Failed to send password reset email")
+                return jsonify(message="Không gửi được email OTP. Vui lòng thử lại sau."), 502
+        else:
+            return jsonify(message="Chưa cấu hình Gmail SMTP. Vui lòng cấu hình Gmail trước khi gửi mã OTP."), 503
+        destination = masked_email(email)
+        message = "Mã OTP đã được gửi đến email đăng ký của bạn."
+    else:
+        recipient = vietnamese_phone_e164(phone)
+        if not recipient:
+            return jsonify(message="Số điện thoại cần có mã vùng Việt Nam hợp lệ để nhận SMS."), 400
+        account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+        auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+        sender_number = os.getenv("TWILIO_FROM_NUMBER", "").strip()
+        messaging_service_sid = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "").strip()
+        if not account_sid or not auth_token or not (sender_number or messaging_service_sid):
+            return jsonify(message="Chưa cấu hình Twilio để gửi SMS OTP."), 503
+        try:
+            send_password_reset_sms(recipient, otp)
+        except (OSError, requests.RequestException, ValueError):
+            app.logger.exception("Failed to send password reset SMS")
+            return jsonify(message="Không gửi được SMS OTP. Vui lòng thử lại sau."), 502
+        destination = masked_phone(recipient)
+        message = "Mã OTP đã được gửi qua SMS đến số điện thoại đăng ký."
+
     PASSWORD_RESET_CODES[username] = {
         "phone": phone,
         "otp": otp,
         "expires_at": time.time() + PASSWORD_RESET_TTL_SECONDS,
     }
-    response = {"message": "Mã OTP đã được tạo và gửi qua SMS.", "otp": otp}
-    return jsonify(response)
+    return jsonify(message=message, destination=destination)
 
 
 @app.post("/api/forgot-password/verify")
 def forgot_password_verify():
     data = request_data()
     username = normalize_username(data.get("username", ""))
-    phone = normalize_phone(data.get("phone", ""))
     otp = str(data.get("otp", "")).strip()
     entry = PASSWORD_RESET_CODES.get(username)
-    if not entry or entry["phone"] != phone or entry["otp"] != otp:
+    if not entry or entry["otp"] != otp:
         return jsonify(message="Mã OTP không hợp lệ hoặc đã hết hạn."), 400
     if time.time() > entry["expires_at"]:
         PASSWORD_RESET_CODES.pop(username, None)
@@ -2211,13 +2326,12 @@ def forgot_password_verify():
 def forgot_password_reset():
     data = request_data()
     username = normalize_username(data.get("username", ""))
-    phone = normalize_phone(data.get("phone", ""))
     otp = str(data.get("otp", "")).strip()
     new_password = str(data.get("newPassword", ""))
     if len(new_password) < 8:
         return jsonify(message="Mật khẩu mới phải có ít nhất 8 ký tự."), 400
     entry = PASSWORD_RESET_CODES.get(username)
-    if not entry or entry["phone"] != phone or entry["otp"] != otp:
+    if not entry or entry["otp"] != otp:
         return jsonify(message="Thông tin xác thực không hợp lệ."), 400
     if time.time() > entry["expires_at"]:
         PASSWORD_RESET_CODES.pop(username, None)

@@ -22,6 +22,36 @@
   };
   const normalized = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
   const statusOf = room => roomStatusInfo(room.status).className;
+  const niceChartMaximum = value => {
+    const roughStep = Math.max(value, 1) / 4;
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const normalizedStep = roughStep / magnitude;
+    const step = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2
+      : normalizedStep <= 2.5 ? 2.5 : normalizedStep <= 5 ? 5 : 10;
+    return Math.max(step * magnitude * Math.ceil(value / (step * magnitude)), step * magnitude);
+  };
+  const formatChartTick = value => {
+    if (value >= 1_000_000_000) {
+      return (value / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tỷ';
+    }
+    if (value >= 1_000_000) {
+      return (value / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tr';
+    }
+    if (value >= 1_000) {
+      return (value / 1_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' k';
+    }
+    return Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+  };
+  const smoothChartPath = points => {
+    if (!points.length) return '';
+    return points.slice(1).reduce((path, point, index) => {
+      const previous = points[index];
+      const midpoint = (previous.x + point.x) / 2;
+      return path + ' C ' + midpoint.toFixed(1) + ' ' + previous.y.toFixed(1) + ', ' +
+        midpoint.toFixed(1) + ' ' + point.y.toFixed(1) + ', ' +
+        point.x.toFixed(1) + ' ' + point.y.toFixed(1);
+    }, 'M ' + points[0].x.toFixed(1) + ' ' + points[0].y.toFixed(1));
+  };
   const chartColors = ['#f26b9b', '#ffa88f', '#ffc36d', '#bd8be9', '#72c7b4', '#7aa8ed', '#f27e72'];
   let calendarDate = new Date(date.getFullYear(), date.getMonth(), 1);
   let selectedRevenueMonth = null;
@@ -164,8 +194,73 @@
 
     const monthLabel = new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' })
       .format(new Date(year, month, 1));
+    const chartWidth = 1000;
+    const chartHeight = 220;
+    const chartPadding = { left: 78, right: 12, top: 14, bottom: 30 };
+    const chartPlotWidth = chartWidth - chartPadding.left - chartPadding.right;
+    const chartPlotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+    const chartMax = niceChartMaximum(Math.max(...days.map(day => day.total), 1));
+    const chartSlotWidth = chartPlotWidth / days.length;
+    const chartPoints = days.map((day, index) => ({
+      x: chartPadding.left + (index + 0.5) * chartSlotWidth,
+      y: chartPadding.top + chartPlotHeight - day.total / chartMax * chartPlotHeight
+    }));
+    const comparisonCounts = days.slice(1).reduce((counts, day, index) => {
+      const previousTotal = days[index].total;
+      if (day.total > previousTotal) counts.increased += 1;
+      else if (day.total < previousTotal) counts.decreased += 1;
+      else counts.unchanged += 1;
+      return counts;
+    }, { increased: 0, decreased: 0, unchanged: 0 });
+    const trendSummary = 'So với ngày trước: ' + comparisonCounts.increased + ' ngày tăng · ' +
+      comparisonCounts.decreased + ' ngày giảm · ' + comparisonCounts.unchanged + ' ngày không đổi';
+    const chartGrid = [1, 0.75, 0.5, 0.25, 0].map(fraction => {
+      const y = chartPadding.top + chartPlotHeight * fraction;
+      return '<line x1="' + chartPadding.left + '" y1="' + y.toFixed(1) + '" x2="' +
+        (chartWidth - chartPadding.right) + '" y2="' + y.toFixed(1) + '"></line>' +
+        '<text x="' + (chartPadding.left - 10) + '" y="' + (y + 4).toFixed(1) +
+        '" text-anchor="end">' + escapeHtml(formatChartTick(chartMax * fraction)) + '</text>';
+    }).join('');
+    const chartBars = days.map((day, index) => {
+      const point = chartPoints[index];
+      if (!day.total) return '';
+      const previousTotal = index > 0 ? days[index - 1].total : day.total;
+      const color = index === 0 ? '#b2a6ad' : day.total > previousTotal ? '#67aa8d'
+        : day.total < previousTotal ? '#df7895' : '#b2a6ad';
+      const amountHeight = Math.max(1, chartPadding.top + chartPlotHeight - point.y);
+      const barHeight = amountHeight;
+      const barY = chartPadding.top + chartPlotHeight - barHeight;
+      const change = index === 0 ? 'ngày đầu tháng'
+        : day.total > previousTotal ? 'tăng so với ngày trước'
+          : day.total < previousTotal ? 'giảm so với ngày trước' : 'không đổi so với ngày trước';
+      const title = 'Ngày ' + (index + 1) + ': ' + formatCurrency(day.total) + ', ' + change;
+      return '<rect x="' + (point.x - chartSlotWidth * 0.3).toFixed(1) + '" y="' + barY.toFixed(1) +
+        '" width="' + (chartSlotWidth * 0.6).toFixed(1) + '" height="' + barHeight.toFixed(1) +
+        '" rx="2" fill="' + color + '"><title>' + escapeHtml(title) + '</title></rect>';
+    }).join('');
+    const chartLabels = days.map((_, index) => index === 0 || (index + 1) % 5 === 0 || index === days.length - 1
+      ? '<text x="' + chartPoints[index].x.toFixed(1) + '" y="' + (chartHeight - 8) +
+        '" text-anchor="middle">' + (index + 1) + '</text>'
+      : ''
+    ).join('');
+    const dailyTotal = days.reduce((sum, day) => sum + day.total, 0);
     container.hidden = false;
     container.innerHTML = '<h4>Chi tiết ' + escapeHtml(monthLabel) + '</h4>' +
+      '<div class="revenue-daily-chart"><div class="revenue-daily-chart-heading"><strong>Doanh thu theo ngày</strong>' +
+      '<span>Tổng tháng: ' + formatCurrency(dailyTotal) + '</span></div><p>' + escapeHtml(trendSummary) + '</p>' +
+      '<svg class="revenue-daily-chart-svg" viewBox="0 0 ' + chartWidth + ' ' + chartHeight +
+      '" role="img" aria-label="Doanh thu từng ngày trong ' + escapeHtml(monthLabel) + '. ' +
+      escapeHtml(trendSummary) + '">' + chartGrid +
+      '<line class="revenue-chart-y-axis" x1="' + chartPadding.left + '" y1="' + chartPadding.top +
+      '" x2="' + chartPadding.left + '" y2="' + (chartHeight - chartPadding.bottom) + '"></line>' +
+      chartBars + '<path d="' + smoothChartPath(chartPoints) + '"></path>' +
+      chartPoints.map((point, index) => days[index].total > 0
+        ? '<circle cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="4"><title>Ngày ' +
+          (index + 1) + ': ' + formatCurrency(days[index].total) + '</title></circle>'
+        : ''
+      ).join('') + chartLabels + '</svg>' +
+      '<div class="revenue-daily-chart-legend"><span><i class="increased"></i>Tăng</span>' +
+      '<span><i class="decreased"></i>Giảm</span><span><i class="unchanged"></i>Không đổi</span></div></div>' +
       '<div class="revenue-calendar-weekdays" aria-hidden="true"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div>' +
       '<div class="revenue-calendar-grid" role="group" aria-label="Lịch ' + escapeHtml(monthLabel) + '">' + cells.join('') + '</div>' +
       '<p class="revenue-daily-note"><i class="revenue-calendar-dot has-data"></i>Có dữ liệu đặt/trả phòng <i class="revenue-calendar-dot"></i>Chưa có dữ liệu</p>' +
@@ -310,13 +405,13 @@
     if (roomTotalFooterCell) roomTotalFooterCell.textContent = formatCurrency(totalYear);
     if (bookingCountCell) bookingCountCell.textContent = String(completedBookings);
 
-    const maxChartAmount = Math.max(...totals, 1);
+    const maxChartAmount = niceChartMaximum(Math.max(...totals, 1));
     const chart = document.querySelector('#income-monthly-chart');
     if (chart) {
       const points = totals.map((amount, index) => {
         const x = (index + 0.5) / totals.length * 1200;
         const y = 145 - (amount / maxChartAmount) * 116;
-        return x.toFixed(1) + ',' + y.toFixed(1);
+        return { x, y };
       });
       chart.innerHTML = totals.map((amount, index) => {
         const barHeight = amount > 0 ? Math.max(1, amount / maxChartAmount * 100) : 0;
@@ -325,10 +420,9 @@
             '" aria-pressed="' + selected + '" title="Tháng ' + (index + 1) + ': ' + formatCurrency(amount) + '">' +
             '<div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + barHeight + '%"></i></div>' +
             '<span>Th' + (index + 1) + '</span></button>';
-      }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
-        points.join(' ') + '"></polyline>' + points.map(point => {
-          const [x, y] = point.split(',');
-          return '<circle cx="' + x + '" cy="' + y + '" r="4"></circle>';
+      }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><path d="' +
+        smoothChartPath(points) + '"></path>' + points.map(point => {
+          return '<circle cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3"></circle>';
         }).join('') + '</svg>';
       chart.setAttribute('aria-label', 'Biểu đồ doanh thu phòng năm ' + selectedYear + ': ' + formatCurrency(totalYear));
     }
@@ -337,7 +431,7 @@
     const chartAxis = document.querySelector('#income-chart-axis');
     if (chartAxis) {
       chartAxis.innerHTML = [1, .75, .5, .25, 0].map(fraction =>
-        '<span>' + formatCurrency(maxChartAmount * fraction) + '</span>'
+        '<span>' + escapeHtml(formatChartTick(maxChartAmount * fraction)) + '</span>'
       ).join('');
     }
 
@@ -538,6 +632,24 @@
       const date = new Date(booking.actualCheckOutAt);
       return Number.isFinite(date.getTime()) && date >= range.start && date < endExclusive;
     });
+    const isSingleMonth = range.start.getFullYear() === range.end.getFullYear()
+      && range.start.getMonth() === range.end.getMonth();
+    const dailyData = isSingleMonth ? Array.from(
+      { length: range.end.getDate() - range.start.getDate() + 1 },
+      (_, index) => ({
+        date: new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() + index),
+        total: 0
+      })
+    ) : [];
+    completed.forEach(booking => {
+      const checkoutDate = new Date(booking.actualCheckOutAt);
+      const dayIndex = checkoutDate.getDate() - range.start.getDate();
+      if (dailyData[dayIndex]
+        && checkoutDate.getFullYear() === range.start.getFullYear()
+        && checkoutDate.getMonth() === range.start.getMonth()) {
+        dailyData[dayIndex].total += Number(booking.rentalTotal) || 0;
+      }
+    });
     const months = [];
     const cursor = new Date(range.start.getFullYear(), range.start.getMonth(), 1);
     const lastMonth = new Date(range.end.getFullYear(), range.end.getMonth(), 1);
@@ -608,26 +720,28 @@
     if (yearChangeFooter) yearChangeFooter.textContent = 'Trong kỳ';
 
     const chart = clone.querySelector('#income-monthly-chart');
-    const maxAmount = Math.max(...months.map(item => item.amount), 1);
+    const maxAmount = niceChartMaximum(Math.max(...months.map(item => item.amount), 1));
     if (chart) {
       chart.style.gridTemplateColumns = 'repeat(' + Math.max(months.length, 1) + ', minmax(0, 1fr))';
       const points = months.map((item, index) =>
-        ((index + .5) / months.length * 1200).toFixed(1) + ',' + (145 - item.amount / maxAmount * 116).toFixed(1)
+        ({
+          x: (index + .5) / months.length * 1200,
+          y: 145 - item.amount / maxAmount * 116
+        })
       );
       chart.innerHTML = months.map(item => {
         const height = item.amount > 0 ? Math.max(1, item.amount / maxAmount * 100) : 0;
         return '<div class="income-chart-month" title="' + (item.month + 1) + '/' + item.year + ': ' + formatCurrency(item.amount) +
           '"><div class="income-chart-bars"><i class="room-revenue" style="--bar-height:' + height +
           '%"></i></div><span>T' + (item.month + 1) + '</span></div>';
-      }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><polyline points="' +
-        points.join(' ') + '"></polyline>' + points.map(point => {
-          const [x, y] = point.split(',');
-          return '<circle cx="' + x + '" cy="' + y + '" r="4"></circle>';
+      }).join('') + '<svg class="income-chart-total-line" viewBox="0 0 1200 160" preserveAspectRatio="none" aria-hidden="true"><path d="' +
+        smoothChartPath(points) + '"></path>' + points.map(point => {
+          return '<circle cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3"></circle>';
         }).join('') + '</svg>';
     }
     const axis = clone.querySelector('#income-chart-axis');
     if (axis) axis.innerHTML = [1, .75, .5, .25, 0].map(fraction =>
-      '<span>' + formatCurrency(maxAmount * fraction) + '</span>'
+      '<span>' + escapeHtml(formatChartTick(maxAmount * fraction)) + '</span>'
     ).join('');
     const composition = clone.querySelector('#income-composition-chart');
     if (composition) {
@@ -658,32 +772,6 @@
     if (averageRevenue) averageRevenue.textContent = formatCurrency(completed.length ? total / completed.length : 0);
 
     const periodText = formatDate(range.start) + ' - ' + formatDate(range.end);
-    const paper = incomeExportPreview;
-    paper.replaceChildren();
-    const brand = document.createElement('div');
-    brand.className = 'income-export-preview-brand';
-    if (incomeExportLogo) {
-      const logo = document.createElement('img');
-      logo.src = incomeExportLogo;
-      logo.alt = '';
-      brand.append(logo);
-    }
-    brand.append(document.createTextNode('KHÁCH SẠN'));
-    paper.append(brand);
-    const previewTitle = document.createElement('h2');
-    previewTitle.textContent = title;
-    paper.append(previewTitle);
-    const previewPeriod = document.createElement('p');
-    previewPeriod.className = 'income-export-preview-period';
-    previewPeriod.textContent = periodText;
-    paper.append(previewPeriod);
-    paper.append(clone);
-    const footer = document.createElement('div');
-    footer.className = 'income-export-preview-footer';
-    footer.innerHTML = '<span>Ngày xuất: ' + escapeHtml(new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())) +
-      '</span><span>Trang 1/1</span>';
-    paper.append(footer);
-
     const visibility = {
       summary: clone.querySelector('.income-report-summary'),
       chart: clone.querySelector('.income-chart-panel'),
@@ -697,14 +785,149 @@
       const target = visibility[input.dataset.exportSection];
       if (target) target.hidden = !input.checked;
     });
-    const sidePanels = clone.querySelector('.income-report-side-panels');
-    if (sidePanels) sidePanels.hidden = !visibility.topRooms?.hidden && !visibility.activity?.hidden
-      ? false : !incomeExportDialog.querySelector('[data-export-section="topRooms"]').checked
-        && !incomeExportDialog.querySelector('[data-export-section="activity"]').checked;
     const theme = incomeExportDialog.querySelector('input[name="income-export-theme"]:checked')?.value || '#d93670';
+    const paper = incomeExportPreview;
+    paper.replaceChildren();
     incomeExportDialog.style.setProperty('--income-export-accent', theme);
     paper.style.setProperty('--income-export-accent', theme);
-    return { paper, title, periodText };
+    const pages = document.createElement('div');
+    pages.className = 'income-export-pages';
+    const makePage = pageNumber => {
+      const page = document.createElement('article');
+      page.className = 'income-export-page';
+      const header = document.createElement('header');
+      header.className = 'income-export-page-header';
+      const identity = document.createElement('div');
+      identity.className = 'income-export-page-brand';
+      if (incomeExportLogo) {
+        const logo = document.createElement('img');
+        logo.src = incomeExportLogo;
+        logo.alt = '';
+        identity.append(logo);
+      } else {
+        const mark = document.createElement('span');
+        mark.className = 'income-export-page-mark';
+        mark.setAttribute('aria-hidden', 'true');
+        mark.textContent = '✿';
+        identity.append(mark);
+      }
+      const hotelName = document.createElement('span');
+      hotelName.innerHTML = '<strong>KHÁCH SẠN</strong><small>Hotel Manager</small>';
+      identity.append(hotelName);
+      const heading = document.createElement('div');
+      heading.className = 'income-export-page-heading';
+      heading.innerHTML = '<strong>' + escapeHtml(title) + '</strong><span>Từ ngày ' +
+        escapeHtml(formatDate(range.start)) + ' đến ngày ' + escapeHtml(formatDate(range.end)) + '</span>';
+      header.append(identity, heading);
+      const content = document.createElement('div');
+      content.className = 'income-export-page-content page-' + pageNumber;
+      const footer = document.createElement('footer');
+      footer.className = 'income-export-page-footer';
+      footer.innerHTML = '<span>Hotel Manager · Quản lý khách sạn</span><span>Trang ' + pageNumber + '/2</span>';
+      page.append(header, content, footer);
+      pages.append(page);
+      return content;
+    };
+    const firstPage = makePage(1);
+    const secondPage = makePage(2);
+    const chartPanel = clone.querySelector('.income-chart-panel');
+    const tablePanel = clone.querySelector('.income-table-panel');
+    const compositionPanel = clone.querySelector('.income-composition-panel');
+    const topRoomsPanel = clone.querySelector('.income-top-rooms-panel');
+    const activityPanel = clone.querySelector('.income-activity-panel');
+    const notes = clone.querySelector('.income-data-note');
+    if (visibility.summary) firstPage.append(visibility.summary);
+    if (chartPanel) firstPage.append(chartPanel);
+    if (tablePanel) firstPage.append(tablePanel);
+
+    const secondPageGrid = document.createElement('div');
+    secondPageGrid.className = 'income-export-page-two-grid';
+    if (compositionPanel) secondPageGrid.append(compositionPanel);
+    if (topRoomsPanel) secondPageGrid.append(topRoomsPanel);
+    if (dailyData.length && !visibility.chart?.hidden) {
+      const maxDaily = niceChartMaximum(Math.max(...dailyData.map(item => item.total), 1));
+      const chartWidth = 1000;
+      const chartHeight = 230;
+      const chartPadding = { left: 68, right: 10, top: 14, bottom: 28 };
+      const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
+      const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+      const slotWidth = plotWidth / dailyData.length;
+      const points = dailyData.map((item, index) => ({
+        x: chartPadding.left + (index + 0.5) * slotWidth,
+        y: chartPadding.top + plotHeight - item.total / maxDaily * plotHeight
+      }));
+      const comparisons = dailyData.slice(1).reduce((counts, item, index) => {
+        if (item.total > dailyData[index].total) counts.increased += 1;
+        else if (item.total < dailyData[index].total) counts.decreased += 1;
+        else counts.unchanged += 1;
+        return counts;
+      }, { increased: 0, decreased: 0, unchanged: 0 });
+      const axisFractions = [1, .75, .5, .25, 0];
+      const lines = axisFractions.map(fraction => {
+        const y = chartPadding.top + plotHeight * fraction;
+        return '<line x1="' + chartPadding.left + '" y1="' + y.toFixed(1) + '" x2="' +
+          (chartWidth - chartPadding.right) + '" y2="' + y.toFixed(1) + '"></line>' +
+          '<text x="' + (chartPadding.left - 7) + '" y="' + (y + 4).toFixed(1) +
+          '" text-anchor="end">' + escapeHtml(formatChartTick(maxDaily * fraction)) + '</text>';
+      }).join('');
+      const bars = dailyData.map((item, index) => {
+        const previous = index ? dailyData[index - 1].total : item.total;
+        const color = index === 0 || item.total === previous ? '#b2a6ad'
+          : item.total > previous ? '#67aa8d' : '#df7895';
+        const height = Math.max(2, item.total / maxDaily * plotHeight);
+        return '<rect x="' + (points[index].x - slotWidth * .32).toFixed(1) + '" y="' +
+          (chartPadding.top + plotHeight - height).toFixed(1) + '" width="' +
+          (slotWidth * .64).toFixed(1) + '" height="' + height.toFixed(1) + '" rx="2" fill="' + color +
+          '"><title>' + escapeHtml(formatDate(item.date) + ': ' + formatCurrency(item.total)) +
+          '</title></rect>';
+      }).join('');
+      const labels = dailyData.map((item, index) => index === 0
+        || (item.date.getDate() % 5 === 0)
+        || index === dailyData.length - 1
+        ? '<text x="' + points[index].x.toFixed(1) + '" y="' + (chartHeight - 7) +
+          '" text-anchor="middle">' + item.date.getDate() + '</text>' : ''
+      ).join('');
+      const dailyPanel = document.createElement('section');
+      dailyPanel.className = 'income-panel income-export-daily-panel';
+      dailyPanel.innerHTML = '<div class="income-panel-heading"><h3>Doanh thu theo ngày (' +
+        escapeHtml(new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(range.start)) +
+        ')</h3></div><div class="income-export-daily-summary"><strong>' +
+        formatCurrency(dailyData.reduce((sum, item) => sum + item.total, 0)) +
+        '</strong><span>Tổng doanh thu trong tháng</span></div><svg viewBox="0 0 ' + chartWidth + ' ' +
+        chartHeight + '" role="img" aria-label="Biểu đồ doanh thu theo ngày. ' + comparisons.increased +
+        ' ngày tăng, ' + comparisons.decreased + ' ngày giảm">' + lines + bars +
+        '<path d="' + smoothChartPath(points) + '"></path>' + labels + '</svg><p>So với ngày liền trước: <strong>' +
+        comparisons.increased + ' ngày tăng</strong> · <strong>' + comparisons.decreased +
+        ' ngày giảm</strong> · ' + comparisons.unchanged + ' ngày không đổi</p>';
+      secondPageGrid.append(dailyPanel);
+    }
+    if (secondPageGrid.childElementCount) secondPage.append(secondPageGrid);
+    if (activityPanel) secondPage.append(activityPanel);
+    if (notes && !notes.hidden) {
+      const notesPanel = document.createElement('section');
+      notesPanel.className = 'income-export-notes';
+      notesPanel.innerHTML = '<strong>Ghi chú</strong>';
+      notesPanel.append(notes);
+      const topRoomName = topRoomsPanel?.querySelector('.income-room-info strong')?.textContent;
+      const insights = [
+        'Doanh thu dịch vụ chưa được ghi nhận trong hệ thống.',
+        topRoomName ? 'Phòng có doanh thu cao nhất: ' + topRoomName + '.' : ''
+      ].filter(Boolean);
+      const list = document.createElement('ul');
+      insights.forEach(item => {
+        const entry = document.createElement('li');
+        entry.textContent = item;
+        list.append(entry);
+      });
+      notesPanel.append(list);
+      secondPage.append(notesPanel);
+    }
+    const signature = document.createElement('div');
+    signature.className = 'income-export-signature';
+    signature.innerHTML = '<strong>Người lập báo cáo</strong><span> </span><small>Ký và ghi rõ họ tên</small>';
+    secondPage.append(signature);
+    paper.append(pages);
+    return { paper, title, periodText, theme };
   }
 
   function openExportDocument(shouldPrint) {
@@ -725,8 +948,9 @@
     previewWindow.document.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
       escapeHtml(report.title) + '</title><base href="' + escapeHtml(window.location.origin) +
       '/"><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/dashboard.css"><style>' +
-      'body.dashboard-page{display:block!important;margin:0!important;padding:18px!important;background:#fff!important}.income-export-preview-paper{width:100%;max-width:none;min-height:0;padding:0;box-shadow:none!important}.income-export-preview-paper .income-report-board{width:100%;max-width:none}.income-export-preview-paper .income-report-panels,.income-export-preview-paper .income-report-lower-panels{break-inside:avoid}.income-export-preview-paper .income-report-table-wrap{overflow:visible}.income-export-preview-paper .income-report-table{min-width:0}@page{size:A4 portrait;margin:12mm}@media print{body.dashboard-page{padding:0!important}body.dashboard-page *{visibility:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.income-export-preview-paper{break-inside:avoid}.income-export-preview-paper .income-report-table tr{break-inside:avoid}}' +
-      '</style></head><body class="dashboard-page"><main class="income-export-preview-paper">' +
+      'body.dashboard-page{display:block!important;margin:0!important;padding:18px!important;background:#fff!important}.income-export-preview-paper{width:100%;max-width:none;min-height:0;padding:0;box-shadow:none!important}.income-export-pages{display:block!important}.income-export-page{width:186mm;height:273mm;min-height:273mm;break-after:page;page-break-after:always;break-inside:avoid;overflow:hidden}.income-export-page:last-child{break-after:auto;page-break-after:auto}.income-export-page-content{min-height:0}.income-export-preview-paper .income-report-board{width:100%;max-width:none}.income-export-preview-paper .income-report-panels,.income-export-preview-paper .income-report-lower-panels{break-inside:avoid}.income-export-preview-paper .income-report-table-wrap{overflow:visible}.income-export-preview-paper .income-report-table{min-width:0}@page{size:A4 portrait;margin:12mm}@media print{body.dashboard-page{padding:0!important}body.dashboard-page *{visibility:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.income-export-page{break-inside:avoid}.income-export-page .income-report-table tr{break-inside:avoid}}' +
+      '</style></head><body class="dashboard-page"><main class="income-export-preview-paper" style="--income-export-accent:' +
+      escapeHtml(report.theme) + '">' +
       report.paper.innerHTML + '</main></body></html>');
     previewWindow.document.close();
   }
